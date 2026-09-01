@@ -1,0 +1,57 @@
+{
+  "id": "kraken-chart",
+  "title": "Kraken Chart",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#14161C",
+      "ink1": "#2E5A6B"
+    }
+  },
+  "layers": [
+    {
+      "source": "nautical-chart.jpg",
+      "ink": "ink1",
+      "gamma": 1.3,
+      "transform": {
+        "scale": 0.92,
+        "offset": [
+          0,
+          0.0
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "antique sea chart \u2014 NYPL or Rijksmuseum",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "montfort-octopus.jpg",
+      "ink": "ink0",
+      "gamma": 0.95,
+      "transform": {
+        "scale": 0.66,
+        "offset": [
+          0,
+          0.04
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Denys de Montfort colossal octopus, 1801",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}

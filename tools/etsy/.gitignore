@@ -1,2 +1,5 @@
 out/
+sources/
 fonts/*.ttf
+rival-history.json
+__pycache__/

@@ -167,16 +167,12 @@ def lift_background(img, thresh=42, feather=2.0, step=None,
         if sum(abs(a - b) for a, b in zip(c, paper)) <= thresh * 3:
             ImageDraw.floodfill(work, (x, y), sent, thresh=thresh)
 
-    # sentinel -> transparent, everything else opaque
-    mask = Image.new("L", (w, h), 255)
-    mpx = mask.load()
-    wpx = work.load()
-    cleared = 0
-    for y in range(h):
-        for x in range(w):
-            if wpx[x, y] == sent:
-                mpx[x, y] = 0
-                cleared += 1
+    # sentinel -> transparent, everything else opaque.
+    # Done as a whole-image difference rather than a per-pixel loop: the loop was
+    # 7.6M Python iterations on a 2300x3300 plate (~10s), which a four-layer
+    # composite pays four times over. ImageChops runs in C.
+    diff = ImageChops.difference(work, Image.new("RGB", (w, h), sent)).convert("L")
+    mask = diff.point(lambda v: 0 if v == 0 else 255)
 
     # Second pass — the enclosed gaps.
     #

@@ -1,0 +1,58 @@
+{
+  "id": "dore-descent",
+  "title": "Dore's Descent",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#141414",
+      "ink1": "#3A4A3A"
+    }
+  },
+  "layers": [
+    {
+      "source": "dore-figure.jpg",
+      "ink": "ink0",
+      "gamma": 1.1,
+      "transform": {
+        "scale": 0.76,
+        "offset": [
+          0,
+          -0.02
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Dore engraving \u2014 Paradise Lost or Inferno, a falling figure",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "thorn-branch.jpg",
+      "ink": "ink1",
+      "gamma": 0.9,
+      "transform": {
+        "scale": 0.52,
+        "offset": [
+          -0.2,
+          0.26
+        ],
+        "rotate": -22
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "thorned branch or bramble, botanical plate",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}

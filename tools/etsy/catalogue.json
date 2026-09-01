@@ -1,0 +1,202 @@
+{
+  "shop": "CorpalCaptain",
+  "notes": "Source of truth. listing.py, calendar.py and rival.py all read this. Tags listed here are the SEVEN design tags only; listing.py appends the six universals.",
+  "designs": [
+    {
+      "id": "jellyfish-blue",
+      "name": "Haeckel Blue Jellyfish",
+      "status": "live",
+      "listing_id": "4562151062",
+      "price": 23.99,
+      "phrase": "Jellyfish T Shirt",
+      "title": "Jellyfish T Shirt Vintage Scientific Illustration Tee, Ernst Haeckel Blue Jellyfish Ocean Art, Unisex Cotton Marine Biology Gift",
+      "tags": [
+        "jellyfish tshirt",
+        "vintage science art",
+        "ocean lover gift",
+        "marine biology tee",
+        "haeckel jellyfish",
+        "sea creature shirt",
+        "dark academia tee"
+      ],
+      "design_paragraph": "A jellyfish drawn in 1904 by Ernst Haeckel, the biologist who spent his life arguing that nature was already art before anyone drew it. This one is Cyanea annasethe \u2014 he named the species after his wife, Anna Sethe, who died the year before he first saw it. The trailing filaments are why."
+    },
+    {
+      "id": "jellyfish-gold",
+      "name": "Haeckel Compass Jellyfish",
+      "status": "live",
+      "listing_id": "4562151082",
+      "price": 23.99,
+      "phrase": "Compass Jellyfish",
+      "title": "Compass Jellyfish T Shirt, Vintage Ernst Haeckel Illustration Tee, Gold Sea Life Art, Unisex Heavy Cotton Naturalist Gift Shirt",
+      "tags": [
+        "jellyfish shirt",
+        "compass jellyfish",
+        "vintage nature art",
+        "ocean art tshirt",
+        "haeckel print tee",
+        "sea life apparel",
+        "naturalist gift"
+      ],
+      "design_paragraph": "The compass jellyfish, Chrysaora hysoscella, drawn by Ernst Haeckel in 1904 for Kunstformen der Natur \u2014 a book made to prove that a jellyfish is better designed than most things people design on purpose. Amber bell, tentacles going their own way."
+    },
+    {
+      "id": "orchid-skull",
+      "name": "Orchid Skull",
+      "status": "planned",
+      "recipe": "recipes/orchid-skull.json",
+      "price": 23.99,
+      "phrase": "Botanical Skull",
+      "title": "Botanical Skull T Shirt, Vintage Anatomy Orchid Tee, Skeleton and Flowers Art, Unisex Heavy Cotton Goth Gift Shirt",
+      "tags": [
+        "botanical skull tee",
+        "skull and flowers",
+        "vintage anatomy art",
+        "orchid skull tshirt",
+        "goth botanical tee",
+        "skeleton flower gift",
+        "memento mori shirt"
+      ],
+      "design_paragraph": "An anatomical skull from a sixteenth-century dissection atlas, with orchids growing out through the cranium. Two plates three hundred years apart, cut out and set in one ink so they read as one drawing rather than two scans."
+    },
+    {
+      "id": "overgrown-prison",
+      "name": "Overgrown Prison",
+      "status": "planned",
+      "recipe": "recipes/overgrown-prison.json",
+      "price": 23.99,
+      "phrase": "Overgrown Ruins",
+      "title": "Overgrown Ruins T Shirt, Piranesi Etching Tee, Gothic Architecture Print, Vintage Engraving Unisex Cotton Gift Shirt",
+      "tags": [
+        "gothic ruins shirt",
+        "piranesi print tee",
+        "vintage etching art",
+        "architecture tshirt",
+        "academia aesthetic",
+        "ruins art gift",
+        "engraving print tee"
+      ],
+      "design_paragraph": "One of Piranesi's imaginary prisons \u2014 staircases that go nowhere, arches holding up nothing \u2014 with two centuries of climbing growth let into it. He drew the impossible architecture in 1750; the plants came from a botanical plate and were never meant to be there."
+    },
+    {
+      "id": "moonlit-ghost",
+      "name": "Moonlit Ghost",
+      "status": "planned",
+      "recipe": "recipes/moonlit-ghost.json",
+      "price": 23.99,
+      "phrase": "Moon Ghost",
+      "title": "Moon Ghost T Shirt, Japanese Yokai Woodblock Tee, Yoshitoshi Print Art, Vintage Star Chart Unisex Cotton Gift Shirt",
+      "tags": [
+        "japanese ghost tee",
+        "yokai shirt",
+        "woodblock print tee",
+        "celestial art shirt",
+        "yoshitoshi print",
+        "moon phase tshirt",
+        "occult art gift"
+      ],
+      "design_paragraph": "A figure from Yoshitoshi's One Hundred Aspects of the Moon, set against a seventeenth-century star atlas. He was the last great woodblock artist and worked while the form was dying; the constellations behind are from Cellarius, who mapped a sky nobody had photographed yet."
+    },
+    {
+      "id": "marigold-calavera",
+      "name": "Marigold Calavera",
+      "status": "planned",
+      "recipe": "recipes/marigold-calavera.json",
+      "price": 23.99,
+      "phrase": "Calavera",
+      "title": "Calavera T Shirt, Day of the Dead Marigold Tee, Posada Skeleton Folk Art, Dia de los Muertos Unisex Cotton Gift Shirt",
+      "tags": [
+        "calavera shirt",
+        "day of the dead tee",
+        "dia de muertos",
+        "posada skeleton art",
+        "marigold skull tee",
+        "mexican folk art",
+        "sugar skull gift"
+      ],
+      "design_paragraph": "A calavera by Jose Guadalupe Posada, who drew skeletons doing ordinary things for Mexico City broadsides and died broke in 1913. Wreathed here in marigolds \u2014 cempasuchil, the flower whose smell is supposed to guide the dead home.",
+      "seasonal_peak": "2026-11-01",
+      "seasonal_note": "Dia de Muertos is Nov 1-2 \u2014 must be ranking before it, not launching into it"
+    },
+    {
+      "id": "metamorphosis",
+      "name": "Metamorphosis",
+      "status": "planned",
+      "recipe": "recipes/metamorphosis.json",
+      "price": 23.99,
+      "phrase": "Moth Metamorphosis",
+      "title": "Moth Metamorphosis T Shirt, Vintage Entomology Tee, Maria Merian Insect Plate Art, Unisex Heavy Cotton Nature Gift Shirt",
+      "tags": [
+        "moth tshirt",
+        "entomology tee",
+        "vintage insect art",
+        "caterpillar shirt",
+        "merian botanical",
+        "cottagecore moth tee",
+        "bug lover gift"
+      ],
+      "design_paragraph": "Caterpillar, chrysalis and moth on the plant that feeds them, drawn by Maria Sibylla Merian around 1700. She was the first person to draw insects with their host plants instead of pinned on blank paper, which is why the whole life cycle sits in one frame."
+    },
+    {
+      "id": "dore-descent",
+      "name": "Dore's Descent",
+      "status": "planned",
+      "recipe": "recipes/dore-descent.json",
+      "price": 23.99,
+      "phrase": "Fallen Angel",
+      "title": "Fallen Angel T Shirt, Gustave Dore Engraving Tee, Gothic Illustration Print, Vintage Literature Unisex Cotton Gift Shirt",
+      "tags": [
+        "gothic angel tee",
+        "dore engraving",
+        "vintage gothic tee",
+        "fallen angel shirt",
+        "classic literature",
+        "engraving art gift",
+        "paradise lost tee"
+      ],
+      "design_paragraph": "Gustave Dore engraved for Dante and Milton in the 1860s and drew falling bodies better than anyone before or since. This one keeps his line and lets a botanical plate grow through the composition, which is not something he would have allowed.",
+      "seasonal_peak": "2026-10-31",
+      "seasonal_note": "gothic peaks through late October"
+    },
+    {
+      "id": "fungi-codex",
+      "name": "Fungi Codex",
+      "status": "planned",
+      "recipe": "recipes/fungi-codex.json",
+      "price": 23.99,
+      "phrase": "Mushroom Chart",
+      "title": "Mushroom Chart T Shirt, Vintage Fungi Identification Tee, Cottagecore Forest Art, Mycology Unisex Heavy Cotton Gift Shirt",
+      "tags": [
+        "mushroom tshirt",
+        "cottagecore tee",
+        "fungi chart shirt",
+        "mycology gift",
+        "vintage botanical",
+        "forager shirt",
+        "woodland art tee"
+      ],
+      "design_paragraph": "Mushrooms from a nineteenth-century identification plate, laid out as a specimen grid the way the original charts did it \u2014 labelled, ordered, and drawn by someone who needed you to tell the edible one from the one that kills you.",
+      "seasonal_peak": "2026-10-31",
+      "seasonal_note": "cottagecore/forage peaks with autumn"
+    },
+    {
+      "id": "kraken-chart",
+      "name": "Kraken Chart",
+      "status": "planned",
+      "recipe": "recipes/kraken-chart.json",
+      "price": 23.99,
+      "phrase": "Kraken",
+      "title": "Kraken T Shirt, Vintage Octopus Nautical Chart Tee, Sea Monster Map Art, Antique Maritime Unisex Cotton Gift Shirt",
+      "tags": [
+        "kraken tshirt",
+        "octopus tee",
+        "nautical map shirt",
+        "sea monster art",
+        "vintage maritime",
+        "cephalopod gift",
+        "antique chart tee"
+      ],
+      "design_paragraph": "The colossal octopus Pierre Denys de Montfort drew in 1801 from sailors' accounts he mostly believed, pulling down a ship. Set over an antique chart of water nobody had properly surveyed. He was wrong about the size and right that something was down there."
+    }
+  ]
+}

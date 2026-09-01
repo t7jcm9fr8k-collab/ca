@@ -1,0 +1,81 @@
+{
+  "id": "overgrown-prison",
+  "title": "Overgrown Prison",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#1A1A1A",
+      "ink1": "#2F4F3A"
+    }
+  },
+  "layers": [
+    {
+      "source": "piranesi-carceri.jpg",
+      "ink": "ink0",
+      "gamma": 1.05,
+      "transform": {
+        "scale": 0.82,
+        "offset": [
+          0,
+          -0.02
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Piranesi, Carceri d'Invenzione \u2014 any plate with a clear stair",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "ivy-climbing.jpg",
+      "ink": "ink1",
+      "gamma": 0.9,
+      "transform": {
+        "scale": 0.44,
+        "offset": [
+          -0.26,
+          0.18
+        ],
+        "rotate": -6
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "BHL climbing plant \u2014 ivy, vine or creeper",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "fern-frond.jpg",
+      "ink": "ink1",
+      "gamma": 0.9,
+      "transform": {
+        "scale": 0.3,
+        "offset": [
+          0.28,
+          0.26
+        ],
+        "flip": true
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "fern frond, botanical plate",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}

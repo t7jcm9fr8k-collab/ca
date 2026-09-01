@@ -1,0 +1,102 @@
+{
+  "id": "fungi-codex",
+  "title": "Fungi Codex",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#1A1A1A",
+      "ink1": "#7A4B2A"
+    }
+  },
+  "layers": [
+    {
+      "source": "fungi-plate-a.jpg",
+      "ink": "ink0",
+      "gamma": 1.0,
+      "transform": {
+        "scale": 0.42,
+        "offset": [
+          -0.21,
+          -0.18
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "mycological plate \u2014 Millot, Bulliard or BHL",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "fungi-plate-b.jpg",
+      "ink": "ink0",
+      "gamma": 1.0,
+      "transform": {
+        "scale": 0.42,
+        "offset": [
+          0.21,
+          -0.18
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "second species, similar scale",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "fungi-plate-c.jpg",
+      "ink": "ink0",
+      "gamma": 1.0,
+      "transform": {
+        "scale": 0.42,
+        "offset": [
+          -0.21,
+          0.14
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "third species",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "moth-small.jpg",
+      "ink": "ink1",
+      "gamma": 0.9,
+      "transform": {
+        "scale": 0.32,
+        "offset": [
+          0.21,
+          0.16
+        ],
+        "rotate": 9
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "a small moth to break the grid",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "moonlit-ghost",
+  "title": "Moonlit Ghost",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#14161C",
+      "ink1": "#3B4A6B"
+    }
+  },
+  "layers": [
+    {
+      "source": "cellarius-chart.jpg",
+      "ink": "ink1",
+      "gamma": 1.25,
+      "transform": {
+        "scale": 0.9,
+        "offset": [
+          0,
+          -0.03
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Cellarius, Harmonia Macrocosmica \u2014 a constellation plate",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "yoshitoshi-figure.jpg",
+      "ink": "ink0",
+      "gamma": 0.95,
+      "transform": {
+        "scale": 0.52,
+        "offset": [
+          0,
+          0.06
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Yoshitoshi, One Hundred Aspects of the Moon \u2014 a single figure",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}

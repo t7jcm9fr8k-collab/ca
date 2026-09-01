@@ -1,0 +1,58 @@
+{
+  "id": "metamorphosis",
+  "title": "Metamorphosis",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#1A1A1A",
+      "ink1": "#6B4423"
+    }
+  },
+  "layers": [
+    {
+      "source": "merian-plate.jpg",
+      "ink": "ink0",
+      "gamma": 0.95,
+      "transform": {
+        "scale": 0.74,
+        "offset": [
+          0,
+          0.0
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Merian, Metamorphosis Insectorum \u2014 plant with full life cycle",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    },
+    {
+      "source": "merian-moth.jpg",
+      "ink": "ink1",
+      "gamma": 0.9,
+      "transform": {
+        "scale": 0.26,
+        "offset": [
+          0.24,
+          -0.26
+        ],
+        "rotate": -18
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "a second Merian moth, for the upper corner",
+      "provenance": {
+        "url": "",
+        "licence": "",
+        "traced": "",
+        "credit": ""
+      }
+    }
+  ]
+}
