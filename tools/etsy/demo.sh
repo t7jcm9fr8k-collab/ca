@@ -17,7 +17,7 @@ python3 mockup.py --design proof-calavera --version 1 \
   --note "pipeline proof on stand-in plates" >/dev/null
 
 echo "== 3. inspect v1 (expected: BLOCKED) =="
-python3 inspect.py --design proof-calavera --version 1 \
+python3 qc.py --design proof-calavera --version 1 \
   --recipe recipes/_proof.json || true
 
 echo
@@ -37,7 +37,7 @@ python3 mockup.py --design proof-calavera --version 2 \
   --note "answers the contrast-on-black failure from v1" >/dev/null
 
 echo "== 7. inspect v2 (expected: PASS) =="
-python3 inspect.py --design proof-calavera --version 2 --recipe recipes/_proof_v2.json
+python3 qc.py --design proof-calavera --version 2 --recipe recipes/_proof_v2.json
 
 echo
 echo "== 8. change history =="

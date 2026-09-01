@@ -344,7 +344,7 @@ check("a genuine zero is still reachable",
 
 print("\ninspect — checks")
 
-import inspect as qc
+import qc
 
 def _art(size=(4500, 5400), fill=(26, 26, 26), box=None, dpi=True):
     im = Image.new("RGBA", size, (0, 0, 0, 0))

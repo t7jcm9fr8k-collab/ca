@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-inspect.py — the QC gate. Nine checks between mockup v1 and mockup v2.
+qc.py — the QC gate. Nine checks between mockup v1 and mockup v2.
 
 This is the only tool here whose job is to say NO.
 
@@ -28,9 +28,9 @@ CONTRAST USES WCAG 2.2 SC 1.4.11 — the 3:1 floor for graphical objects, not th
 and it is the correct one here: a printed design is a graphical object.
 
 USAGE
-    python3 inspect.py --design orchid-skull --version 1
-    python3 inspect.py --file out/x-onlight.png --recipe recipes/x.json
-    python3 inspect.py --design orchid-skull --version 1 --json
+    python3 qc.py --design orchid-skull --version 1
+    python3 qc.py --file out/x-onlight.png --recipe recipes/x.json
+    python3 qc.py --design orchid-skull --version 1 --json
 """
 
 import argparse

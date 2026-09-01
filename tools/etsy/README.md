@@ -20,7 +20,7 @@ out/              everything generated
 | `schedule.py` | the release calendar and the daily posting calendar. Markdown + `.ics`. |
 | `rival.py` | competitor counts over time. Runs on the Mac; needs network. |
 | `mockup.py` | print file → garment mockups at true physical scale. **Refuses v2 without an inspection of v1.** |
-| `inspect.py` | the QC gate — nine checks, each reporting a number |
+| `qc.py` | the QC gate — nine checks, each reporting a number |
 | `history.py` | append-only ledger + the change history you can look at |
 | `demo.sh` | the whole loop end to end, reproducibly |
 | `test_tools.py` | 109 checks. `python3 test_tools.py` |

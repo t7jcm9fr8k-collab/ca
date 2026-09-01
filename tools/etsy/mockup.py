@@ -180,7 +180,7 @@ def main():
             print(f"  A second mockup exists to answer findings from the first. "
                   f"Without\n  them it is a second guess, not a revision.\n",
                   file=sys.stderr)
-            print(f"  Run:  python3 inspect.py --design {a.design} "
+            print(f"  Run:  python3 qc.py --design {a.design} "
                   f"--version {a.version - 1}", file=sys.stderr)
             sys.exit(3)
         if not a.change:
@@ -203,7 +203,7 @@ def main():
     stem = os.path.join(a.out, f"{a.design}-v{a.version}")
     files = {}
 
-    # the print file itself, so inspect.py has a stable path per version
+    # the print file itself, so qc.py has a stable path per version
     p = f"{stem}-onlight.png"
     art.save(p, "PNG", dpi=(300, 300))
     files["print"] = p
@@ -240,7 +240,7 @@ def main():
     history.record_version(a.design, a.version, files, a.change, a.note)
     print(f"\nrecorded v{a.version} to the ledger")
     if a.version == 1:
-        print(f"next:  python3 inspect.py --design {a.design} --version 1")
+        print(f"next:  python3 qc.py --design {a.design} --version 1")
     print(f"       python3 history.py --report")
 
 
