@@ -65,6 +65,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CANVAS = (4500, 5400)      # Printify front print, 15 x 18 in at 300 DPI
 DPI = 300
 DRAFT_DIVISOR = 5          # --draft renders at 1/5 scale for fast iteration
+MIN_SOURCE_PX = 1500       # short edge; below this a plate goes soft at chest size
 
 REQUIRED_PROVENANCE = ("url", "licence", "traced")
 
@@ -257,6 +258,13 @@ def build(recipe, root, canvas_size, draft=False):
             continue
 
         img = Image.open(src)
+        if min(img.size) < MIN_SOURCE_PX:
+            notes.append(f"layer {i}: SOFT — {layer['source']} is "
+                         f"{img.width}x{img.height}; under {MIN_SOURCE_PX}px on the "
+                         f"short edge goes soft at chest size")
+            print(f"⚠ layer {i}: {layer['source']} is {img.width}x{img.height} — "
+                  f"too small to print sharply. Get the full-resolution file.",
+                  file=sys.stderr)
 
         lift = layer.get("lift") or {}
         if lift.get("enabled", True):

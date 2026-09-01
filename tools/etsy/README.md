@@ -19,7 +19,11 @@ out/              everything generated
 | `listing.py` | title, 13 tags and description — with validators that fail loudly. |
 | `schedule.py` | the release calendar and the daily posting calendar. Markdown + `.ics`. |
 | `rival.py` | competitor counts over time. Runs on the Mac; needs network. |
-| `test_tools.py` | 66 checks. `python3 test_tools.py` |
+| `mockup.py` | print file → garment mockups at true physical scale. **Refuses v2 without an inspection of v1.** |
+| `inspect.py` | the QC gate — nine checks, each reporting a number |
+| `history.py` | append-only ledger + the change history you can look at |
+| `demo.sh` | the whole loop end to end, reproducibly |
+| `test_tools.py` | 109 checks. `python3 test_tools.py` |
 
 ## The order
 
@@ -41,6 +45,21 @@ python3 schedule.py --ics
 python3 rival.py --catalogue catalogue.json
 ```
 
+## The mockup gate
+
+```
+v1  →  inspect  →  v2
+```
+
+`mockup.py --version 2` refuses to run without a recorded inspection of v1, and
+refuses again if no `--change` is given. A second mockup exists to answer
+findings from the first; without them it is a second guess, and a version with
+no recorded change cannot be read as a revision later.
+
+Run `./demo.sh` to watch the whole loop. On the stand-in plates it goes:
+v1 blocked at **2.69:1 contrast on black** (under the 3:1 WCAG floor) → inks
+lightened → v2 passes at **4.71:1**.
+
 ## Three things this pipeline refuses to do
 
 **Render without provenance.** Every layer needs a source URL, a licence and a
@@ -60,7 +79,7 @@ require items made with computerized tools to be based on the seller's original
 design; the listing copy has to be true, and copy claiming design labour that
 never happened is worse than no copy at all.
 
-## Two defects worth knowing about
+## Four defects worth knowing about
 
 Both were invisible in the code and obvious in the render. They are why
 `--preview` exists and why the tests pin them.
@@ -73,6 +92,26 @@ Both were invisible in the code and obvious in the render. They are why
    subject sits at mid luminance, so mapping it linearly to ink density produced
    weak alpha. Fixed by auto-levelling each source against its own 2–98
    percentile range, measured over the opaque region only.
+3. **Two QC checks fired on clean files.** The halo check assumed "clean means
+   alpha 0 or 255" and reported 98% halo on a file where only 0.6% of pixels
+   were near-full alpha — because ink density is *supposed* to be continuous.
+   The palette check counted density blends as separate inks, reporting 8 on a
+   two-ink file. Fixed by measuring a fringe annulus rather than global
+   mid-alpha, and by clustering HUE rather than RGB.
+4. **The diff heatmap reported 0.0% on a file that plainly changed.** It compared
+   alpha only, reasoning that "what moved is a change in where ink is" — and the
+   very first change it was asked to show was a *recolour*. Fixed by diffing
+   what a viewer actually sees: both versions composited onto the same ground.
+
+## One check that is deliberately not a blocker
+
+`edge halo` is **reported, never blocking**. The annulus test separates a fringe
+from artwork on isolated shapes (a clean disc reads 0%, the same disc feathered
+reads 100%) but not on dense linework, where the ring fills with neighbouring
+lines. A blocking check that fires on every good file trains you to ignore the
+gate, which costs more than the defect it was meant to catch. Mid-tone garment
+contrast is reported for the same reason — you have not decided whether you
+stock Sport Grey or Navy, so the number waits for you.
 
 ## Numbers this depends on
 

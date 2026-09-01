@@ -1,0 +1,62 @@
+{
+  "id": "proof-calavera-v2src",
+  "title": "PIPELINE PROOF \u2014 stand-in plates",
+  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "palette": {
+    "inks": {
+      "ink0": "#4A4A4A",
+      "ink1": "#E8A94A"
+    }
+  },
+  "layers": [
+    {
+      "source": "pick-4.png",
+      "ink": "ink0",
+      "gamma": 0.8,
+      "transform": {
+        "scale": 0.58,
+        "offset": [
+          0,
+          0.0
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "Posada calavera broadside \u2014 skull or full skeleton",
+      "provenance": {
+        "url": "https://commons.wikimedia.org/wiki/Main_Page",
+        "licence": "public domain",
+        "traced": "2026-09-01",
+        "credit": "Kuniyoshi-style cats (STAND-IN, not the real calavera)"
+      }
+    },
+    {
+      "source": "pick-2.png",
+      "ink": "ink1",
+      "gamma": 0.8,
+      "transform": {
+        "scale": 0.86,
+        "offset": [
+          0,
+          0.02
+        ]
+      },
+      "lift": {
+        "enabled": true
+      },
+      "_wanted": "marigold / Tagetes botanical plate",
+      "provenance": {
+        "url": "https://commons.wikimedia.org/wiki/Main_Page",
+        "licence": "public domain",
+        "traced": "2026-09-01",
+        "credit": "flower basket still life (STAND-IN, not marigolds)"
+      },
+      "mask": {
+        "from_layer": 0,
+        "invert": true,
+        "feather": 4
+      }
+    }
+  ]
+}

@@ -3,3 +3,4 @@ sources/
 fonts/*.ttf
 rival-history.json
 __pycache__/
+*.tmp
