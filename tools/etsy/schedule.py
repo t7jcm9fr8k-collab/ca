@@ -144,8 +144,32 @@ def release_schedule(designs, start, cutoff=RELEASE_CUTOFF):
     return sorted(out, key=lambda t: (t[0] is None, t[0]))
 
 
-def posting_schedule(designs, start, end):
-    """One slot a day. Platform alternates; angle and design rotate."""
+def posting_schedule(designs, start, end, releases=None):
+    """
+    One slot a day. Platform alternates; angle and design rotate.
+
+    Pinterest slots only ever carry a design that is ALREADY LIVE on that date.
+    A pin is a conversion asset — it exists to send someone to a listing — and a
+    pin for a design that will not exist for another five weeks sends them
+    nowhere. Pinterest is also the channel where a post keeps working for
+    months, so a wasted slot is wasted for months.
+
+    TikTok has no such constraint and gets the unreleased ones deliberately: a
+    layer reveal for something not yet on sale is a teaser, which is the one
+    place anticipation is worth more than a link.
+    """
+    live_on = {}
+    for d in designs:
+        if d.get("status") == "live":
+            live_on[d.get("id")] = dt.date.min
+    for date, d in (releases or []):
+        if date:
+            live_on[d.get("id")] = date
+
+    def is_live(design, on_date):
+        got = live_on.get(design.get("id"))
+        return got is not None and got <= on_date
+
     slots = []
     pin_i = tik_i = des_i = 0
     pin_by_day = {}
@@ -157,12 +181,19 @@ def posting_schedule(designs, start, end):
     for day in daterange(start, end):
         if in_blackout(day):
             continue
-        design = designs[des_i % len(designs)]
+        pinterest_day = day.toordinal() % 3 != 0
+
+        if pinterest_day:
+            # Rotate only through what a buyer can actually click on today.
+            pool = [d for d in designs if is_live(d, day)] or designs
+        else:
+            pool = designs
+        design = pool[des_i % len(pool)]
         des_i += 1
 
         # Pinterest carries most of the load; it is a search engine rather than a
         # feed, so a pin keeps working for months. TikTok every third day.
-        if day.toordinal() % 3 == 0:
+        if not pinterest_day:
             angle = TIKTOK_ANGLES[tik_i % len(TIKTOK_ANGLES)]
             tik_i += 1
             hour, minute = (19, 30) if day.weekday() < 5 else (12, 0)
@@ -176,6 +207,47 @@ def posting_schedule(designs, start, end):
             slots.append({"date": day, "time": (h, m), "platform": "Pinterest",
                           "design": design, "angle": angle})
     return slots
+
+
+# Pinterest: pin titles are truncated around 100 chars in the grid; the
+# description is indexed, so it carries the keywords. TikTok captions are short
+# and the hashtags do the discovery work.
+PIN_TITLE_MAX = 100
+PIN_DESC_MAX = 500
+
+
+def pin_copy(design, angle):
+    """
+    A pin title and description built from the catalogue, not invented.
+
+    The description reuses the listing's own design paragraph — it is already
+    written in the shop's voice and already true of the product — then names the
+    tags as plain keywords, because Pinterest indexes the description text.
+    """
+    name = design.get("name", "")
+    phrase = design.get("phrase", name)
+    title = f"{phrase} — {angle.split('—')[0].strip()}"
+    if len(title) > PIN_TITLE_MAX:
+        title = title[:PIN_TITLE_MAX - 1].rstrip() + "…"
+
+    para = (design.get("design_paragraph", "") or "").strip()
+    first = para.split(". ")[0] + "." if para else name
+    keys = ", ".join(design.get("tags", [])[:5])
+    desc = f"{first} Unisex heavy cotton tee, printed after you order. {keys}."
+    if len(desc) > PIN_DESC_MAX:
+        desc = desc[:PIN_DESC_MAX - 1].rstrip() + "…"
+    return title, desc
+
+
+def tiktok_copy(design, angle):
+    """Short caption plus hashtags. Hands only — nothing here asks for a face."""
+    name = design.get("name", "")
+    shot = angle.split("—")[0].strip()
+    cap = f"{shot} · {name}"
+    tags = ["#printondemand", "#publicdomain", "#vintageart"]
+    for t in design.get("tags", [])[:3]:
+        tags.append("#" + t.replace(" ", ""))
+    return cap, " ".join(tags)
 
 
 def to_markdown(releases, slots, tz):
@@ -197,18 +269,29 @@ def to_markdown(releases, slots, tz):
     L.append(f"\nAll live by **{RELEASE_CUTOFF}** — roughly six weeks of ranking "
              f"history before the December peak.\n")
 
-    L.append("\n## Posting — one slot a day\n")
+    L.append("\n## Posting — one slot a day, copy included\n")
+    L.append("Paste-ready. Pinterest descriptions are indexed, so the keywords "
+             "sit there rather than in the title.\n")
     cur = None
     for s in slots:
         wk = s["date"].isocalendar()[1]
         if wk != cur:
             cur = wk
             L.append(f"\n### Week {wk} — from {s['date']}\n")
-            L.append("| Date | Day | Time | Platform | Design | Shot |")
-            L.append("|---|---|---|---|---|---|")
         h, m = s["time"]
-        L.append(f"| {s['date']} | {s['date'].strftime('%a')} | {h:02d}:{m:02d} | "
-                 f"{s['platform']} | {s['design'].get('name')} | {s['angle']} |")
+        L.append(f"\n**{s['date']} {s['date'].strftime('%a')} · {h:02d}:{m:02d} · "
+                 f"{s['platform']} · {s['design'].get('name')}**  ")
+        L.append(f"Shot: {s['angle']}  ")
+        if s["platform"] == "Pinterest":
+            t, d = pin_copy(s["design"], s["angle"])
+            L.append(f"Title: `{t}`  ")
+            L.append(f"Description: `{d}`  ")
+            lid = s["design"].get("listing_id")
+            L.append(f"Link: `{'https://www.etsy.com/listing/' + lid if lid else 'add once listed'}`")
+        else:
+            c, h_ = tiktok_copy(s["design"], s["angle"])
+            L.append(f"Caption: `{c}`  ")
+            L.append(f"Hashtags: `{h_}`")
     L.append("\n---\n")
     L.append("TikTok slots are hands-only by standing constraint — the screen, "
              "the plates, the parcel. Never a face.\n")
@@ -279,7 +362,7 @@ def main():
         sys.exit("--end is before --start")
 
     releases = release_schedule(designs, start)
-    slots = posting_schedule(designs, start, end)
+    slots = posting_schedule(designs, start, end, releases)
 
     os.makedirs(a.out, exist_ok=True)
     md = os.path.join(a.out, "calendar.md")

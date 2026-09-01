@@ -286,6 +286,34 @@ check("slots span morning and evening",
 check("every design appears in the rotation",
       len({s["design"]["id"] for s in slots}) == 10)
 
+# A pin is a conversion asset. One pointing at a design that does not exist yet
+# sends the click nowhere, and Pinterest slots keep working for months, so the
+# waste compounds.
+rel_by_id = {d["id"]: date for date, d in rel if date}
+for _d in cat["designs"]:
+    if _d.get("status") == "live":
+        rel_by_id[_d["id"]] = _dt.date.min
+gated = shirtcal.posting_schedule(cat["designs"], _dt.date(2026, 9, 5),
+                                  _dt.date(2026, 11, 30), rel)
+dead = [x for x in gated if x["platform"] == "Pinterest"
+        and rel_by_id.get(x["design"]["id"], _dt.date.max) > x["date"]]
+check("no Pinterest slot points at an unreleased design", not dead,
+      f"{len(dead)} dead links")
+check("TikTok is allowed to tease unreleased designs",
+      any(x["platform"] == "TikTok"
+          and rel_by_id.get(x["design"]["id"], _dt.date.max) > x["date"]
+          for x in gated))
+check("every design still reaches Pinterest eventually",
+      len({x["design"]["id"] for x in gated if x["platform"] == "Pinterest"}) == 10)
+
+pt, pd_ = shirtcal.pin_copy(cat["designs"][0], "detail crop — the close look")
+check("pin title respects the grid cutoff", len(pt) <= shirtcal.PIN_TITLE_MAX, str(len(pt)))
+check("pin description respects the cap", len(pd_) <= shirtcal.PIN_DESC_MAX, str(len(pd_)))
+check("pin description carries keywords",
+      any(t in pd_ for t in cat["designs"][0]["tags"]))
+tc, th = shirtcal.tiktok_copy(cat["designs"][0], "layer reveal — sources fading in")
+check("tiktok hashtags are hashtags", th.startswith("#") and " #" in th)
+
 ics = shirtcal.to_ics(rel, slots, "America/New_York")
 check("ics opens and closes correctly",
       ics.startswith("BEGIN:VCALENDAR") and ics.rstrip().endswith("END:VCALENDAR"))
