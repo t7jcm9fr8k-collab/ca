@@ -1,6 +1,6 @@
 # Market bars pipeline
 
-Nine files that take OHLCV bars from a source to a strategy decision, with a
+Ten files that take OHLCV bars from a source to a strategy decision, with a
 gate between every stage that has to be earned past. Python 3, stdlib only,
 offline — the same posture as `../etsy/`, and the same idiom: tools that report
 a **number** rather than a verdict, and refuse rather than guess.
@@ -21,8 +21,26 @@ out/              the ledger and its report (gitignored)
 | `run.py` | the gate. `signal → backtest → paper → live`, each refused without the record the last one made. |
 | `fetch.py` | Stooq (no key) or Alpaca. **Runs on the Mac.** NETWORK / PARSE / OK kept strictly apart. |
 | `broker.py` | Alpaca paper and live orders. **Runs on the Mac, by Daniel's hand.** No agent calls it. |
+| `tlsctx.py` | one verifying TLS context for every network call — OS keychain via `truststore` when present — and a diagnosis when verification fails. **Never disables verification**; a test pins it. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 191 checks. `python3 test_tools.py` |
+| `test_tools.py` | 206 checks. `python3 test_tools.py` |
+
+### If you see `CERTIFICATE_VERIFY_FAILED`
+
+Python from python.org on a Mac does not read the keychain, so it either has no
+CA bundle or cannot see the interception root your network or security software
+uses — that is the "self-signed certificate in certificate chain" message. `curl`
+works because it *does* read the keychain. Give Python the same trust store:
+
+```bash
+python3 -m pip install truststore          # Python now uses the Mac keychain
+python3 fetch.py --dry-run                 # first line says which store is in use
+```
+
+If `--dry-run` still says `OpenSSL defaults`, no CA bundle was ever installed:
+`open "/Applications/Python 3.*/Install Certificates.command"`. The tools will
+tell you this themselves when it happens. Verification is never turned off —
+these tools will eventually send orders to a broker.
 
 ## Candles or the data?
 

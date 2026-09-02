@@ -45,6 +45,7 @@ import urllib.parse
 import urllib.request
 
 import bars as B
+import tlsctx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TIMEOUT = 25
@@ -65,7 +66,7 @@ Unparseable = B.Unparseable      # reached it; body is not bars. NOT zero bars.
 def _get(url, headers=None):
     req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
             if r.status != 200:
                 raise Unreachable(f"HTTP {r.status}")
             return r.read().decode("utf-8", "replace")
@@ -74,6 +75,10 @@ def _get(url, headers=None):
             raise Unreachable(f"HTTP {e.code} — credentials refused") from e
         raise Unreachable(f"HTTP {e.code}") from e
     except Exception as e:
+        # A certificate failure is NETWORK — nothing was read — but it is the
+        # one network failure with a fix on this machine, so say what it is.
+        if tlsctx.is_cert_failure(e):
+            raise Unreachable(tlsctx.explain(e)) from e
         raise Unreachable(f"{type(e).__name__}: {e}") from e
 
 
@@ -176,6 +181,8 @@ def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split
 def dry_run():
     """Prove, offline, that the three outcomes stay apart."""
     print("dry run — no market host is contacted\n")
+    print(f"  trust    TLS verifies against: {tlsctx.source()}")
+    print(f"           python: {sys.executable}\n")
 
     try:
         _get("https://127.0.0.1:9/nothing")

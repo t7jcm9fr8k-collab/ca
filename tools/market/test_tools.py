@@ -360,6 +360,39 @@ with contextlib.redirect_stdout(_out):
 check("dry run proves all three outcomes offline",
       _out.getvalue().count("  ok   ") == 4 and "??" not in _out.getvalue())
 
+# ---------------------------------------------------------------- tls
+
+print("\ntls — verifying, always")
+
+import ssl
+import urllib.error
+import tlsctx
+
+_ctx = tlsctx.context()
+check("the context checks hostnames", _ctx.check_hostname is True)
+check("the context REQUIRES a valid certificate", _ctx.verify_mode == ssl.CERT_REQUIRED)
+check("the context is a real SSLContext", isinstance(_ctx, ssl.SSLContext))
+check("source() names a trust store", any(k in tlsctx.source() for k in ("truststore", "certifi", "OpenSSL")))
+_cve = ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain")
+check("a bare cert error is recognised", tlsctx.is_cert_failure(_cve))
+check("a cert error wrapped in URLError is recognised", tlsctx.is_cert_failure(urllib.error.URLError(_cve)))
+check("a plain connection refusal is NOT a cert error",
+      not tlsctx.is_cert_failure(urllib.error.URLError(ConnectionRefusedError(61, "refused"))))
+_ex = tlsctx.explain(urllib.error.URLError(_cve))
+check("the explanation names the fix", "pip install truststore" in _ex and "Install Certificates.command" in _ex)
+check("the explanation says verification was not disabled", "NOT disabled" in _ex)
+check("the explanation names this python", sys.executable in _ex)
+check("the explanation gives a way to tell the cases apart", "curl -sI https://stooq.com" in _ex)
+check("fetch reports a cert failure as NETWORK with the fix",
+      _raises(fetch.Unreachable, fetch._get, "https://127.0.0.1:9/x"))   # refused, not cert — still NETWORK
+# Looks for the loosening as CODE — a call, an assignment — not as a word in
+# a docstring that explains why it is never done.
+_loosen = ("_create_unverified_context(", "CERT_NONE", "check_hostname = False",
+           "check_hostname=False")
+check("nothing in the tree loosens TLS",
+      not any(any(p in open(os.path.join(HERE, f)).read() for p in _loosen)
+              for f in os.listdir(HERE) if f.endswith(".py") and f != "test_tools.py"))
+
 # ---------------------------------------------------------------- broker
 
 print("\nbroker — refuses before it sends")

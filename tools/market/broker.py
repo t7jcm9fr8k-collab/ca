@@ -35,6 +35,8 @@ import time
 import urllib.error
 import urllib.request
 
+import tlsctx
+
 PAPER = "https://paper-api.alpaca.markets"
 LIVE = "https://api.alpaca.markets"
 TIMEOUT = 20
@@ -69,7 +71,7 @@ def _call(base, path, hdr, body=None, method=None):
         headers={"User-Agent": UA, "Content-Type": "application/json",
                  "Accept": "application/json", **hdr})
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as e:
         msg = e.read().decode("utf-8", "replace")[:400]
@@ -79,6 +81,8 @@ def _call(base, path, hdr, body=None, method=None):
             raise Rejected(f"HTTP {e.code}: {msg}")
         raise Unreachable(f"HTTP {e.code}: {msg}")
     except (urllib.error.URLError, OSError, ValueError) as e:
+        if tlsctx.is_cert_failure(e):
+            raise Unreachable(tlsctx.explain(e))
         raise Unreachable(f"{type(e).__name__}: {e}")
 
 
