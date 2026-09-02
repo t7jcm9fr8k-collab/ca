@@ -674,6 +674,16 @@ check("window fills are counted inside the window", replay.window_stats(_r, end=
 check("trend_filter names itself", strategies.make("trend_filter:20").__name__ == "trend_filter_20")
 check("trend_filter is long in a rise", strategies.make("trend_filter:20")(replay.Cursor(s70, 70)) == 1.0)
 check("trend_filter is flat in a fall", strategies.make("trend_filter:20")(replay.Cursor(down, 70)) == 0.0)
+check("every strategy declares a warm-up",
+      all(hasattr(strategies.make(sp), "warmup") for sp in ("buy_and_hold", "sma_cross:10,30", "breakout:20", "trend_filter:200", "ema_pullback:20,50", "vwap_reclaim:20", "value_area:40")))
+_tf = replay.replay(s70, strategies.make("trend_filter:20"), cost_bps=0)
+check("replay scores from the strategy's warm-up, not from bar 2",
+      _tf["warmup"] == 20 and _tf["live_bars"] == 50 and _tf["scored_from"] == s70.bars[20].ts.isoformat())
+check("the benchmark is measured from the same bar",
+      abs(_tf["benchmark"] - (s70.bars[-1].close / s70.bars[21].open - 1)) < 1e-12)
+check("a rising series: trend filter equals buy-and-hold from its warm-up, less nothing at zero cost",
+      abs(_tf["return"] - _tf["benchmark"]) < 1e-12, f"{_tf['return']} vs {_tf['benchmark']}")
+check("an explicit warm-up longer than the strategy's wins", replay.replay(s70, strategies.buy_and_hold, warmup=30)["warmup"] == 30)
 check("run.py accepts --cash-yield and records it",
       _run(["--mode", "backtest", "--strategy", "trend_filter:20", "--cash-yield", "0.04"] + BASE) == 0
       and ledger.latest("backtest", strategy="trend_filter_20", symbol="SYN")["cash_yield"] == 0.04)
@@ -725,13 +735,23 @@ check("a negative morning goes short", _tr[1]["side"] == -1 and abs(_tr[1]["ret"
 check("a flat morning is no trade", len(_tr) == 2)
 check("open_to_1530 rule uses the other predictor", intraday.trades(_rows, "open_to_1530", 0) == [])
 _st = intraday.stats([{"ret": 0.001}, {"ret": -0.001}, {"ret": 0.003}])
-check("stats: mean in bp, hit rate, t", abs(_st["mean_bp"] - 10.0) < 1e-9 and abs(_st["hit"] - 2 / 3) < 1e-12 and _st["t"] > 0)
+check("stats: mean in bp, hit rates labelled net and gross, t",
+      abs(_st["mean_bp"] - 10.0) < 1e-9 and abs(_st["hit_net"] - 2 / 3) < 1e-12 and _st["t"] > 0
+      and "gross_bp" in _st and "se_bp" in _st and len(_st["ci95_bp"]) == 2)
 _strong = intraday.run(intraday.synth(300, effect=2.0), "first30", 2.0, "2025-01-01", 200)
 check("a strong planted effect is found: positive mean, low p", _strong["all"]["mean_bp"] > 0 and _strong["p_all"] < 0.05,
       f"mean {_strong['all']['mean_bp']:.2f} p {_strong['p_all']}")
 _null = intraday.run(intraday.synth(300, effect=0.0), "first30", 2.0, "2025-01-01", 200)
 check("no effect: p is not small", _null["p_all"] > 0.1, str(_null["p_all"]))
 check("the run says it searched nothing", _strong["pre_registered"] and _strong["parameters_searched"] == 0)
+check("the power statement names the published effect and whether the CI excludes it",
+      "published_excluded" in _strong and "bp/session" in _strong["power_note"])
+_slip = [(loc, b) for loc, b in _pts if loc.time() != dt.time(15, 30)]
+check("a session missing its 15:30 minute fills at the next bar and is counted as slipped",
+      intraday.measure(_slip)[0]["fill_slipped"] is True and intraday.measure(_pts)[0]["fill_slipped"] is False)
+check("an IEX-sourced run names the closing auction as unmodelled",
+      "AUCTION" in intraday.run(B.Series("X", "1m", _syn.bars, {**PROV, "source": "alpaca", "feed": "iex"}), "first30", 2.0, "2025-01-01", 5)["not_modelled"])
+check("a short session is skipped at barqc's 80% line", intraday.MIN_BARS == 312)
 check("the run records the data span", _strong["data_start"].startswith("2024") and _strong["data_end"] > _strong["data_start"])
 check("a feed that begins after 2019 cannot reproduce the papers, and says so",
       _strong["reproduction_possible"] is False and "NOT a reproduction" in intraday.render(_strong))
@@ -778,6 +798,10 @@ check("buy and hold is scored in both windows as the reference",
       _cr["benchmark"]["in_sample"]["return"] is not None and _cr["benchmark"]["holdout"]["return"] is not None)
 check("the reference is not counted as a trial", _cr["n_trials"] == 4)
 check("the report shows the reference row", "buy_and_hold (reference)" in combine.render(_cr))
+check("every line and the reference are scored from the longest warm-up",
+      _cr["warmup"] == 20 and all(t["warmup"] == 20 for t in _cr["trials"]) and _cr["benchmark"]["warmup"] == 20)
+check("the trial count says how many were this run", _cr["trials_in_run"] == 4 and _cr["trials_prior"] == 0)
+check("the report shows where scoring began", "scored from" in combine.render(_cr))
 check("an unknown signal is refused", _raises(KeyError, combine.run, s70, ["nope"], 5.0, "2026-01-01"))
 
 # ---------------------------------------------------------------- nulltest
@@ -791,6 +815,7 @@ _decl.append(_b(88, 88.6, 85, 88.5, d=13))                                      
 _decl += [_b(88.5, 89, 88, 88.8, d=14), _b(88.8, 89.5, 88.5, 89.2, d=15)]
 _rules = nulltest.rules(_decl)
 check("hammer after a decline fires at the hammer", 12 in _rules["hammer_after_decline"][1])
+check("v2 round-number rule is named for what it is", "pin_near_round" in _rules and "pin_at_round" not in _rules)
 check("no shooting star in a decline", _rules["star_after_rise"][1] == [])
 check("short rules are marked short", _rules["star_after_rise"][0] == -1 and _rules["hammer_after_decline"][0] == 1)
 check("forward return is next open to close at the horizon",
@@ -798,14 +823,36 @@ check("forward return is next open to close at the horizon",
 check("a short rule negates", nulltest.forward(_decl, [12], -1, 1, 0.0)[0] == -nulltest.forward(_decl, [12], 1, 1, 0.0)[0])
 check("an event too close to the end is dropped", nulltest.forward(_decl, [14], 1, 1, 0.0) == [])
 check("cost is charged", nulltest.forward(_decl, [12], 1, 1, 0.001)[0] == nulltest.forward(_decl, [12], 1, 1, 0.0)[0] - 0.001)
-_shuf = nulltest.block_shuffle(list(s70.bars), random.Random(1))
-check("block shuffle keeps every bar", sorted(b.ts for b in _shuf) == sorted(b.ts for b in s70.bars))
-check("block shuffle changes the order", [b.ts for b in _shuf] != [b.ts for b in s70.bars])
+check("the block shuffle is gone — it kept the pattern→next-bar pair intact",
+      not hasattr(nulltest, "block_shuffle"))
+_tv = nulltest.trailing_vol(list(s70.bars))
+check("trailing vol is None until the window fills and positive after",
+      _tv[19] is None and _tv[20] is not None and _tv[20] >= 0)
+_elig = list(range(nulltest.LOOKBACK, len(s70.bars) - 1))
+_dec = nulltest.vol_deciles(_tv, _elig)
+check("vol deciles cover the eligible bars", set(_dec) == set(_elig) and all(v is None or 0 <= v < 10 for v in _dec.values()))
+# a planted edge: the event days are followed by big up bars; days like them are not
+_pl = _daily(120, closes=[100 + 0.05 * i for i in range(120)])
+for _k in (30, 60, 90):
+    _pl[_k] = B.Bar(_pl[_k].ts, _pl[_k].open, _pl[_k].open * 1.03, _pl[_k].open, _pl[_k].open * 1.03, 1000)
+_pp, _nm = nulltest.date_permutation_p(_pl, [29, 59, 89], 1, 1, 0.0, 200, random.Random(0), vol_match=False)
+check("a real link between event and next bar gives a small p", _pp is not None and _pp < 0.05, str(_pp))
+_pn, _ = nulltest.date_permutation_p(_pl, [10, 40, 70], 1, 1, 0.0, 200, random.Random(0), vol_match=False)
+check("ordinary days give an ordinary p", _pn is not None and _pn > 0.2, str(_pn))
+check("no events gives no p", nulltest.date_permutation_p(_pl, [], 1, 1, 0.0, 50, random.Random(0)) == (None, None))
 _nt = nulltest.run(s70, 1, 5.0, 20)
 check("every pre-registered rule is reported", len(_nt["rules"]) == 8)
 check("p is a probability or None", all(r["p"] is None or 0 <= r["p"] <= 1 for r in _nt["rules"].values()))
 check("the unconditional baseline is reported", "mean_bp" in _nt["unconditional"])
 check("the run says it searched nothing", _nt["pre_registered"] and _nt["parameters_searched"] == 0)
+check("the run names its null and rule version", "permutation" in _nt["null"] and _nt["rule_version"] == 2)
+check("every fired rule lists its events with dates and returns",
+      all(("events" in v and all("date" in e and "ret_bp" in e for e in v["events"])) for v in _nt["rules"].values()))
+check("the largest event and its share are reported for fired rules",
+      all(("largest_event" in v) == (v["n"] > 0) for v in _nt["rules"].values()))
+check("the report says t first and warns about eight tries",
+      "t = mean against zero" in nulltest.render(_nt) and "eight tries" in nulltest.render(_nt))
+check("events can be rendered", "event(s)" in nulltest.render_events(_nt, "doji") or "no events" in nulltest.render_events(_nt, "doji"))
 
 # ---------------------------------------------------------------- watch
 
@@ -822,6 +869,29 @@ B.to_csv(_series(three_gone), os.path.join(_wroot, "BAD-1d.csv"))
 check("a blocked symbol gets its verdict, not readings", watch.readout("BAD", "1d", _wroot)["status"] == "blocked")
 check("render says nothing predicts", "none predicts" in watch.render([_ro]))
 shutil.rmtree(_wroot, ignore_errors=True)
+
+# ---------------------------------------------------------------- aggregate
+
+print("\naggregate — minute bars to sessions")
+
+import aggregate
+
+_ag_src = intraday.synth(6, effect=0.0)
+_ag, _counts, _dropped = aggregate.aggregate(_ag_src)
+check("one daily bar per session", len(_ag) == 6 and _ag.timeframe == "1d")
+_first = [b for b in _ag_src.bars][:390]
+check("open is the first bar's open and close the last bar's close",
+      _ag[0].open == _first[0].open and _ag[0].close == _first[-1].close)
+check("high and low span the session", _ag[0].high == max(b.high for b in _first) and _ag[0].low == min(b.low for b in _first))
+check("volume is summed", _ag[0].volume == sum(b.volume for b in _first))
+check("bar counts per session are recorded", all(v == 390 for v in _counts.values()))
+check("provenance says what the closes are", "auction" in _ag["close_is"] if False else "auction" in _ag.provenance["close_is"])
+check("the aggregated source is named", _ag.provenance["source"].endswith("-1m-aggregated"))
+_half = B.Series("X", "1m", list(_ag_src.bars[:390 * 5]) + list(_ag_src.bars[390 * 5:390 * 5 + 200]), dict(PROV))
+_ah, _c2, _d2 = aggregate.aggregate(_half, min_bars=312)
+check("a short session is dropped only under --min-bars", len(_ah) == 5 and _d2 == 1 and len(aggregate.aggregate(_half)[0]) == 6)
+check("a daily series is refused", _raises(ValueError, aggregate.aggregate, s70))
+check("the aggregate passes barqc", barqc.inspect(_ag)["verdict"] != "blocked")
 
 # ---------------------------------------------------------------- fetch, round 2
 

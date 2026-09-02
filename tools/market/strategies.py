@@ -15,7 +15,10 @@ of equity to hold after the NEXT open. Long-only strategies return 0 or 1.
 
 A strategy is a plain callable. Parameterised ones are factories that return a
 callable with a stable `__name__`, so the ledger can tell `sma_cross_10_30`
-from `sma_cross_20_50`.
+from `sma_cross_20_50`, and a `warmup`: how many closed bars it needs before
+it can act. replay.py scores from there. The first real run scored a 200-day
+filter from bar 2 against buy-and-hold from bar 2, and most of its "cost" was
+the 200 bars it was forbidden to trade.
 
 SPEC STRINGS (for run.py --strategy)
     buy_and_hold
@@ -37,6 +40,9 @@ def buy_and_hold(cursor):
     return 1.0
 
 
+buy_and_hold.warmup = 0
+
+
 def sma_cross(fast=10, slow=30):
     """Long when the fast simple average is above the slow one, else flat."""
     fast, slow = int(fast), int(slow)
@@ -49,6 +55,7 @@ def sma_cross(fast=10, slow=30):
         c = cursor.closes(slow)
         return 1.0 if sum(c[-fast:]) / fast > sum(c) / slow else 0.0
     s.__name__ = f"sma_cross_{fast}_{slow}"
+    s.warmup = slow
     return s
 
 
@@ -62,6 +69,7 @@ def breakout(lookback=20):
         c = cursor.closes(lookback + 1)
         return 1.0 if c[-1] >= max(c[:-1]) else 0.0
     s.__name__ = f"breakout_{lookback}"
+    s.warmup = lookback + 1
     return s
 
 
@@ -95,6 +103,7 @@ def ema_pullback(fast=20, slow=50, lookback=5):
                 return 1.0
         return 0.0
     s.__name__ = f"ema_pullback_{fast}_{slow}_{lookback}"
+    s.warmup = slow + 15
     return s
 
 
@@ -111,6 +120,7 @@ def vwap_reclaim(n=20):
         c = w[-1].close
         return 1.0 if (v is not None and e is not None and c > v and c > e) else 0.0
     s.__name__ = f"vwap_reclaim_{n}"
+    s.warmup = n
     return s
 
 
@@ -133,6 +143,7 @@ def value_area(window=40):
         c = w[-1].close
         return 1.0 if c > p["va_high"] else 0.0
     s.__name__ = f"value_area_{window}"
+    s.warmup = window
     return s
 
 
@@ -151,6 +162,7 @@ def trend_filter(n=200):
             return 0.0
         return 1.0 if cursor[-1].close > F.sma(cursor[-n:], n) else 0.0
     s.__name__ = f"trend_filter_{n}"
+    s.warmup = n
     return s
 
 

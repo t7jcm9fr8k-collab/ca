@@ -107,16 +107,21 @@ def and_gate(strats):
 
 def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=False):
     strats = [strategies.make(sp) for sp in specs]
+    # One scoring start for every line, including the reference: the longest
+    # warm-up among the signals. Otherwise a 200-day filter is scored flat
+    # against a benchmark that was invested 198 bars earlier, and the AND-gate
+    # "cannot fire" for a stretch nobody is told about.
+    warm = max([1] + [int(getattr(f, "warmup", 0) or 0) for f in strats])
     trials = []
     for f in strats + [average_of(strats), and_gate(strats)]:
-        r = replay.replay(series, f, cost_bps=cost_bps, cash_yield=cash_yield)
+        r = replay.replay(series, f, cost_bps=cost_bps, cash_yield=cash_yield, warmup=warm)
         r["in_sample"] = replay.window_stats(r, end=holdout_from)
         r["holdout"] = replay.window_stats(r, start=holdout_from)
         trials.append(r)
-    # The reference, scored the same way in the same windows. Not a trial —
-    # nobody chose it — but without it a 16% holdout return in a 25% up-market
-    # reads as a result instead of as a lag.
-    bench = replay.replay(series, strategies.buy_and_hold, cost_bps=cost_bps)
+    # The reference, scored the same way in the same windows from the same
+    # bar. Not a trial — nobody chose it — but without it a 16% holdout return
+    # in a 25% up-market reads as a result instead of as a lag.
+    bench = replay.replay(series, strategies.buy_and_hold, cost_bps=cost_bps, warmup=warm)
     bench["in_sample"] = replay.window_stats(bench, end=holdout_from)
     bench["holdout"] = replay.window_stats(bench, start=holdout_from)
 
@@ -135,8 +140,8 @@ def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=Fals
 
     # deflation: N trials, variance of their in-sample per-bar Sharpes
     n_trials = len(trials)
-    if count_ledger:
-        n_trials += len(ledger.events("backtest", symbol=series.symbol))
+    prior = len(ledger.events("backtest", symbol=series.symbol)) if count_ledger else 0
+    n_trials += prior
     srs = [t["in_sample"]["sharpe_per_bar"] for t in trials]
     m = sum(srs) / len(srs)
     var_sr = sum((x - m) ** 2 for x in srs) / max(len(srs) - 1, 1)
@@ -150,13 +155,17 @@ def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=Fals
             "trials": trials, "benchmark": bench,
             "corr": corr, "names": [f.__name__ for f in strats],
             "any_on": any_on, "all_on": all_on, "bars_scored": len(tg[0]),
-            "n_trials": n_trials, "var_sr": var_sr,
+            "warmup": warm, "scored_from": trials[0]["scored_from"],
+            "n_trials": n_trials, "trials_in_run": len(trials), "trials_prior": prior,
+            "var_sr": var_sr,
             "best": best["strategy"], "best_dsr": dsr, "best_sr0": sr0}
 
 
 def render(r):
     L = [f"\n{'='*78}", f"COMBINE — {r['symbol']} · {len(r['signals'])} signals · "
-         f"{r['cost_bps']:g} bp · holdout from {r['holdout_from']}", "=" * 78]
+         f"{r['cost_bps']:g} bp · holdout from {r['holdout_from']}", "=" * 78,
+         f"scored from {r['scored_from'][:10]} (after the longest warm-up, {r['warmup']} bars), "
+         f"{r['bars_scored']} live bars"]
     L.append(f"\n{'strategy':<36}{'window':<10}{'return':>9}{'sharpe':>8}{'max dd':>9}{'fills':>7}")
     L.append("-" * 78)
     for w in ("in_sample", "holdout"):
@@ -181,7 +190,12 @@ def render(r):
         L.append(f"{names[i]:<16}" + "".join(f"{(c if c is not None else float('nan')):>15.2f}" for c in row))
     L.append(f"\nbars with any signal on: {r['any_on']}   all on: {r['all_on']}   "
              f"({r['all_on'] / r['any_on']:.0%} of the time they can agree, they do)" if r["any_on"] else "")
-    L.append(f"\ntrials counted: {r['n_trials']}   best in-sample: {r['best']}")
+    L.append(f"\ntrials counted: {r['n_trials']} ({r['trials_in_run']} in this run"
+             + (f" + {r['trials_prior']} prior backtests of {r['symbol']} in the ledger" if r['trials_prior'] else "")
+             + f")   best in-sample: {r['best']}")
+    L.append("the Sharpe dispersion used for deflation comes from this run's trials only; the "
+             "10/30, 20, 200 conventions carry\ndecades of prior search the count cannot see, "
+             "and a 15-month window puts an SE of ~1.2 on every Sharpe above")
     L.append(f"expected best-of-{r['n_trials']} per-bar Sharpe under no edge: {r['best_sr0']:.4f}")
     L.append(f"deflated Sharpe (P[true SR > 0] after {r['n_trials']} tries): {r['best_dsr']:.2f}")
     L.append("read the holdout column once, and only after the in-sample column is settled")

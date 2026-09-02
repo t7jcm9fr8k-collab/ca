@@ -155,6 +155,11 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
         raise Blocked(f"barqc blocked {series.describe()}: "
                       f"{', '.join(qc['failed'])}. Fix the data first.")
     bars = series.bars
+    # Score from the first bar the strategy could ACT on. A 200-day filter is
+    # flat for 200 bars by construction; charging it for those bars against a
+    # benchmark that was invested from bar 2 measures the warm-up, not the
+    # rule. The first real run did exactly that, and three reviewers caught it.
+    warmup = max(warmup, int(getattr(strategy, "warmup", 0) or 0), 1)
     if len(bars) < warmup + 2:
         raise Blocked(f"{len(bars)} bar(s) is not enough to make one decision "
                       f"and one fill after a warm-up of {warmup}")
@@ -213,6 +218,8 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
         "max_drawdown": max_drawdown(equity),
         "fills": len(fills), "cost_bps": cost_bps, "cash_yield": cash_yield,
         "exposure": exposure, "years": years, "bars_per_year": bpy,
+        "warmup": warmup, "live_bars": len(equity),
+        "scored_from": bars[warmup].ts.isoformat(),
         **_stats(rets, bpy),
         "final_signal": pending,
         "not_modelled": "order book, partial fills, intraday slippage, "

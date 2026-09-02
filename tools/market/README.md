@@ -1,6 +1,6 @@
 # Market bars pipeline
 
-Fourteen files that take OHLCV bars from a source to a strategy decision, with a
+Fifteen files that take OHLCV bars from a source to a strategy decision, with a
 gate between every stage that has to be earned past. Python 3, stdlib only,
 offline — the same posture as `../etsy/`, and the same idiom: tools that report
 a **number** rather than a verdict, and refuse rather than guess.
@@ -24,10 +24,11 @@ out/              the ledger and its report (gitignored)
 | `tlsctx.py` | one verifying TLS context for every network call — OS keychain via `truststore` when present — and a diagnosis when verification fails. **Never disables verification**; a test pins it. |
 | `intraday.py` | **the one (c)-grade result**: first-30-min sign → last 30 min, exactly as published, with a permutation null and a 2021+ holdout. Needs minute bars. |
 | `combine.py` | "confluence" both ways — equal-weight average vs AND-gate — with the signal correlation matrix, an in-sample/holdout split, and the **Deflated Sharpe** after counting every trial. |
-| `nulltest.py` | the null exercises: hammer, engulfing, pin-at-round-number, RSI<30 and its plain twin, each against **block-shuffled bars** with real costs. |
+| `nulltest.py` | the null exercises: hammer, engulfing, pin-near-round-number, RSI<30 and its plain twin, each against **volatility-matched comparison days** with real costs, events listed. (v1 used a block shuffle that kept the pattern→next-bar pair intact; its p-values were not p-values.) |
+| `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 307 checks. `python3 test_tools.py` |
+| `test_tools.py` | 339 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -157,18 +158,20 @@ python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule fi
 python3 intraday.py --synth 600 --effect 0.4 --no-record          # what "found" looks like, offline
 python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothing" looks like
 
-# 2 · the slow trend filter — drawdown, not return. Stooq has SPY back to 1993.
-python3 fetch.py --source stooq --symbol SPY
-python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.04
+# 2 · the slow trend filter — drawdown, not return. Daily history: aggregate the minute bars
+#     (Alpaca's daily IEX history before 2020 is full of holes and barqc blocks it — correctly).
+python3 aggregate.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --adjusted yes
+python3 barqc.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes
+python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --cash-yield 0.04
 
 # 3 · confluence done right, and the AND-gate beside it
-python3 combine.py --csv bars/SPY-1d.csv --symbol SPY --source stooq \
+python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes \
     --signals sma_cross:10,30 breakout:20 trend_filter:200 vwap_reclaim:20 \
-    --holdout-from 2021-01-01 --cost-bps 5 --count-ledger
+    --holdout-from 2024-01-01 --cost-bps 5 --count-ledger
 
 # 4 · the null exercises
-python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 1 --shuffles 500
-python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --shuffles 500
+python3 nulltest.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --horizon 1 --events rsi_oversold fell_5pct_10bars
+python3 nulltest.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --horizon 5
 
 # every morning
 python3 watch.py --symbols SPY AAPL MSFT
@@ -219,6 +222,10 @@ remember:
   bar *i*'s close. You cannot trade a close you learned about after it printed.
 - The benchmark buys at the first open a strategy could possibly have bought at,
   so `buy_and_hold` as a strategy matches it exactly, less cost — pinned by test.
+- **Scoring starts after the strategy's warm-up.** Every strategy declares how
+  many closed bars it needs; `replay` and `combine` score from there and measure
+  buy-and-hold from the same bar. The first real run scored a 200-day filter
+  from bar 2 and attributed 200 bars of forced flatness to the rule.
 
 ## Three things this pipeline refuses to do
 

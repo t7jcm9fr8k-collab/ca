@@ -432,3 +432,78 @@ Loughran-McDonald dictionary; EDGAR 8-K text.
 - One arXiv preprint and one vendor backtest were dropped as load-bearing: the
   preprint was never read and used unrealistic friction; the vendor sweep was
   in-sample.
+
+---
+
+## First real data — SPY, 2026-09-02, and what three reviewers corrected
+
+Daniel ran the pipeline on SPY from Alpaca's free IEX feed: 669 daily bars
+(2024-01 → 2026-09) and 584,845 minute bars (2020-07 → 2026-09). The numbers
+were then put in front of three adversarial reviewers — statistics, data and
+market structure, implementation — who agreed on every verdict and corrected
+the reading in five places and the tools in four. Both sets of corrections are
+recorded here because the corrections *are* the finding.
+
+### The verdicts, as corrected
+
+**Intraday momentum (method #1) is a powered null.** Gross mean **−0.5 ± 0.67
+bp per session**, 95% CI [−1.8, +0.8], n = 1,513. The published effect of
+roughly +2.7 bp/session is *excluded* at about four standard errors — not
+merely unconfirmed. The t of −3.79 the tool first printed was the 2 bp cost
+being reliably subtracted; "every year negative" was the cost restated seven
+times, and gross by year is noise within ±2.5 bp of zero. Two caveats the data
+cannot resolve: IEX has no closing cross for SPY, so the exit is the last IEX
+print before 16:00 and the closing-auction leg the papers include is
+unobserved; and the pre-2021 slice is 109 sessions of late 2020, not the
+papers' sample. Real SPY round-trip cost is nearer 0.5 bp than 2, which makes
+the net less negative and the gross exactly as zero. **Do not trade it.**
+
+**The trend filter's "39 points of lost return" was mostly warm-up.** The rule
+is flat for its first 200 bars by construction, and the tool scored it from
+bar 2 against buy-and-hold from bar 2 — while SPY rose ~20%. Over the bars it
+could act on, the shortfall is on the order of 12 points. The drawdown halving
+(−10.3% vs about −19% in April 2025) is real and is one episode. Its Sharpe did
+not beat holding SPY. Fixed: strategies declare their warm-up; `replay` and
+`combine` score from there.
+
+**The null test's p-values were not p-values.** The v1 baseline shuffled bars
+in blocks of 20 with a one-bar horizon, so bar *i* and bar *i+1* stayed in the
+same block 19 times in 20 and the pattern→next-bar pair the shuffle claimed to
+destroy was preserved for 84–96% of candle events. Every p in that table was
+anchored on the real events. The t column was always the honest number:
+`rsi_oversold` t = 0.65 (n = 9), `fell_5pct` t = 0.60 (n = 16), per-event
+standard deviations of 3–4% — dip-buying rules firing on the wildest days in a
+two-V bull market, with one ~+10% day (2025-04-09) likely inside both means.
+`hammer` is a separate, ordinary-variance case: one-sided p ≈ 0.06 alone, ≈
+0.37 after eight rules. Fixed: v2 keeps the real events and draws comparison
+days matched on trailing volatility; events and the largest event's share are
+printed; `pin_at_round` was tightened (v1 qualified one price in five).
+
+**Combine: every line trailed buy-and-hold in both windows.** Implied
+buy-and-hold was ~30% in-sample and ~25% in the holdout; `sma_cross` (18.5% /
+16.5%) and `vwap_reclaim` (15.6% / 8.2%) trailed in both, and the AND-gate was
+worst. Holdout Sharpes over 15 months carry a standard error of ~1.2: the table
+reports noise to two decimals. The deflated Sharpe of 0.43 means the best
+in-sample per-bar Sharpe (0.080) sat *below* the expected best of eight
+nothings (0.089). The four signals are four long-only expressions of one bet
+— long SPY after it has risen — so averaging diversifies implementation noise,
+never the bet. The 2025-06 → 2026-09 window remains a valid single test of the
+pre-registered set (answer: no alpha versus buy-and-hold); it can never be used
+to select among those signals or to test anything designed after 2026-09-02.
+
+### What the data cannot show, stated once
+
+Nearly all of SPY's 2024–26 return was overnight: the unconditional
+open-to-close mean was +1.5 bp gross against ~8 bp/day close-to-close, so the
+null test's next-open-to-close hold is not comparable to the close-to-close
+pattern literature. The 669-bar daily sample has no bear market in it. The
+minute bars from 2020-07 do — the 2022 decline — and `aggregate.py` now turns
+them into daily sessions so the daily tools can see it.
+
+### Base rate, restated
+
+Nothing tested is tradeable. The one method with a published edge is excluded
+on six years of the exact instrument and bar size it was published on; the
+patterns and indicators behave as the literature says; the trend filter cuts
+drawdown at the cost of return. This is what a correct pipeline was expected
+to find, and it found it on the first real run.
