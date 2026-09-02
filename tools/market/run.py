@@ -203,6 +203,8 @@ def main():
         print(replay.summary(r))
         print(f"         scored from {r['scored_from'][:10]} after a {r['warmup']}-bar warm-up, "
               f"{r['live_bars']} live bars; buy&hold measured from the same bar")
+        print(f"         buy&hold over those bars: max drawdown {r['benchmark_max_drawdown']:.1%}, "
+              f"sharpe {r['benchmark_sharpe']:.2f}, vol {r['benchmark_volatility']:.1%}")
         print(f"         sharpe {r['sharpe']:.2f}, cagr "
               f"{(format(r['cagr'], '+.1%') if r['cagr'] is not None else 'n/a')}, "
               f"vol {r['volatility']:.1%}, {r['years']:.1f} years"

@@ -684,6 +684,16 @@ check("the benchmark is measured from the same bar",
 check("a rising series: trend filter equals buy-and-hold from its warm-up, less nothing at zero cost",
       abs(_tf["return"] - _tf["benchmark"]) < 1e-12, f"{_tf['return']} vs {_tf['benchmark']}")
 check("an explicit warm-up longer than the strategy's wins", replay.replay(s70, strategies.buy_and_hold, warmup=30)["warmup"] == 30)
+# a series with real variation — s70 rises exactly 0.2% a bar, so its return
+# variance is zero and floating point decides the Sharpe
+_wob = _series(_daily(70, closes=[100 + ((i * 7) % 5) * 1.5 + i * 0.3 for i in range(70)]))
+_bh0 = replay.replay(_wob, strategies.buy_and_hold, cost_bps=0)
+check("buy-and-hold's own drawdown and sharpe equal the benchmark's over the same bars",
+      abs(_bh0["max_drawdown"] - _bh0["benchmark_max_drawdown"]) < 1e-12
+      and abs(_bh0["sharpe"] - _bh0["benchmark_sharpe"]) < 1e-9
+      and _bh0["max_drawdown"] < 0, f"{_bh0['max_drawdown']} {_bh0['sharpe']} {_bh0['benchmark_sharpe']}")
+check("a filter is reported beside buy-and-hold's drawdown over the SAME scored bars",
+      "benchmark_max_drawdown" in _tf and _tf["benchmark_max_drawdown"] <= 0)
 check("run.py accepts --cash-yield and records it",
       _run(["--mode", "backtest", "--strategy", "trend_filter:20", "--cash-yield", "0.04"] + BASE) == 0
       and ledger.latest("backtest", strategy="trend_filter_20", symbol="SYN")["cash_yield"] == 0.04)

@@ -208,6 +208,14 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
     rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity))]
     years = len(equity) / bpy
     cagr = e1 ** (1.0 / years) - 1.0 if years > 0 and e1 > 0 else None
+    # Buy-and-hold over the SAME scored bars: bought at bars[warmup+1].open,
+    # marked at every close after. Its drawdown and Sharpe are the numbers a
+    # trend filter has to be read against; a filter's -20% means nothing until
+    # you know whether holding was -25% or -12% over the same stretch.
+    b0 = bars[warmup + 1].open
+    bh_equity = [1.0] + [bars[i].close / b0 for i in range(warmup + 1, len(bars))]
+    bh_rets = [bh_equity[i] / bh_equity[i - 1] - 1.0 for i in range(1, len(bh_equity))]
+    bh = _stats(bh_rets, bpy)
     return {
         "strategy": name or getattr(strategy, "__name__", "strategy"),
         "symbol": series.symbol, "timeframe": series.timeframe,
@@ -216,6 +224,8 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
         "end": bars[-1].ts.isoformat(),
         "return": e1 / e0 - 1, "benchmark": bench, "cagr": cagr,
         "max_drawdown": max_drawdown(equity),
+        "benchmark_max_drawdown": max_drawdown(bh_equity),
+        "benchmark_sharpe": bh["sharpe"], "benchmark_volatility": bh["volatility"],
         "fills": len(fills), "cost_bps": cost_bps, "cash_yield": cash_yield,
         "exposure": exposure, "years": years, "bars_per_year": bpy,
         "warmup": warmup, "live_bars": len(equity),
