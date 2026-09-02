@@ -136,10 +136,29 @@ def value_area(window=40):
     return s
 
 
+def trend_filter(n=200):
+    """
+    Long when close is above the n-bar simple average, else flat. The slow
+    filter EVIDENCE.md ranks fourth: documented to cut drawdowns on an index
+    at a few trades a year, and documented NOT to raise returns. Run it with
+    --cash-yield so the time out of the market is not scored as earning zero.
+    """
+    import features as F
+    n = int(n)
+
+    def s(cursor):
+        if len(cursor) < n:
+            return 0.0
+        return 1.0 if cursor[-1].close > F.sma(cursor[-n:], n) else 0.0
+    s.__name__ = f"trend_filter_{n}"
+    return s
+
+
 REGISTRY = {
     "buy_and_hold": lambda: buy_and_hold,
     "sma_cross": sma_cross,
     "breakout": breakout,
+    "trend_filter": trend_filter,
     "ema_pullback": ema_pullback,
     "vwap_reclaim": vwap_reclaim,
     "value_area": value_area,

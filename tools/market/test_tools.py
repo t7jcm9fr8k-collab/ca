@@ -17,6 +17,7 @@ import datetime as dt
 import io
 import json
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -312,6 +313,7 @@ check("a strategy short of history returns flat, not an error",
 
 print("\nledger — append-only")
 
+H_before = ledger.load()
 _real_ledger = ledger.LEDGER
 ledger.LEDGER = os.path.join(_tmp, "ledger.json")
 ledger.record("backtest", strategy="a", symbol="X", **{"return": 0.1, "bars": 70})
@@ -487,9 +489,6 @@ help_ = subprocess.run([sys.executable, "run.py", "--help"], cwd=HERE, capture_o
 check("--force is documented in --help", "--force" in help_ and "--force-reason" in help_)
 check("--confirm-live is documented in --help", "--confirm-live" in help_)
 
-ledger.LEDGER = _real_ledger
-shutil.rmtree(_tmp, ignore_errors=True)
-check("the real ledger path was restored", ledger.LEDGER.endswith(os.path.join("out", "ledger.json")))
 
 # ---------------------------------------------------------------- features
 
@@ -589,6 +588,211 @@ if os.path.exists(_synth):
     check("on a drifting random walk every setup lags buy-and-hold after costs — the machinery says so",
           all(r["return"] < r["benchmark"] for r in _res.values()),
           str({k: round(v["return"], 3) for k, v in _res.items()}))
+
+# ---------------------------------------------------------------- features, round 2
+
+print("\nfeatures — rsi, doji, engulfing, round numbers")
+
+check("rsi of a monotone rise is 100", F.rsi([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], 14) == 100.0)
+check("rsi of a monotone fall is 0", F.rsi(list(range(16, 0, -1)), 14) == 0.0)
+check("rsi of equal up and down steps is 50 at the seed", abs(F.rsi([10 + (i % 2) for i in range(15)], 14) - 50.0) < 1e-9)
+check("rsi short of data is None", F.rsi([1, 2, 3], 14) is None)
+_v = [100 + ((i * 7) % 5) - 2 + i * 0.1 for i in range(40)]
+check("rsi_series agrees with rsi at the end", abs(F.rsi_series(_v, 14)[-1] - F.rsi(_v, 14)) < 1e-12)
+check("rsi_series is None before n+1 values", F.rsi_series(_v, 14)[13] is None and F.rsi_series(_v, 14)[14] is not None)
+check("doji is a tiny body", F.doji(_b(10, 11, 9, 10.05)) and not F.doji(_b(10, 11, 9, 10.8)))
+check("bull engulfing covers the previous down body", F.engulfing(_b(10, 10.2, 9.5, 9.7), _b(9.6, 10.5, 9.5, 10.3)) == "bull")
+check("bear engulfing mirrors", F.engulfing(_b(9.7, 10.2, 9.5, 10), _b(10.1, 10.2, 9.4, 9.6)) == "bear")
+check("two up bars are not engulfing", F.engulfing(_b(9, 10, 9, 10), _b(10, 11, 10, 11)) is None)
+check("round step is a tenth of the leading decade", (F.round_step(450), F.round_step(45), F.round_step(4.5)) == (10.0, 1.0, 0.1))
+_rd, _near = F.round_distance(449.0)
+check("round distance is signed and names the number", _near == 450.0 and abs(_rd - (449 - 450) / 449) < 1e-12)
+check("drawdown from the k-bar high", abs(F.drawdown_from_high([10, 12, 11, 9], 4) - (9 / 12 - 1)) < 1e-12)
+
+# ---------------------------------------------------------------- replay, round 2
+
+print("\nreplay — stats, cash yield, windows")
+
+_r = replay.replay(s70, strategies.buy_and_hold, cost_bps=0)
+check("replay reports sharpe, cagr, volatility, skew, kurt",
+      all(k in _r for k in ("sharpe", "cagr", "volatility", "skew", "kurt", "sharpe_per_bar")))
+check("targets and equity_ts align with equity", len(_r["targets"]) == len(_r["equity"]) == len(_r["equity_ts"]))
+check("bar_returns is one shorter than equity", len(_r["bar_returns"]) == len(_r["equity"]) - 1)
+check("ledger exclusions name every per-bar series",
+      set(("equity", "equity_ts", "targets", "bar_returns", "fill_list")) <= set(replay.LEDGER_EXCLUDE))
+_ry = replay.replay(s70, strategies.buy_and_hold, cost_bps=0, cash_yield=0.05)
+check("buy and hold earns yield only on the one warm-up bar before it fills",
+      abs((1 + _ry["return"]) / (1 + _r["return"]) - 1.05 ** (1 / 252)) < 1e-12)
+_flat = replay.replay(s70, lambda c: 0.0, cash_yield=0.04)
+check("a flat strategy earns the cash yield on every scored bar", abs(_flat["return"] - ((1.04) ** (69 / 252) - 1)) < 1e-9, str(_flat["return"]))
+check("zero cash yield earns nothing flat", replay.replay(s70, lambda c: 0.0)["return"] == 0.0)
+_all = replay.window_stats(_r)
+check("the full window reproduces the overall return", abs(_all["return"] - _r["return"]) < 1e-12)
+_cut = _r["equity_ts"][40]
+_a, _b_ = replay.window_stats(_r, end=_cut), replay.window_stats(_r, start=_cut)
+check("in-sample and holdout partition the bars", _a["bars_used"] + _b_["bars_used"] == len(_r["equity"]))
+check("an empty window has no return", replay.window_stats(_r, start="2099-01-01")["return"] is None)
+check("window fills are counted inside the window", replay.window_stats(_r, end=_cut)["fills"] == 1)
+
+check("trend_filter names itself", strategies.make("trend_filter:20").__name__ == "trend_filter_20")
+check("trend_filter is long in a rise", strategies.make("trend_filter:20")(replay.Cursor(s70, 70)) == 1.0)
+check("trend_filter is flat in a fall", strategies.make("trend_filter:20")(replay.Cursor(down, 70)) == 0.0)
+check("run.py accepts --cash-yield and records it",
+      _run(["--mode", "backtest", "--strategy", "trend_filter:20", "--cash-yield", "0.04"] + BASE) == 0
+      and ledger.latest("backtest", strategy="trend_filter_20", symbol="SYN")["cash_yield"] == 0.04)
+_rec = ledger.latest("backtest", strategy="trend_filter_20", symbol="SYN") or {}
+check("the record carries sharpe and no per-bar series", "sharpe" in _rec and "targets" not in _rec and "equity_ts" not in _rec)
+
+# ---------------------------------------------------------------- intraday
+
+print("\nintraday — pre-registered, with its own null")
+
+import intraday
+
+_syn = intraday.synth(40, effect=0.0)
+check("synth makes 390 regular-session bars per session", len(_syn) == 40 * 390)
+_ss = intraday.sessions(_syn)
+check("sessions groups by New York date", len(_ss) == 40 and all(len(p) == 390 for _, p in _ss))
+_m, _why = intraday.measure(_ss[0][1])
+check("measure reads a full session", _m is not None and set(_m) >= {"r_first30", "r_open_to_1530", "r_last30"})
+_pts = _ss[0][1]
+_c10 = [b for loc, b in _pts if loc.time() < dt.time(10, 0)][-1].close
+check("r_first30 is the close before 10:00 over the 09:30 open", abs(_m["r_first30"] - (_c10 / _pts[0][1].open - 1)) < 1e-12)
+_b1530 = [b for loc, b in _pts if loc.time() >= dt.time(15, 30)][0]
+check("the fill is the 15:30 bar's OPEN, never the 15:29 close",
+      abs(_m["r_last30"] - (_pts[-1][1].close / _b1530.open - 1)) < 1e-12)
+# Synthetic bars open exactly at the prior close, so the line above cannot tell
+# the two apart — a mutation proved it. Put a GAP on the 15:30 bar and pin it.
+_gap = []
+for loc, b in _pts:
+    if loc.time() == dt.time(15, 30):
+        prev_close = _gap[-1][1].close
+        b = B.Bar(b.ts, prev_close * 1.001, max(b.high, prev_close * 1.001), b.low, b.close, b.volume)
+    _gap.append((loc, b))
+_mg, _ = intraday.measure(_gap)
+_g1530 = [b for loc, b in _gap if loc.time() == dt.time(15, 30)][0]
+_c1529 = [b for loc, b in _gap if loc.time() < dt.time(15, 30)][-1].close
+check("with a gap, the fill is the gapped OPEN and not the prior close",
+      abs(_mg["r_last30"] - (_gap[-1][1].close / _g1530.open - 1)) < 1e-12
+      and abs(_mg["r_last30"] - (_gap[-1][1].close / _c1529 - 1)) > 1e-6)
+check("a short session is skipped with its bar count", intraday.measure(_pts[:100]) == (None, "100 bars"))
+check("a session without its 09:30 bar is skipped", intraday.measure(_pts[5:] + _pts[:5][:0])[1] == "no 09:30 bar"
+      if len(_pts[5:]) >= intraday.MIN_BARS else True)
+check("a session ending early is skipped", intraday.measure(_pts[:370])[1].startswith("ends"))
+_rows = [{"date": "2024-01-02", "r_first30": 0.001, "r_open_to_1530": 0.0, "r_last30": 0.002},
+         {"date": "2024-01-03", "r_first30": -0.001, "r_open_to_1530": 0.0, "r_last30": 0.002},
+         {"date": "2024-01-04", "r_first30": 0.0, "r_open_to_1530": 0.0, "r_last30": 0.002}]
+_tr = intraday.trades(_rows, "first30", 2.0)
+check("a positive morning goes long the last half hour, net of cost", _tr[0]["side"] == 1 and abs(_tr[0]["ret"] - (0.002 - 0.0002)) < 1e-12)
+check("a negative morning goes short", _tr[1]["side"] == -1 and abs(_tr[1]["ret"] - (-0.002 - 0.0002)) < 1e-12)
+check("a flat morning is no trade", len(_tr) == 2)
+check("open_to_1530 rule uses the other predictor", intraday.trades(_rows, "open_to_1530", 0) == [])
+_st = intraday.stats([{"ret": 0.001}, {"ret": -0.001}, {"ret": 0.003}])
+check("stats: mean in bp, hit rate, t", abs(_st["mean_bp"] - 10.0) < 1e-9 and abs(_st["hit"] - 2 / 3) < 1e-12 and _st["t"] > 0)
+_strong = intraday.run(intraday.synth(300, effect=2.0), "first30", 2.0, "2025-01-01", 200)
+check("a strong planted effect is found: positive mean, low p", _strong["all"]["mean_bp"] > 0 and _strong["p_all"] < 0.05,
+      f"mean {_strong['all']['mean_bp']:.2f} p {_strong['p_all']}")
+_null = intraday.run(intraday.synth(300, effect=0.0), "first30", 2.0, "2025-01-01", 200)
+check("no effect: p is not small", _null["p_all"] > 0.1, str(_null["p_all"]))
+check("the run says it searched nothing", _strong["pre_registered"] and _strong["parameters_searched"] == 0)
+check("in-sample and holdout are split at the date",
+      _strong["in_sample"]["n"] + _strong["holdout"]["n"] == _strong["all"]["n"] and _strong["holdout"]["n"] > 0)
+check("by-year table exists", "2024" in _strong["by_year"] or "2025" in _strong["by_year"])
+_early = B.Series("X", "1m", [B.Bar(dt.datetime(2026, 1, 5, 8, 0, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 1)] * 1, PROV)
+check("bars outside the session are refused by barqc before anything runs",
+      _raises(SystemExit, intraday.run, _early, "first30", 2.0, "2025-01-01", 10))
+
+# ---------------------------------------------------------------- combine
+
+print("\ncombine — confluence, both ways, with the trial count")
+
+import combine
+
+check("expected max sharpe of one trial is zero", combine.expected_max_sharpe(1, 0.01) == 0.0)
+check("expected max sharpe grows with trials",
+      combine.expected_max_sharpe(100, 0.01) > combine.expected_max_sharpe(10, 0.01) > 0)
+check("expected max sharpe grows with dispersion", combine.expected_max_sharpe(10, 0.04) > combine.expected_max_sharpe(10, 0.01))
+_p1, _ = combine.deflated_sharpe(0.05, 500, 1, 0.0)
+_p50, _sr0 = combine.deflated_sharpe(0.05, 500, 50, 0.0004)
+check("deflated sharpe is high for one trial", _p1 > 0.8, str(_p1))
+check("the same sharpe after 50 trials is deflated", _p50 < _p1 and _sr0 > 0, f"{_p50} vs {_p1}")
+check("zero sharpe, one trial is a coin flip", abs(combine.deflated_sharpe(0.0, 500, 1, 0.0)[0] - 0.5) < 1e-9)
+check("pearson of identical series is 1", abs(combine.pearson([1, 0, 1, 0], [1, 0, 1, 0]) - 1) < 1e-12)
+check("pearson of opposite series is -1", abs(combine.pearson([1, 0, 1, 0], [0, 1, 0, 1]) + 1) < 1e-12)
+check("pearson of a constant is None", combine.pearson([1, 1, 1], [1, 0, 1]) is None)
+_one, _zero = (lambda c: 1.0), (lambda c: 0.0)
+_one.__name__, _zero.__name__ = "one", "zero"
+check("and-gate needs every signal", combine.and_gate([_one, _zero])(None) == 0.0 and combine.and_gate([_one, _one])(None) == 1.0)
+check("average is the mean", combine.average_of([_one, _zero])(None) == 0.5)
+_cr = combine.run(s70, ["sma_cross:5,20", "breakout:10"], 5.0, s70.bars[50].ts.isoformat())
+check("run scores each signal plus average plus and-gate", len(_cr["trials"]) == 4)
+check("correlation matrix has unit diagonal", all(_cr["corr"][i][i] == 1.0 for i in range(2)))
+check("all-on never exceeds any-on", _cr["all_on"] <= _cr["any_on"])
+check("every trial has in-sample and holdout windows", all("in_sample" in t and "holdout" in t for t in _cr["trials"]))
+check("the trial count is what was run", _cr["n_trials"] == 4)
+check("the best is named and deflated", _cr["best"] and 0.0 <= _cr["best_dsr"] <= 1.0)
+check("an unknown signal is refused", _raises(KeyError, combine.run, s70, ["nope"], 5.0, "2026-01-01"))
+
+# ---------------------------------------------------------------- nulltest
+
+print("\nnulltest — the pattern against shuffled bars")
+
+import nulltest
+
+_decl = [_b(100 - i, 101 - i, 98 - i, 99.5 - i, d=i + 1) for i in range(12)]      # falling
+_decl.append(_b(88, 88.6, 85, 88.5, d=13))                                        # hammer, low 85
+_decl += [_b(88.5, 89, 88, 88.8, d=14), _b(88.8, 89.5, 88.5, 89.2, d=15)]
+_rules = nulltest.rules(_decl)
+check("hammer after a decline fires at the hammer", 12 in _rules["hammer_after_decline"][1])
+check("no shooting star in a decline", _rules["star_after_rise"][1] == [])
+check("short rules are marked short", _rules["star_after_rise"][0] == -1 and _rules["hammer_after_decline"][0] == 1)
+check("forward return is next open to close at the horizon",
+      abs(nulltest.forward(_decl, [12], 1, 1, 0.0)[0] - (_decl[13].close / _decl[13].open - 1)) < 1e-12)
+check("a short rule negates", nulltest.forward(_decl, [12], -1, 1, 0.0)[0] == -nulltest.forward(_decl, [12], 1, 1, 0.0)[0])
+check("an event too close to the end is dropped", nulltest.forward(_decl, [14], 1, 1, 0.0) == [])
+check("cost is charged", nulltest.forward(_decl, [12], 1, 1, 0.001)[0] == nulltest.forward(_decl, [12], 1, 1, 0.0)[0] - 0.001)
+_shuf = nulltest.block_shuffle(list(s70.bars), random.Random(1))
+check("block shuffle keeps every bar", sorted(b.ts for b in _shuf) == sorted(b.ts for b in s70.bars))
+check("block shuffle changes the order", [b.ts for b in _shuf] != [b.ts for b in s70.bars])
+_nt = nulltest.run(s70, 1, 5.0, 20)
+check("every pre-registered rule is reported", len(_nt["rules"]) == 8)
+check("p is a probability or None", all(r["p"] is None or 0 <= r["p"] <= 1 for r in _nt["rules"].values()))
+check("the unconditional baseline is reported", "mean_bp" in _nt["unconditional"])
+check("the run says it searched nothing", _nt["pre_registered"] and _nt["parameters_searched"] == 0)
+
+# ---------------------------------------------------------------- watch
+
+print("\nwatch — the readout")
+
+import watch
+
+_wroot = tempfile.mkdtemp(prefix="watch-")
+B.to_csv(_series(_daily(260)), os.path.join(_wroot, "TST-1d.csv"))
+_ro = watch.readout("TST", "1d", _wroot)
+check("a symbol with bars reads out", _ro["status"] == "ok" and _ro["trend"] == "above" and _ro["rsi14"] is not None)
+check("a symbol without bars says so", watch.readout("NOPE", "1d", _wroot)["status"] == "no bars")
+B.to_csv(_series(three_gone), os.path.join(_wroot, "BAD-1d.csv"))
+check("a blocked symbol gets its verdict, not readings", watch.readout("BAD", "1d", _wroot)["status"] == "blocked")
+check("render says nothing predicts", "none predicts" in watch.render([_ro]))
+shutil.rmtree(_wroot, ignore_errors=True)
+
+# ---------------------------------------------------------------- fetch, round 2
+
+print("\nfetch — regular session")
+
+_ext = [B.Bar(dt.datetime(2026, 1, 5, 8, 0, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 1),    # 03:00 NY
+        B.Bar(dt.datetime(2026, 1, 5, 15, 0, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 1),   # 10:00 NY
+        B.Bar(dt.datetime(2026, 1, 5, 21, 0, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 1)]   # 16:00 NY — closed
+_kept, _dropped = fetch.regular_session(_ext)
+check("regular_session keeps 09:30-16:00 New York only", len(_kept) == 1 and _dropped == 2)
+check("barqc passes the kept bar", barqc.check_calendar(_series(_kept, tf="1m"))["ok"] is not False)
+
+# ---------------------------------------------------------------- cleanup
+
+ledger.LEDGER = _real_ledger
+shutil.rmtree(_tmp, ignore_errors=True)
+check("the real ledger path was restored", ledger.LEDGER.endswith(os.path.join("out", "ledger.json")))
+check("the real ledger was never written by the tests", H_before == ledger.load())
 
 # ---------------------------------------------------------------- result
 

@@ -110,6 +110,62 @@ def atr(bars, n=14):
     return sum(trs) / n
 
 
+def rsi(seq, n=14):
+    """
+    Wilder's RSI: seeded with plain averages of the first n gains and losses,
+    then Wilder-smoothed. None with fewer than n + 1 values. 100 when there
+    have been no losses at all, which is a statement about the data, not a
+    signal.
+    """
+    v = _values(seq)
+    if n <= 0 or len(v) < n + 1:
+        return None
+    gains = losses = 0.0
+    for i in range(1, n + 1):
+        d = v[i] - v[i - 1]
+        gains += max(d, 0.0)
+        losses += max(-d, 0.0)
+    ag, al = gains / n, losses / n
+    for i in range(n + 1, len(v)):
+        d = v[i] - v[i - 1]
+        ag = (ag * (n - 1) + max(d, 0.0)) / n
+        al = (al * (n - 1) + max(-d, 0.0)) / n
+    if al == 0:
+        return 100.0
+    return 100.0 - 100.0 / (1.0 + ag / al)
+
+
+def drawdown_from_high(seq, k):
+    """Close now versus the highest close of the last k values, as a fraction."""
+    v = _values(seq)
+    if k <= 0 or len(v) < k:
+        return None
+    return v[-1] / max(v[-k:]) - 1.0
+
+
+# ---------------------------------------------------------------- round numbers
+
+def round_step(price):
+    """
+    The round-number grid a price sits on: one tenth of its leading decade —
+    10 for a $450 stock, 1 for $45, 0.1 for $4.50. The grid is what humans
+    anchor to, and the anchoring is the whole mechanism (Osler 2003).
+    """
+    import math
+    if price <= 0:
+        return None
+    return 10.0 ** (math.floor(math.log10(price)) - 1)
+
+
+def round_distance(price, step=None):
+    """(signed fractional distance to the nearest round number, that number)."""
+    step = step or round_step(price)
+    if not step:
+        return None, None
+    nearest = round(price / step) * step
+    return (price - nearest) / price, nearest
+
+
 # ---------------------------------------------------------------- vwap
 
 def vwap(bars):
@@ -178,6 +234,46 @@ def rejection(bar, wick_ratio=2.0, close_zone=1 / 3):
 def rejections(bars, **kw):
     """[(index, 'bull'|'bear')] over the sequence."""
     return [(i, r) for i, b in enumerate(bars) if (r := rejection(b, **kw))]
+
+
+def doji(bar, body_max=0.10):
+    """Body at most 10% of the range. Volatility information, not direction."""
+    return bar.range > 0 and bar.body <= body_max * bar.range
+
+
+def engulfing(prev, bar):
+    """
+    'bull' when an up bar's body covers the previous down bar's body; 'bear'
+    is the mirror. Bodies only — wicks are ignored, as in the textbook rule.
+    """
+    up, down = bar.close > bar.open, bar.close < bar.open
+    p_up, p_down = prev.close > prev.open, prev.close < prev.open
+    if up and p_down and bar.open <= prev.close and bar.close >= prev.open:
+        return "bull"
+    if down and p_up and bar.open >= prev.close and bar.close <= prev.open:
+        return "bear"
+    return None
+
+
+def rsi_series(seq, n=14):
+    """RSI at every index, O(n). None before n + 1 values. Same maths as rsi()."""
+    v = _values(seq)
+    out = [None] * len(v)
+    if n <= 0 or len(v) < n + 1:
+        return out
+    gains = losses = 0.0
+    for i in range(1, n + 1):
+        d = v[i] - v[i - 1]
+        gains += max(d, 0.0)
+        losses += max(-d, 0.0)
+    ag, al = gains / n, losses / n
+    out[n] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    for i in range(n + 1, len(v)):
+        d = v[i] - v[i - 1]
+        ag = (ag * (n - 1) + max(d, 0.0)) / n
+        al = (al * (n - 1) + max(-d, 0.0)) / n
+        out[i] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    return out
 
 
 # ---------------------------------------------------------------- levels

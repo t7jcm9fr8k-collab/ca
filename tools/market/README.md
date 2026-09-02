@@ -1,6 +1,6 @@
 # Market bars pipeline
 
-Ten files that take OHLCV bars from a source to a strategy decision, with a
+Fourteen files that take OHLCV bars from a source to a strategy decision, with a
 gate between every stage that has to be earned past. Python 3, stdlib only,
 offline — the same posture as `../etsy/`, and the same idiom: tools that report
 a **number** rather than a verdict, and refuse rather than guess.
@@ -22,8 +22,12 @@ out/              the ledger and its report (gitignored)
 | `fetch.py` | Stooq (no key) or Alpaca. **Runs on the Mac.** NETWORK / PARSE / OK kept strictly apart. |
 | `broker.py` | Alpaca paper and live orders. **Runs on the Mac, by Daniel's hand.** No agent calls it. |
 | `tlsctx.py` | one verifying TLS context for every network call — OS keychain via `truststore` when present — and a diagnosis when verification fails. **Never disables verification**; a test pins it. |
+| `intraday.py` | **the one (c)-grade result**: first-30-min sign → last 30 min, exactly as published, with a permutation null and a 2021+ holdout. Needs minute bars. |
+| `combine.py` | "confluence" both ways — equal-weight average vs AND-gate — with the signal correlation matrix, an in-sample/holdout split, and the **Deflated Sharpe** after counting every trial. |
+| `nulltest.py` | the null exercises: hammer, engulfing, pin-at-round-number, RSI<30 and its plain twin, each against **block-shuffled bars** with real costs. |
+| `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 206 checks. `python3 test_tools.py` |
+| `test_tools.py` | 293 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -120,7 +124,7 @@ test them with costs instead of trusting them:
 | order flow / volume | `bar_delta_proxy`, `cvd_proxy` — **a proxy, labelled as one** | real delta needs **tick / Level-2 data**, which OHLCV does not contain |
 | options and greeks | — | an **options chain** feed (open interest by strike, IV); not in this pipeline yet |
 | sentiment | — | an **external feed**; not in this pipeline yet |
-| "rejection blocks", order blocks (ICT) | — | not implemented: the definitions are not stated precisely enough to compute without hindsight |
+| "rejection blocks", order blocks (ICT) | — | **parked** (Daniel, 2026-09-02): zero tests at any level and the one borrowed mechanism points the other way. Revisit only if the measured things plateau. |
 
 The setups: `ema_pullback:20,50,5` (trend + pullback to the fast EMA + bull
 rejection within one ATR), `vwap_reclaim:20`, `value_area:40`. **On a drifting
@@ -129,6 +133,66 @@ machinery says so, pinned by test. Whether they do on real bars is the question;
 run them on `bars/AAPL-1d.csv` and read the ledger.
 
 `EVIDENCE.md` carries what the peer-reviewed record says about each item.
+
+## The build-first list, as commands
+
+EVIDENCE.md ranks what to test. Each line below is one of its items, runnable.
+Nothing in them is tuned to the data: every rule is fixed before it sees a bar.
+
+```bash
+# 1 · intraday momentum — the only (c)-grade result. Needs Alpaca minute bars (below).
+python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --cost-bps 2
+python3 intraday.py --synth 600 --effect 0.4 --no-record          # what "found" looks like, offline
+python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothing" looks like
+
+# 2 · the slow trend filter — drawdown, not return. Stooq has SPY back to 1993.
+python3 fetch.py --source stooq --symbol SPY
+python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.04
+
+# 3 · confluence done right, and the AND-gate beside it
+python3 combine.py --csv bars/SPY-1d.csv --symbol SPY --source stooq \
+    --signals sma_cross:10,30 breakout:20 trend_filter:200 vwap_reclaim:20 \
+    --holdout-from 2021-01-01 --cost-bps 5 --count-ledger
+
+# 4 · the null exercises
+python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 1 --shuffles 500
+python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --shuffles 500
+
+# every morning
+python3 watch.py --symbols SPY AAPL MSFT
+```
+
+**Read the holdout column once.** `combine.py` and `intraday.py` score everything
+before and after `--holdout-from` separately. The in-sample side is for
+reproducing the published result and for learning; the holdout side is looked
+at once, at the end, and never used to choose anything. If you look, choose, and
+look again, it is in-sample now.
+
+## Alpaca setup
+
+One vendor covers the whole progression — free IEX minute bars for `intraday.py`,
+a paper-trading endpoint with real fills for the gate's paper stage, and live
+later. Nothing here is committed to the repo; keys live in your shell.
+
+1. Sign up at alpaca.markets. Choose **Paper Trading** first; generate an API
+   key pair from the paper dashboard.
+2. Put them in your shell, not in a file in this repo:
+   ```bash
+   echo 'export ALPACA_KEY_ID="…"'     >> ~/.zshrc
+   echo 'export ALPACA_SECRET_KEY="…"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+3. Fetch. Minute bars are big — a decade of SPY is ~1M bars — and the fetch
+   prints progress every ten pages. Extended-hours bars are dropped by default
+   so `barqc` and `intraday.py` see the regular session only.
+   ```bash
+   python3 fetch.py --source alpaca --symbol SPY --timeframe 1m --start 2016-01-01
+   python3 barqc.py --csv bars/SPY-1m.csv --symbol SPY --timeframe 1m --source alpaca --adjusted yes
+   python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca
+   ```
+4. Paper trading needs a recorded backtest first; live needs a filled paper run
+   and `--confirm-live`. See *The gate*. Paper keys do not work on the live
+   endpoint, which is a feature.
 
 ## No look-ahead, by shape
 

@@ -60,8 +60,23 @@ python3 run.py --mode paper --strategy breakout:20 $C --qty 5 --dry-run \
 step "7 · live without a filled paper run — REFUSED"
 python3 run.py --mode live --strategy sma_cross:10,30 $C --qty 1 --dry-run --confirm-live; echo "exit $?"
 
-step "8 · the ledger"
+step "8 · the readout — describes, predicts nothing"
+python3 watch.py --symbols SYN
+
+step "9 · the null exercises — each pattern against block-shuffled bars"
+python3 nulltest.py $C --shuffles 50 --no-record
+
+step "10 · confluence both ways, with the trial count"
+python3 combine.py $C --signals sma_cross:10,30 breakout:20 trend_filter:50 vwap_reclaim:20 \
+  --holdout-from 2026-03-01 --no-record
+
+step "11 · the one (c)-grade result, on synthetic minute bars with a planted effect"
+python3 intraday.py --synth 300 --effect 0.5 --shuffles 200 --holdout-from 2025-01-01 --no-record | tail -8
+
+step "12 · the ledger"
 python3 ledger.py --report
 echo
 echo "open out/ledger.html — the bypass is the red block."
 echo "Nothing here touched a broker. Paper and live run on the Mac, by hand, with keys."
+echo "Steps 9–11 ran on SYNTHETIC bars: a random walk with drift. On those, nothing should"
+echo "hold up, and nothing does. Run them on bars/SPY-1d.csv and read the numbers there."

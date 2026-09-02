@@ -137,8 +137,25 @@ def parse_alpaca_page(body):
     return j.get("bars") or [], j.get("next_page_token")
 
 
+def regular_session(bars):
+    """
+    Keep only bars inside 09:30–16:00 New York. Alpaca's minute bars include
+    pre- and post-market (04:00–20:00), which barqc rightly refuses as
+    off-calendar and which intraday.py must not see. Returns (kept, dropped).
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        ny = ZoneInfo("America/New_York")
+    except Exception as e:
+        raise Unreachable(f"no timezone database ({type(e).__name__}); cannot "
+                          f"separate the regular session from extended hours")
+    lo, hi = dt.time(9, 30), dt.time(16, 0)
+    kept = [b for b in bars if lo <= b.ts.astimezone(ny).time() < hi]
+    return kept, len(bars) - len(kept)
+
+
 def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split",
-                 feed="iex"):
+                 feed="iex", regular_only=True, max_pages=1000):
     if timeframe not in ALPACA_TF:
         raise ValueError(f"alpaca timeframe must be one of {', '.join(ALPACA_TF)}")
     hdr = credentials()
@@ -156,7 +173,9 @@ def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split
         page, token = parse_alpaca_page(_get(url, hdr))
         raw.extend(page)
         pages += 1
-        if not token or pages > 50:
+        if pages % 10 == 0:
+            print(f"  … {pages} pages, {len(raw)} bars so far", file=sys.stderr)
+        if not token or pages >= max_pages:
             break
 
     bars = []
@@ -170,10 +189,19 @@ def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split
                               float(r["c"]), float(r.get("v", 0))))
         except (KeyError, ValueError, TypeError) as e:
             raise Unparseable(f"alpaca bar {r} unreadable: {e}")
+    dropped = 0
+    session = "daily"
+    if timeframe != "1d":
+        if regular_only:
+            bars, dropped = regular_session(bars)
+            session = "regular (09:30–16:00 NY)"
+        else:
+            session = "extended hours included"
     return B.Series(symbol.upper(), timeframe, bars, {
         "source": "alpaca", "fetched_at": dt.datetime.now(B.UTC).isoformat(timespec="seconds"),
         "adjusted": adjustment != "raw", "adjustment": adjustment, "feed": feed,
-        "pages": pages, "start": start, "end": end})
+        "pages": pages, "start": start, "end": end,
+        "session": session, "extended_bars_dropped": dropped})
 
 
 # ---------------------------------------------------------------- cli
@@ -219,6 +247,8 @@ def main():
     ap.add_argument("--start", help="alpaca: RFC3339 or YYYY-MM-DD")
     ap.add_argument("--end")
     ap.add_argument("--adjustment", default="split", choices=["raw", "split", "dividend", "all"])
+    ap.add_argument("--include-extended", action="store_true",
+                    help="alpaca intraday: keep pre/post-market bars (barqc will flag them)")
     ap.add_argument("--out", help="CSV path; default bars/<SYMBOL>-<tf>.csv")
     a = ap.parse_args()
 
@@ -234,7 +264,8 @@ def main():
                 sys.exit("stooq serves daily bars only; use --source alpaca for intraday")
             s = fetch_stooq(a.symbol)
         else:
-            s = fetch_alpaca(a.symbol, a.timeframe, a.start, a.end, a.adjustment)
+            s = fetch_alpaca(a.symbol, a.timeframe, a.start, a.end, a.adjustment,
+                             regular_only=not a.include_extended)
     except Unreachable as e:
         print(f"NETWORK  {e}", file=sys.stderr)
         print("Nothing was written. No bars means no bars, not zero bars.", file=sys.stderr)

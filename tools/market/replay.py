@@ -36,7 +36,13 @@ USAGE (library — run.py is the CLI)
     result = replay(series, strategy, cost_bps=5)
 """
 
+import math
+
 import barqc
+
+# Regular-session bars per year, for annualising. 252 sessions of 6.5 hours.
+BARS_PER_YEAR = {"1d": 252, "1h": 252 * 7, "15m": 252 * 26, "5m": 252 * 78,
+                 "1m": 252 * 390}
 
 
 class LookAhead(Exception):
@@ -105,13 +111,44 @@ def max_drawdown(equity):
     return worst
 
 
-def replay(series, strategy, cost_bps=0.0, warmup=1, name=None):
+# Keys a ledger entry must not carry: per-bar series that would make it huge.
+LEDGER_EXCLUDE = ("equity", "equity_ts", "targets", "bar_returns", "fill_list")
+
+
+def _stats(rets, bars_per_year):
+    """Mean, dispersion, Sharpe, skew, kurtosis of per-bar returns."""
+    n = len(rets)
+    if n < 2:
+        return {"sharpe_per_bar": 0.0, "sharpe": 0.0, "volatility": 0.0,
+                "skew": 0.0, "kurt": 3.0, "returns_used": n}
+    m = sum(rets) / n
+    var = sum((r - m) ** 2 for r in rets) / (n - 1)
+    sd = math.sqrt(var)
+    if sd == 0:
+        return {"sharpe_per_bar": 0.0, "sharpe": 0.0, "volatility": 0.0,
+                "skew": 0.0, "kurt": 3.0, "returns_used": n}
+    m3 = sum((r - m) ** 3 for r in rets) / n
+    m4 = sum((r - m) ** 4 for r in rets) / n
+    pvar = sum((r - m) ** 2 for r in rets) / n
+    spb = m / sd
+    return {"sharpe_per_bar": spb, "sharpe": spb * math.sqrt(bars_per_year),
+            "volatility": sd * math.sqrt(bars_per_year),
+            "skew": m3 / pvar ** 1.5 if pvar > 0 else 0.0,
+            "kurt": m4 / pvar ** 2 if pvar > 0 else 3.0,
+            "returns_used": n}
+
+
+def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
     """
     Walk the bars. Returns a dict of stats plus the equity curve and fills.
 
     `strategy(cursor) -> target` with target in [-1, 1]: the fraction of equity
     to hold in the asset after the next open. Long-only strategies return 0 or 1.
     Returning the same target as currently held is a no-op and costs nothing.
+
+    `cash_yield` is an annual rate earned on idle cash. A trend filter that
+    sits out a bear market is not earning nothing; leaving this at zero
+    understates it, so say what you assumed.
     """
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
@@ -121,9 +158,11 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None):
     if len(bars) < warmup + 2:
         raise Blocked(f"{len(bars)} bar(s) is not enough to make one decision "
                       f"and one fill after a warm-up of {warmup}")
+    bpy = BARS_PER_YEAR.get(series.timeframe, 252)
+    per_bar_yield = (1.0 + cash_yield) ** (1.0 / bpy) - 1.0 if cash_yield else 0.0
 
     cash, units, pos = 1.0, 0.0, 0.0
-    equity, fills = [], []
+    equity, equity_ts, targets, fills = [], [], [], []
     pending = None
 
     for i in range(warmup, len(bars)):
@@ -140,11 +179,17 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None):
             pos = pending
             fills.append({"ts": b.ts.isoformat(), "price": price,
                           "target": pending, "delta_units": delta, "cost": cost})
+        # 1b. whatever cash is still idle through this bar earns the yield —
+        #     after the fill, so cash deployed at this open earns nothing here
+        if per_bar_yield and cash > 0:
+            cash *= 1.0 + per_bar_yield
         # 2. mark to market at this close
         equity.append(cash + units * b.close)
+        equity_ts.append(b.ts.isoformat())
         # 3. decide, seeing bars 0..i — this bar is closed, the next is not
         cur = Cursor(series, i + 1)
         pending = max(-1.0, min(1.0, float(strategy(cur))))
+        targets.append(pending)
 
     e0, e1 = 1.0, equity[-1]
     # The first bar a strategy can possibly fill at is bars[warmup + 1] — it
@@ -155,21 +200,52 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None):
     bench = bars[-1].close / bars[warmup + 1].open - 1
     held = sum(1 for i in range(len(equity)) if _pos_at(fills, bars, warmup, i) != 0)
     exposure = held / len(equity) if equity else 0.0
+    rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity))]
+    years = len(equity) / bpy
+    cagr = e1 ** (1.0 / years) - 1.0 if years > 0 and e1 > 0 else None
     return {
         "strategy": name or getattr(strategy, "__name__", "strategy"),
         "symbol": series.symbol, "timeframe": series.timeframe,
         "source": series.provenance.get("source"),
         "bars": len(bars), "start": bars[0].ts.isoformat(),
         "end": bars[-1].ts.isoformat(),
-        "return": e1 / e0 - 1, "benchmark": bench,
+        "return": e1 / e0 - 1, "benchmark": bench, "cagr": cagr,
         "max_drawdown": max_drawdown(equity),
-        "fills": len(fills), "cost_bps": cost_bps, "exposure": exposure,
+        "fills": len(fills), "cost_bps": cost_bps, "cash_yield": cash_yield,
+        "exposure": exposure, "years": years, "bars_per_year": bpy,
+        **_stats(rets, bpy),
         "final_signal": pending,
         "not_modelled": "order book, partial fills, intraday slippage, "
                         "borrow, dividends",
         "qc_verdict": qc["verdict"], "qc_unrun": qc["unrun"],
-        "equity": equity, "fill_list": fills,
+        "equity": equity, "equity_ts": equity_ts, "targets": targets,
+        "bar_returns": rets, "fill_list": fills,
     }
+
+
+def window_stats(result, start=None, end=None):
+    """
+    Stats over a date window of an existing replay, from its per-bar returns.
+
+    The strategy ran on the whole series, so it had its full warm-up history
+    at the window's first bar; the window only chooses which bars are SCORED.
+    That is how an in-sample / holdout split has to work — slicing the bars
+    themselves would hand the holdout a strategy with amnesia.
+    """
+    ts = result["equity_ts"]
+    eq = result["equity"]
+    idx = [i for i, t in enumerate(ts)
+           if (start is None or t >= start) and (end is None or t < end)]
+    if len(idx) < 2:
+        return {"bars_used": len(idx), "return": None, "sharpe": 0.0,
+                "max_drawdown": 0.0, "start": start, "end": end}
+    seg = [eq[i] for i in idx]
+    rets = [seg[i] / seg[i - 1] - 1.0 for i in range(1, len(seg))]
+    fills_in = sum(1 for f in result["fill_list"]
+                   if (start is None or f["ts"] >= start) and (end is None or f["ts"] < end))
+    return {"start": ts[idx[0]], "end": ts[idx[-1]], "bars_used": len(idx),
+            "return": seg[-1] / seg[0] - 1.0, "max_drawdown": max_drawdown(seg),
+            "fills": fills_in, **_stats(rets, result["bars_per_year"])}
 
 
 def _pos_at(fills, bars, warmup, i):

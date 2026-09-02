@@ -125,6 +125,8 @@ def main():
     ap.add_argument("--adjusted", choices=["yes", "no"])
     ap.add_argument("--cost-bps", type=float, default=5.0,
                     help="per-fill cost in basis points for backtests (default 5)")
+    ap.add_argument("--cash-yield", type=float, default=0.0,
+                    help="annual rate earned on idle cash in backtests, e.g. 0.04")
     ap.add_argument("--qty", type=float, help="shares, for paper/live")
     ap.add_argument("--side", choices=["buy", "sell"],
                     help="override the side the signal implies")
@@ -194,12 +196,17 @@ def main():
     # ---- backtest -------------------------------------------------------
     if a.mode == "backtest":
         try:
-            r = replay.replay(s, strat, cost_bps=a.cost_bps, name=strat_name)
+            r = replay.replay(s, strat, cost_bps=a.cost_bps, name=strat_name,
+                              cash_yield=a.cash_yield)
         except replay.Blocked as e:
             refuse(2, f"REFUSED: {e}")
         print(replay.summary(r))
+        print(f"         sharpe {r['sharpe']:.2f}, cagr "
+              f"{(format(r['cagr'], '+.1%') if r['cagr'] is not None else 'n/a')}, "
+              f"vol {r['volatility']:.1%}, {r['years']:.1f} years"
+              + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else ""))
         print(f"not modelled: {r['not_modelled']}")
-        keep = {k: v for k, v in r.items() if k not in ("equity", "fill_list")}
+        keep = {k: v for k, v in r.items() if k not in replay.LEDGER_EXCLUDE}
         ledger.record("backtest", **keep)
         print(f"\nrecorded backtest to the ledger")
         print(f"next:  python3 run.py --mode paper --strategy {a.strategy} "

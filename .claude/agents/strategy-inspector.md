@@ -37,6 +37,22 @@ and write down the answer to each:
 a recorded backtest **and** a paper run that actually filled. `run.py` enforces
 this; you confirm it from `ledger.py --show STRATEGY SYMBOL`, not from memory.
 
+## The three tools that decide whether a result is real
+
+| tool | asks | the number to quote |
+|---|---|---|
+| `combine.py` | is the best of these N strategies better than the best of N nothings? | the **Deflated Sharpe** and the trial count; the in-sample/holdout columns side by side |
+| `nulltest.py` | does this pattern beat the same pattern on block-shuffled bars, after costs? | the **p** per rule, with n — one low p among eight rules is what eight tries look like |
+| `intraday.py` | did the one published edge survive publication? | the **holdout** row and its permutation p, read once |
+
+Run `combine.py --count-ledger` so every backtest already in the ledger for that
+symbol is counted as a trial. A strategy that looks good only because forty
+others were tried first is the thing this table exists to catch.
+
+**The holdout is looked at once.** If a holdout number was used to choose
+anything — a parameter, a signal, which strategy to keep — it is in-sample now,
+and you say so in the report.
+
 ## What you must not do
 
 Do not lower `--cost-bps` to make a backtest look better. Do not choose the
