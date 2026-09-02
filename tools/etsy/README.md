@@ -1,6 +1,6 @@
 # CorpalCaptain shirt pipeline
 
-Five tools that take a public-domain plate to a live, searchable Etsy listing
+Eight tools that take a public-domain plate to a live, searchable Etsy listing
 with a posting schedule behind it. Python 3 + Pillow, offline, no API, no
 account credentials — the same posture as `Design/render/render_shirt.py`,
 which does the text designs this pipeline does not.
@@ -23,7 +23,7 @@ out/              everything generated
 | `qc.py` | the QC gate — nine checks, each reporting a number |
 | `history.py` | append-only ledger + the change history you can look at |
 | `demo.sh` | the whole loop end to end, reproducibly |
-| `test_tools.py` | 109 checks. `python3 test_tools.py` |
+| `test_tools.py` | 131 checks. `python3 test_tools.py` |
 
 ## The order
 
@@ -45,6 +45,34 @@ python3 schedule.py --ics
 python3 rival.py --catalogue catalogue.json
 ```
 
+## The six agents
+
+Recorded in `.claude/agents/`, one per job in the pipeline. Each carries its own
+brief, its own tool list, and the same block of standing constraints at the end —
+never modify `~/Desktop/Cortana`, never run git writes, never publish or post or
+buy, never claim work that did not happen.
+
+| Agent | Job | Effort | Needs network |
+|---|---|---|---|
+| `plate-sourcer` | Find public-domain plates, verify each licence **on its own file page**, fill a recipe's provenance. Does not compose and does not judge design. | low | yes |
+| `compositor` | Layer geometry, ink palette, masking — then run `compose.py` and *look at* the render. | medium | no |
+| `mockup-smith` | Print file onto a garment at true physical scale, v1 then v2. | low | no |
+| `print-inspector` | The QC gate. Runs the nine checks, blocks or passes, records findings. | **high** | no |
+| `listing-scribe` | Title, 13 tags, description — validated by `listing.py`, not by taste. | low | no |
+| `rival-watch` | Competitor counts per phrase, diffed against the previous run. | low | yes |
+
+**Why `print-inspector` is the one at high effort.** The other five produce
+things; it is the only one whose output is a **refusal**. A gate that
+rubber-stamps is worse than no gate, because it converts an unchecked file into a
+file everyone believes was checked — and every later step, up to a printed
+garment a customer paid for, inherits that belief. The cost of thinking harder
+there is a few cents; the cost of a false pass is a return and a review. The
+producing agents run low because their work is checked downstream by that gate
+and by the tests. Nothing else in this repo has that asymmetry.
+
+The two network-dependent agents **cannot run in a cloud session** — the proxy
+refuses every archive and `etsy.com` alike. They run on the Mac.
+
 ## The mockup gate
 
 ```
@@ -59,6 +87,17 @@ no recorded change cannot be read as a revision later.
 Run `./demo.sh` to watch the whole loop. On the stand-in plates it goes:
 v1 blocked at **2.69:1 contrast on black** (under the 3:1 WCAG floor) → inks
 lightened → v2 passes at **4.71:1**.
+
+There is an escape hatch, and it is deliberately awkward. `--force` skips the
+gate, but only with `--force-reason "..."`; without one it exits 4 and builds
+nothing. The version then carries `forced` and that reason in the ledger, and the
+report prints **Gate bypassed** across it in the same red as a failed check.
+
+An escape hatch is reasonable. A *silent* one is not: the ledger's entire value
+is that a v2 sitting below a v1 proves an inspection happened in between, and a
+bypass nobody can see makes every other entry unreliable too. The first version
+of this flag was hidden with `argparse.SUPPRESS` and recorded nothing — it did
+more damage than having no gate at all.
 
 ## Three things this pipeline refuses to do
 
@@ -81,8 +120,8 @@ never happened is worse than no copy at all.
 
 ## Four defects worth knowing about
 
-Both were invisible in the code and obvious in the render. They are why
-`--preview` exists and why the tests pin them.
+All four were invisible in the code and obvious in the render. They are why
+`--preview` and the silhouette proof exist, and why the tests pin them.
 
 1. **`render_plate.py` left the paper trapped between the tentacles.** A border
    flood fill cannot reach an enclosed gap, so it printed as cream blobs on a

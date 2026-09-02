@@ -167,10 +167,29 @@ def main():
                     help="what changed since the previous version; repeatable")
     ap.add_argument("--note", default="")
     ap.add_argument("--force", action="store_true",
-                    help=argparse.SUPPRESS)     # deliberately undocumented
+                    help="skip the v1 inspection requirement. Requires "
+                         "--force-reason, and the bypass is recorded in the "
+                         "ledger and shown in the report.")
+    ap.add_argument("--force-reason", default="",
+                    help="why the gate is being skipped; required with --force")
     a = ap.parse_args()
 
     # ---- the gate -------------------------------------------------------
+    #
+    # --force exists because a real workflow occasionally needs an escape hatch.
+    # It is NOT silent, and that distinction is the whole point: a forced version
+    # that looked identical to an earned one would make the ledger lie, and the
+    # ledger's only value is that a v2 sitting below a v1 proves an inspection
+    # happened in between.
+    if a.force and not a.force_reason.strip():
+        print("REFUSING to force.\n", file=sys.stderr)
+        print("  --force skips the inspection gate, so it has to be justified "
+              "in writing.", file=sys.stderr)
+        print("  A bypass someone had to explain is a different act from one "
+              "they could\n  take by reflex.\n", file=sys.stderr)
+        print('  Run:  --force --force-reason "…"', file=sys.stderr)
+        sys.exit(4)
+
     if a.version > 1 and not a.force:
         prev = history.inspection_for(a.design, a.version - 1)
         if prev is None:
@@ -237,8 +256,12 @@ def main():
     files["sheet"] = spath
     print(f"wrote {spath}")
 
-    history.record_version(a.design, a.version, files, a.change, a.note)
+    history.record_version(a.design, a.version, files, a.change, a.note,
+                           forced=a.force, force_reason=a.force_reason)
     print(f"\nrecorded v{a.version} to the ledger")
+    if a.force:
+        print(f"⚠ GATE BYPASSED — recorded as forced, reason: "
+              f"{a.force_reason}", file=sys.stderr)
     if a.version == 1:
         print(f"next:  python3 qc.py --design {a.design} --version 1")
     print(f"       python3 history.py --report")

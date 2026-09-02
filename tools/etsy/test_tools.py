@@ -454,6 +454,128 @@ if _real:
 else:
     check("demo ledger present (run ./demo.sh first)", False)
 
+# ---------------------------------------------------------------- force
+
+print("\nthe force escape hatch")
+
+# --force skips the gate. Having an escape hatch is reasonable; having a SILENT
+# one was not. The flag was originally registered with argparse.SUPPRESS, so
+# `--help` never mentioned it, and a forced v2 landed in the ledger looking
+# exactly like an earned one. That quietly destroyed the only thing the ledger
+# is for: a reader could no longer tell which v2 answered findings and which
+# simply went around them. These checks pin the bypass as visible in --help,
+# refused without a written reason, recorded, and shown in the report.
+
+import contextlib
+import io
+import os as _os
+import subprocess as _sp
+import tempfile as _tempfile
+
+import mockup
+
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+
+
+def _run_mockup(argv, ledger, out_dir):
+    """Run mockup.main() against an ISOLATED ledger. Returns the exit code."""
+    real_ledger, real_argv = H.LEDGER, sys.argv
+    H.LEDGER = ledger
+    sys.argv = ["mockup.py", "--out", out_dir] + argv
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), \
+             contextlib.redirect_stderr(io.StringIO()):
+            mockup.main()
+        return 0
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 1
+    finally:
+        H.LEDGER, sys.argv = real_ledger, real_argv
+
+
+def _versions(ledger, design):
+    import json as _json
+    if not _os.path.exists(ledger):
+        return []
+    return _json.load(open(ledger))["designs"].get(design, {}).get("versions", [])
+
+
+_sand = _tempfile.mkdtemp(prefix="force-")
+_ledger = _os.path.join(_sand, "ledger.json")
+_out = _os.path.join(_sand, "out")
+_os.makedirs(_out, exist_ok=True)
+_pf = _os.path.join(_sand, "print.png")
+_art((900, 1080), fill=(30, 30, 30), box=[200, 240, 700, 840]).save(_pf)
+_base = ["--design", "sandbox", "--print", _pf]
+
+# An escape hatch nobody can see is a trapdoor. This is the check that would
+# have failed against the original argparse.SUPPRESS registration.
+_help = _sp.run([sys.executable, "mockup.py", "--help"], cwd=_HERE,
+                capture_output=True, text=True).stdout
+check("--force is documented in --help", "--force" in _help)
+check("--force-reason is documented in --help", "--force-reason" in _help)
+check("--help says what --force skips", "inspection" in _help.lower())
+
+# The default path must be untouched by the existence of force.
+check("v2 is still refused with no inspection of v1",
+      _run_mockup(_base + ["--version", "2"], _ledger, _out) == 3)
+check("a refused v2 writes nothing to the ledger",
+      _versions(_ledger, "sandbox") == [])
+
+check("v1 needs no gate", _run_mockup(_base + ["--version", "1"], _ledger, _out) == 0)
+check("v1 was recorded", len(_versions(_ledger, "sandbox")) == 1)
+check("an earned version carries no forced marker",
+      "forced" not in _versions(_ledger, "sandbox")[0])
+
+# Force without a reason is refused — and refused with its own exit code, so a
+# caller can tell "you did not justify this" apart from "the gate stopped you".
+check("--force alone is refused",
+      _run_mockup(_base + ["--version", "2", "--force"], _ledger, _out) == 4)
+check("--force with blank whitespace is refused",
+      _run_mockup(_base + ["--version", "2", "--force", "--force-reason", "   "],
+                  _ledger, _out) == 4)
+check("refusing to force writes nothing to the ledger",
+      len(_versions(_ledger, "sandbox")) == 1)
+check("the force refusal is distinct from the gate refusal", 4 != 3)
+
+# With a reason, it goes through where the gate would otherwise have refused.
+_reason = "printer needed the file before the inspector was free"
+check("--force with a reason builds a v2 the gate would have refused",
+      _run_mockup(_base + ["--version", "2", "--force",
+                           "--force-reason", _reason], _ledger, _out) == 0)
+_v2 = [v for v in _versions(_ledger, "sandbox") if v["version"] == 2]
+check("the forced version was recorded", len(_v2) == 1)
+check("the ledger marks it forced", _v2 and _v2[0].get("forced") is True)
+check("the ledger keeps the stated reason",
+      _v2 and _v2[0].get("force_reason") == _reason)
+
+# Forcing does not excuse --change: the record still has to say what moved.
+check("forcing still records changes when given",
+      _run_mockup(_base + ["--version", "3", "--force", "--force-reason", _reason,
+                           "--change", "raised gamma"], _ledger, _out) == 0
+      and [v for v in _versions(_ledger, "sandbox")
+           if v["version"] == 3][0]["changes"] == ["raised gamma"])
+
+# And a reader scanning the report has to SEE it, not find it in JSON.
+import json as _json
+_rep = H.build_report(_json.load(open(_ledger)), _out)
+_html = open(_rep).read()
+check("the report marks the forced version", "Gate bypassed" in _html)
+check("the report shows the stated reason", _reason in _html)
+check("the forced marker uses the blocked-red style", 'class="forced"' in _html)
+check("an earned version is not marked as bypassed",
+      _html.count("Gate bypassed") == 2, str(_html.count("Gate bypassed")))
+
+_shutil_rmtree_ok = True
+try:
+    import shutil as _shutil
+    _shutil.rmtree(_sand)
+except Exception:
+    _shutil_rmtree_ok = False
+check("the real ledger was never touched by the force tests",
+      H.LEDGER.endswith(_os.path.join("out", "history.json"))
+      and H.load() == _led_backup)
+
 # ---------------------------------------------------------------- result
 
 print()

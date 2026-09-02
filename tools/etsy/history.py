@@ -65,13 +65,24 @@ def _design(led, design):
     return led["designs"].setdefault(design, {"versions": [], "inspections": []})
 
 
-def record_version(design, version, files, changes=None, note=""):
+def record_version(design, version, files, changes=None, note="",
+                   forced=False, force_reason=""):
+    """
+    Append a version.
+
+    `forced` records that this version skipped the inspection gate. It is kept
+    because a forced version that looked identical to an earned one would make
+    the whole ledger unreliable — a reader could no longer tell which v2 answered
+    findings and which simply went around them.
+    """
     led = load()
     d = _design(led, design)
-    d["versions"].append({
-        "version": version, "at": _now(), "files": files,
-        "changes": changes or [], "note": note,
-    })
+    entry = {"version": version, "at": _now(), "files": files,
+             "changes": changes or [], "note": note}
+    if forced:
+        entry["forced"] = True
+        entry["force_reason"] = force_reason
+    d["versions"].append(entry)
     save(led)
 
 
@@ -254,6 +265,10 @@ img{width:100%;border:1px solid var(--rule);border-radius:2px;display:block}
 
 .gate{background:var(--wash);border-left:3px solid var(--block);padding:14px 18px;
   margin:20px 0 0;font-size:14px;max-width:70ch}
+.forced{background:color-mix(in srgb,var(--block) 10%,transparent);
+  border-left:3px solid var(--block);color:var(--block);padding:12px 16px;
+  margin:10px 0 0;font-size:14px;max-width:70ch}
+.forced strong{font-family:var(--display);font-weight:600}
 .gate strong{font-family:var(--display);font-weight:600}
 .none{color:var(--muted);font-style:italic;padding:16px 0}
 @media (max-width:640px){.sheet{padding:34px 18px 64px}h1{font-size:24px}}
@@ -278,6 +293,11 @@ def build_report(led, out_dir):
             p.append('<div class="ver">')
             p.append(f'<div class="vhead"><h3>Version {n}</h3>'
                      f'<span class="stamp">{v["at"]}</span></div>')
+            if v.get("forced"):
+                p.append(f'<div class="forced"><strong>Gate bypassed.</strong> '
+                         f'This version skipped the inspection of v{n - 1}. '
+                         f'Stated reason: {v.get("force_reason") or "none given"}'
+                         f'</div>')
             if v.get("note"):
                 p.append(f'<p class="why">{v["note"]}</p>')
             if v.get("changes"):
