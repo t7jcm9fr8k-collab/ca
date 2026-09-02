@@ -397,6 +397,22 @@ check("an unreachable host is NETWORK", _raises(fetch.Unreachable, fetch._get, "
 for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
     os.environ.pop(k, None)
 check("alpaca without keys refuses before any request", _raises(fetch.Unreachable, fetch.fetch_alpaca, "AAPL"))
+_yj = json.dumps({"chart": {"result": [{"timestamp": [1704207600, 1704294000, 1704380400],
+    "indicators": {"quote": [{"open": [1, 2, None], "high": [2, 3, 4], "low": [0.5, 1.5, 2.5],
+                              "close": [1.5, 2.5, 3.5], "volume": [10, 20, 30]}],
+                   "adjclose": [{"adjclose": [1.2, 2.0, 2.8]}]}}], "error": None}})
+_ys = fetch.parse_yahoo(_yj, "spy")
+check("yahoo JSON parses, null rows skipped, dates pinned", len(_ys) == 2 and _ys.symbol == "SPY"
+      and _ys[0].ts == dt.datetime(2024, 1, 2, tzinfo=B.UTC) and _ys.provenance["rows_skipped_null"] == 1)
+check("yahoo raw close is the official close, dividends not folded in",
+      _ys[0].close == 1.5 and _ys.provenance["adjusted"] is False and "official" in _ys.provenance["close_is"])
+_ya = fetch.parse_yahoo(_yj, "spy", adjusted_close=True)
+check("yahoo --adjusted-close back-adjusts the whole bar by the same factor",
+      _ya[0].close == 1.2 and abs(_ya[0].open - 1 * 1.2 / 1.5) < 1e-12 and _ya.provenance["adjusted"] is True)
+check("yahoo error JSON is PARSE", _raises(B.Unparseable, fetch.parse_yahoo, json.dumps({"chart": {"result": None, "error": {"code": "Not Found"}}}), "ZZZZ"))
+check("yahoo html is NETWORK", _raises(fetch.Unreachable, fetch.parse_yahoo, "<html>blocked</html>", "SPY"))
+check("yahoo all-null rows are PARSE, never zero bars",
+      _raises(B.Unparseable, fetch.parse_yahoo, json.dumps({"chart": {"result": [{"timestamp": [1], "indicators": {"quote": [{"open": [None], "high": [None], "low": [None], "close": [None], "volume": [None]}]}}], "error": None}}), "SPY"))
 _m_old = _series(_daily(6))
 _m_new = _series([B.Bar(_m_old.bars[2].ts, 1, 2, 0.5, 1.5, 9)] + list(_daily(9)[6:8]), prov={"source": "patch", "fetched_at": "x", "start": "s", "end": "e"})
 _mrg, _added, _repl = fetch.merge(_m_old, _m_new)
@@ -800,6 +816,11 @@ check("sessions without an official close are skipped and counted",
       _r3p["sessions"] == 20 and _r3p["skipped"].get("no official close for the date") == 10)
 check("trial 3 names the cross-feed basis, not the auction", "cent" in _r3p["not_modelled"] and "AUCTION" not in _r3p["not_modelled"])
 check("the report shows the exit source", "exit: official close" in intraday.render(_r3))
+_cm_adj = {k: v * 0.95 for k, v in _cm.items()}          # what a dividend-adjusted file looks like
+check("a close file on a different price basis is REFUSED, not joined",
+      _raises(SystemExit, intraday.run, _syn3, "first30", 2.0, "2024-02-01", 5, close_map=_cm_adj, close_source="adj"))
+check("cents of basis are accepted", intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5,
+      close_map={k: v * 1.0003 for k, v in _cm.items()}, close_source="t")["trial"] == 3)
 check("the run records the data span", _strong["data_start"].startswith("2024") and _strong["data_end"] > _strong["data_start"])
 check("a feed that begins after 2019 cannot reproduce the papers, and says so",
       _strong["reproduction_possible"] is False and "NOT a reproduction" in intraday.render(_strong))

@@ -74,6 +74,7 @@ RULES = {
     "open_to_1530": "sign of the 09:30–15:30 return (Baltussen et al. 2021)",
 }
 MIN_BARS = 312                  # 80% of 390, the same line barqc draws; fewer is skipped
+BASIS_TOLERANCE = 0.01          # official close vs this feed's last print: cents, never percent
 PUBLISHED_BP = 2.7              # Gao et al. 2018, SPY: roughly 2.5–3 bp per session gross
 T_OPEN, T_10, T_1530, T_LAST = (dt.time(9, 30), dt.time(10, 0),
                                 dt.time(15, 30), dt.time(15, 55))
@@ -131,6 +132,7 @@ def measure(pts):
             "r_first30": c_10 / open_930 - 1.0,
             "r_open_to_1530": c_1530 / open_930 - 1.0,
             "open_1530": bar_1530.open,
+            "last_print": pts[-1][1].close,
             "r_last30": pts[-1][1].close / bar_1530.open - 1.0,
             "fill_slipped": fill_at != T_1530,        # the 15:30 minute was missing
             "exit_time": pts[-1][0].time().isoformat(timespec="minutes")}, None
@@ -215,18 +217,31 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
         sys.exit("REFUSED: no complete regular sessions in these bars")
     exit_price = "last regular-session print on this feed"
     if close_map is not None:
-        joined, dropped = [], 0
+        joined, dropped, gaps = [], 0, []
         for r in rows:
             oc = close_map.get(r["date"])
             if oc is None:
                 dropped += 1
                 continue
+            gaps.append(abs(oc / r["last_print"] - 1.0))
             joined.append({**r, "r_last30": oc / r["open_1530"] - 1.0, "official_close": oc})
         skipped["no official close for the date"] = dropped
-        rows = joined
-        if not rows:
+        if not joined:
             sys.exit("REFUSED: no session had an official close for its date — check the dates line up")
-        exit_price = f"official close from {close_source or 'daily file'} (trial 3)"
+        # The official close and this feed's last print are the same instrument
+        # a minute apart; they differ by cents. A dividend-adjusted file differs
+        # by the cumulative dividends since — percent, growing with age — and
+        # joining it would manufacture a last-half-hour return out of thin air.
+        med = sorted(gaps)[len(gaps) // 2]
+        if med > BASIS_TOLERANCE:
+            sys.exit(f"REFUSED: the closes in --close-from are not on the same price basis as "
+                     f"the minute bars — median gap {med:.2%} against this feed's last print, "
+                     f"tolerance {BASIS_TOLERANCE:.1%}. A dividend-adjusted series looks exactly "
+                     f"like this. Trial 3 needs RAW official closes (Stooq, or yahoo without "
+                     f"--adjusted-close).")
+        rows = joined
+        exit_price = (f"official close from {close_source or 'daily file'} (trial 3); "
+                      f"median gap to this feed's last print {med:.3%}")
 
     ins = [r for r in rows if r["date"] < holdout_from]
     out = [r for r in rows if r["date"] >= holdout_from]

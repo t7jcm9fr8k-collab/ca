@@ -28,7 +28,7 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 357 checks. `python3 test_tools.py` |
+| `test_tools.py` | 365 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -64,11 +64,20 @@ nothing: the hole is in the source, not in your file, and it stays documented.
 
 ### If Stooq returns a web page instead of a CSV
 
-Stooq serves its front page to non-browser clients and rate-limits by IP. The
-error quotes what the page said. The fallback that always works: open
-`https://stooq.com/q/d/?s=spy.us` in a browser, click the CSV download, and save
-it as `bars/SPY-1d.csv` — `bars.py` reads Stooq's format as is. Then carry on
-with `barqc.py`.
+Since 2026-09-02 Stooq puts a JavaScript bot-check in front of its CSV, which
+nothing in plain Python can or should get past. The error quotes what the page
+said. Two ways on:
+
+- **Browser download.** Open `https://stooq.com/q/d/?s=spy.us`, click the CSV
+  download, then `mv ~/Downloads/spy_us_d.csv bars/SPY-1d.csv`. `bars.py`
+  reads Stooq's format as is.
+- **`--source yahoo`.** Keyless, official consolidated closes, back to 1993.
+  `python3 fetch.py --source yahoo --symbol SPY --out bars/SPY-1d.csv`.
+  Add `--adjusted-close` for the total-return series (then no
+  `--dividend-yield` is needed) — **but not for trial 3**: `--close-from`
+  needs raw closes, and `intraday.py` refuses a file whose closes sit more than
+  1% from the minute feed's own last print, which is what an adjusted series
+  looks like.
 
 ## Candles or the data?
 

@@ -28,6 +28,14 @@ SOURCES
              Never passed as arguments — arguments land in shell history. The
              free tier serves the IEX feed. Adjustment is requested explicitly
              and recorded.
+    yahoo    daily bars, JSON, NO KEY, back to a symbol's first day; the closes
+             are the official consolidated closes. Unofficial endpoint — it has
+             stayed open for years and could close tomorrow; the failure path
+             covers that. `--adjusted-close` takes Yahoo's total-return series
+             (dividends and splits folded in) and back-adjusts O/H/L to match;
+             without it you get the raw close, split-adjusted only. Stooq put a
+             JavaScript bot-check in front of its CSV on 2026-09-02; this is the
+             second source so one site's mood is not the pipeline's.
 
 USAGE
     python3 fetch.py --dry-run                            # prove the failure path, offline
@@ -57,6 +65,7 @@ BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
               "(KHTML, like Gecko) Chrome/122.0 Safari/537.36")
 
 STOOQ_URL = "https://stooq.com/q/d/l/?s={sym}&i=d"
+YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=max&interval=1d"
 STOOQ_PAGE = "https://stooq.com/q/d/?s={sym}"
 ALPACA_DATA = "https://data.alpaca.markets/v2/stocks/{sym}/bars"
 ALPACA_TF = {"1d": "1Day", "1h": "1Hour", "15m": "15Min", "5m": "5Min", "1m": "1Min"}
@@ -150,6 +159,64 @@ def fetch_stooq(symbol):
                          "Accept": "text/csv,text/plain,*/*;q=0.8",
                          "Referer": STOOQ_PAGE.format(sym=_stooq_sym(symbol))})
     return parse_stooq(body, symbol)
+
+
+# ---------------------------------------------------------------- yahoo
+
+def parse_yahoo(body, symbol, adjusted_close=False):
+    """
+    Yahoo's v8 chart JSON → Series. Rows with a null in any field are skipped
+    (holidays show up that way). An error object, an empty result or a page
+    of HTML are refused, never returned as bars.
+    """
+    head = body.strip()[:200].lower()
+    if "<html" in head or "<!doctype" in head:
+        raise Unreachable("yahoo returned a page, not JSON — blocked or redirected: "
+                          f"{_visible_text(body)!r}")
+    try:
+        j = json.loads(body)
+    except json.JSONDecodeError as e:
+        raise Unparseable(f"yahoo body is not JSON: {e}")
+    chart = j.get("chart") or {}
+    if chart.get("error"):
+        raise Unparseable(f"yahoo error: {chart['error']}")
+    res = (chart.get("result") or [None])[0]
+    if not res:
+        raise Unparseable(f"yahoo returned no result for {symbol!r} — check the symbol")
+    ts = res.get("timestamp") or []
+    q = ((res.get("indicators") or {}).get("quote") or [{}])[0]
+    adj = ((res.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose") or []
+    if not ts or not q.get("close"):
+        raise Unparseable("yahoo result has no timestamps or closes")
+    bars_, skipped = [], 0
+    for i, t in enumerate(ts):
+        o, h, l, c, v = (q.get(k, [None] * len(ts))[i] for k in ("open", "high", "low", "close", "volume"))
+        a = adj[i] if i < len(adj) else None
+        if None in (o, h, l, c) or (adjusted_close and a is None):
+            skipped += 1
+            continue
+        d = dt.datetime.fromtimestamp(t, B.UTC).date()
+        if adjusted_close and c:
+            k = a / c                      # back-adjust the whole bar by the same factor
+            o, h, l, c = o * k, h * k, l * k, a
+        bars_.append(B.Bar(dt.datetime(d.year, d.month, d.day, tzinfo=B.UTC),
+                           float(o), float(h), float(l), float(c), float(v or 0)))
+    if not bars_:
+        raise Unparseable("yahoo result had rows but every row was null")
+    return B.Series(symbol.upper(), "1d", bars_, {
+        "source": "yahoo", "fetched_at": dt.datetime.now(B.UTC).isoformat(timespec="seconds"),
+        "adjusted": True if adjusted_close else False,
+        "adjustment": "total return (yahoo adjclose, O/H/L back-adjusted)" if adjusted_close
+                      else "split-adjusted only (yahoo close); dividends not folded in",
+        "url": YAHOO_URL.format(sym=symbol.upper()), "rows_skipped_null": skipped,
+        "close_is": "official consolidated close" if not adjusted_close
+                    else "dividend-adjusted — NOT on the same price basis as live prints"})
+
+
+def fetch_yahoo(symbol, adjusted_close=False):
+    body = _get(YAHOO_URL.format(sym=symbol.upper()),
+                headers={"User-Agent": BROWSER_UA, "Accept": "application/json,*/*;q=0.8"})
+    return parse_yahoo(body, symbol, adjusted_close)
 
 
 # ---------------------------------------------------------------- alpaca
@@ -306,7 +373,10 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--source", choices=["stooq", "alpaca"], default="stooq")
+    ap.add_argument("--source", choices=["stooq", "alpaca", "yahoo"], default="stooq")
+    ap.add_argument("--adjusted-close", action="store_true",
+                    help="yahoo: take the total-return series (dividends folded in). NOT for "
+                         "trial 3's --close-from, which needs raw closes")
     ap.add_argument("--symbol")
     ap.add_argument("--timeframe", default="1d", choices=sorted(B.TIMEFRAMES))
     ap.add_argument("--start", help="alpaca: RFC3339 or YYYY-MM-DD")
@@ -331,6 +401,10 @@ def main():
             if a.timeframe != "1d":
                 sys.exit("stooq serves daily bars only; use --source alpaca for intraday")
             s = fetch_stooq(a.symbol)
+        elif a.source == "yahoo":
+            if a.timeframe != "1d":
+                sys.exit("yahoo here serves daily bars only; use --source alpaca for intraday")
+            s = fetch_yahoo(a.symbol, a.adjusted_close)
         else:
             s = fetch_alpaca(a.symbol, a.timeframe, a.start, a.end, a.adjustment,
                              regular_only=not a.include_extended)
