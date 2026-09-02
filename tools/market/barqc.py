@@ -175,27 +175,65 @@ def check_order(s):
                                   "backwards means the source reordered it"}
 
 
+FULL_SESSION_BARS = {"1m": 390, "5m": 78, "15m": 26, "1h": 7}
+SHORT_SESSION_FRAC = 0.8    # under this share of a full session's bars → counted as short
+
+
 def check_sessions(s):
-    if s.timeframe != "1d":
-        return {"ok": None, "value": "unrun", "want": "0 missing",
-                "note": f"session count is daily-only; {s.timeframe} bars "
-                        f"are not counted against the calendar yet"}
+    """
+    Bars against the exchange calendar.
+
+    Daily: one bar per session, so bars vs sessions is the whole check.
+    Intraday: the DAYS present vs the calendar, plus how many of those days
+    are short — half-days (~205 of 390 minute bars) are real, a session with
+    47 bars is a hole. Both are reported by count; the intraday tools skip
+    short sessions themselves and say so.
+    """
     if len(s) < 2:
         return {"ok": None, "value": "unrun", "want": "0 missing",
                 "note": f"{len(s)} bar(s) — nothing to count between"}
-    expected = sessions_between(s.first.ts.date(), s.last.ts.date())
-    have = {b.ts.date() for b in s.bars}
+    if s.timeframe == "1d":
+        have = {b.ts.date() for b in s.bars}
+        first, last = s.first.ts.date(), s.last.ts.date()
+        per_day = None
+    else:
+        try:
+            from zoneinfo import ZoneInfo
+            ny = ZoneInfo("America/New_York")
+        except Exception as e:
+            return {"ok": None, "value": "unrun", "want": "0 missing",
+                    "note": f"no timezone database ({type(e).__name__}); cannot "
+                            f"assign intraday bars to session days"}
+        per_day = {}
+        for b in s.bars:
+            d = b.ts.astimezone(ny).date()
+            per_day[d] = per_day.get(d, 0) + 1
+        have = set(per_day)
+        first, last = min(have), max(have)
+    expected = sessions_between(first, last)
     missing = [d for d in expected if d not in have]
     allowed = max(MISSING_ALLOWED, int(MISSING_ALLOWED_FRAC * len(expected)))
     ok = len(missing) <= allowed
-    note = ""
+    notes = []
     if missing:
-        note = ("missing " + ", ".join(d.isoformat() for d in missing[:5])
-                + (" …" if len(missing) > 5 else "")
-                + f"; up to {allowed} tolerated for special closures")
-    return {"ok": ok,
-            "value": f"{len(s)} bars, {len(expected)} sessions, {len(missing)} missing",
-            "want": f"<= {allowed} missing", "note": note}
+        notes.append("missing " + ", ".join(d.isoformat() for d in missing[:5])
+                     + (" …" if len(missing) > 5 else "")
+                     + f"; up to {allowed} tolerated for special closures")
+    if per_day is not None:
+        full = FULL_SESSION_BARS.get(s.timeframe)
+        if full:
+            short = sorted(d for d, n in per_day.items() if n < SHORT_SESSION_FRAC * full)
+            if short:
+                notes.append(f"{len(short)} short session(s) (< {SHORT_SESSION_FRAC:.0%} of "
+                             f"{full} bars): " + ", ".join(d.isoformat() for d in short[:4])
+                             + (" …" if len(short) > 4 else "")
+                             + " — half-days are real; a day with a handful of bars is a hole")
+        value = (f"{len(have)} session days, {len(expected)} sessions, "
+                 f"{len(missing)} missing")
+    else:
+        value = f"{len(s)} bars, {len(expected)} sessions, {len(missing)} missing"
+    return {"ok": ok, "value": value, "want": f"<= {allowed} missing",
+            "note": "; ".join(notes)}
 
 
 def check_calendar(s):

@@ -113,6 +113,12 @@ def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=Fals
         r["in_sample"] = replay.window_stats(r, end=holdout_from)
         r["holdout"] = replay.window_stats(r, start=holdout_from)
         trials.append(r)
+    # The reference, scored the same way in the same windows. Not a trial —
+    # nobody chose it — but without it a 16% holdout return in a 25% up-market
+    # reads as a result instead of as a lag.
+    bench = replay.replay(series, strategies.buy_and_hold, cost_bps=cost_bps)
+    bench["in_sample"] = replay.window_stats(bench, end=holdout_from)
+    bench["holdout"] = replay.window_stats(bench, start=holdout_from)
 
     # correlation of the individual signals' decisions — the "one witness in
     # five hats" number
@@ -141,7 +147,8 @@ def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=Fals
                                best["in_sample"].get("kurt", 3.0))
     return {"symbol": series.symbol, "signals": specs, "cost_bps": cost_bps,
             "cash_yield": cash_yield, "holdout_from": holdout_from,
-            "trials": trials, "corr": corr, "names": [f.__name__ for f in strats],
+            "trials": trials, "benchmark": bench,
+            "corr": corr, "names": [f.__name__ for f in strats],
             "any_on": any_on, "all_on": all_on, "bars_scored": len(tg[0]),
             "n_trials": n_trials, "var_sr": var_sr,
             "best": best["strategy"], "best_dsr": dsr, "best_sr0": sr0}
@@ -151,6 +158,12 @@ def render(r):
     L = [f"\n{'='*78}", f"COMBINE — {r['symbol']} · {len(r['signals'])} signals · "
          f"{r['cost_bps']:g} bp · holdout from {r['holdout_from']}", "=" * 78]
     L.append(f"\n{'strategy':<36}{'window':<10}{'return':>9}{'sharpe':>8}{'max dd':>9}{'fills':>7}")
+    L.append("-" * 78)
+    for w in ("in_sample", "holdout"):
+        s = r["benchmark"][w]
+        if s.get("return") is not None:
+            L.append(f"{'buy_and_hold (reference)':<36}{w:<10}{s['return']:>9.1%}{s['sharpe']:>8.2f}"
+                     f"{s['max_drawdown']:>9.1%}{'':>7}")
     L.append("-" * 78)
     for t in r["trials"]:
         for w in ("in_sample", "holdout"):

@@ -184,9 +184,16 @@ def run(series, rule, cost_bps, holdout_from, shuffles):
 
     ins = [r for r in rows if r["date"] < holdout_from]
     out = [r for r in rows if r["date"] >= holdout_from]
+    # The published samples run 1993–2013 (Gao et al.) and 1974–2020
+    # (Baltussen et al.). A feed that begins after 2019 cannot reproduce them;
+    # its "< holdout" window is just more of the post-publication period, and
+    # must not be read as "the paper checks out".
+    reproduction = rows[0]["date"] <= "2019-01-01"
     res = {"strategy": f"intraday_{rule}", "rule": RULES[rule],
            "symbol": series.symbol, "timeframe": series.timeframe,
            "source": series.provenance.get("source"),
+           "data_start": rows[0]["date"], "data_end": rows[-1]["date"],
+           "reproduction_possible": reproduction,
            "sessions": len(rows), "skipped": skipped, "cost_bps": cost_bps,
            "holdout_from": holdout_from,
            "all": stats(trades(rows, rule, cost_bps)),
@@ -204,9 +211,16 @@ def run(series, rule, cost_bps, holdout_from, shuffles):
 
 def render(r):
     L = [f"\n{'='*72}", f"INTRADAY — {r['symbol']} · {r['rule']}", "=" * 72,
-         f"sessions {r['sessions']}, skipped {sum(r['skipped'].values())} "
+         f"data {r['data_start']} → {r['data_end']}: sessions {r['sessions']}, "
+         f"skipped {sum(r['skipped'].values())} "
          f"({', '.join(f'{v} {k}' for k, v in r['skipped'].items()) or 'none'}), "
-         f"cost {r['cost_bps']:g} bp round trip", ""]
+         f"cost {r['cost_bps']:g} bp round trip"]
+    if not r["reproduction_possible"]:
+        L.append(f"NOTE  the published samples end in 2020; this feed begins "
+                 f"{r['data_start']}. The '< {r['holdout_from']}' row is NOT a "
+                 f"reproduction of the papers — it is {r['in_sample'].get('n', 0)} "
+                 f"sessions of the same post-publication period.")
+    L.append("")
     L.append(f"{'window':<14}{'n':>6}{'mean bp':>10}{'hit':>7}{'t':>7}{'ann.':>9}{'sharpe':>8}")
     L.append("-" * 72)
     for name, s in (("all", r["all"]), (f"< {r['holdout_from']}", r["in_sample"]),

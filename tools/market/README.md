@@ -27,7 +27,7 @@ out/              the ledger and its report (gitignored)
 | `nulltest.py` | the null exercises: hammer, engulfing, pin-at-round-number, RSI<30 and its plain twin, each against **block-shuffled bars** with real costs. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 298 checks. `python3 test_tools.py` |
+| `test_tools.py` | 307 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -244,7 +244,7 @@ arguments, and are never committed.
 |---|---|---|
 | ohlc sanity | **yes** | a corrupt or misparsed row |
 | order | **yes** | a bar counted twice, or a series silently reordered |
-| sessions | **yes** | *the killer* — a short series that looks complete. Counted against the NYSE calendar, including Good Friday and observed holidays. Daily only; intraday reports UNRUN. |
+| sessions | **yes** | *the killer* — a short series that looks complete. Counted against the NYSE calendar, including Good Friday and observed holidays. Intraday: session **days** vs the calendar, with short sessions (half-days, holes) named. |
 | calendar | **yes** | a bar on a closed day, which means the dates are shifted |
 | provenance | **yes** | a series nobody can trace |
 | volume | reported | halts and thin names are real; look, do not assume |

@@ -198,9 +198,30 @@ check("the missing dates are named", full[10].ts.strftime("%Y-%m-%d") in c3["not
 check("session count reads bars vs sessions", "40 bars" not in c3["value"] and "37 bars" in c3["value"])
 check("a series that is merely SHORT is caught",
       barqc.check_sessions(_series(full[:5] + full[30:]))["ok"] is False)
-check("intraday session count is UNRUN, never a pass",
-      barqc.check_sessions(_series(_daily(5), tf="1h"))["ok"] is None)
 check("one bar is UNRUN for sessions", barqc.check_sessions(_series(_daily(1)))["ok"] is None)
+
+
+def _mins(day, n, start_h=9, start_m=30):
+    """n one-minute bars on `day` from 09:30 New York, as UTC bars."""
+    from zoneinfo import ZoneInfo
+    ny = ZoneInfo("America/New_York")
+    t0 = dt.datetime(day.year, day.month, day.day, start_h, start_m, tzinfo=ny)
+    return [B.Bar((t0 + dt.timedelta(minutes=k)).astimezone(B.UTC), 100, 101, 99, 100, 10)
+            for k in range(n)]
+
+
+_days = barqc.sessions_between(dt.date(2026, 1, 5), dt.date(2026, 1, 20))[:5]
+_full = [b for d in _days for b in _mins(d, 390)]
+_cs = barqc.check_sessions(_series(_full, tf="1m"))
+check("intraday sessions are counted by New York day", _cs["ok"] is True and _cs["value"].startswith("5 session days, 5 sessions, 0 missing"))
+_gap = [b for d in (_days[0], _days[1], _days[3], _days[4]) for b in _mins(d, 390)]
+_cg = barqc.check_sessions(_series(_gap, tf="1m"))
+check("a missing intraday day is named and tolerated", _cg["ok"] is True and "1 missing" in _cg["value"] and _days[2].isoformat() in _cg["note"])
+_half = [b for d in _days[:4] for b in _mins(d, 390)] + _mins(_days[4], 210)
+_ch = barqc.check_sessions(_series(_half, tf="1m"))
+check("a half-day is reported as short, not missing", _ch["ok"] is True and "1 short session" in _ch["note"] and "0 missing" in _ch["value"])
+_hole = [b for d in _days[:4] for b in _mins(d, 390)] + _mins(_days[4], 47)
+check("a 47-bar day is reported as short too", "1 short session" in barqc.check_sessions(_series(_hole, tf="1m"))["note"])
 
 wk = _daily(5) + [_bar(_d(2026, 1, 10), 100)]          # a Saturday
 check("a weekend bar fails calendar", barqc.check_calendar(_series(wk))["ok"] is False)
@@ -240,7 +261,7 @@ check("a short span is reported, never blocking",
       and "anecdote" in barqc.check_span(_series(_daily(10)))["note"])
 check("provenance check passes a traced series", barqc.check_provenance(good)["ok"] is True)
 check("an unrun check never yields a bare pass verdict",
-      barqc.inspect(_series(_daily(70), tf="1h"))["verdict"] != "pass")
+      barqc.inspect(_series(_daily(1)))["verdict"] == "pass-with-unrun")
 check("a failed check yields blocked",
       barqc.inspect(_series(three_gone))["verdict"] == "blocked")
 
@@ -711,6 +732,12 @@ check("a strong planted effect is found: positive mean, low p", _strong["all"]["
 _null = intraday.run(intraday.synth(300, effect=0.0), "first30", 2.0, "2025-01-01", 200)
 check("no effect: p is not small", _null["p_all"] > 0.1, str(_null["p_all"]))
 check("the run says it searched nothing", _strong["pre_registered"] and _strong["parameters_searched"] == 0)
+check("the run records the data span", _strong["data_start"].startswith("2024") and _strong["data_end"] > _strong["data_start"])
+check("a feed that begins after 2019 cannot reproduce the papers, and says so",
+      _strong["reproduction_possible"] is False and "NOT a reproduction" in intraday.render(_strong))
+_old = intraday.run(intraday.synth(120, effect=0.0, start=dt.date(2018, 1, 2)), "first30", 2.0, "2018-04-01", 20)
+check("a feed that begins before 2019 could, and the note is absent",
+      _old["reproduction_possible"] is True and "NOT a reproduction" not in intraday.render(_old))
 check("in-sample and holdout are split at the date",
       _strong["in_sample"]["n"] + _strong["holdout"]["n"] == _strong["all"]["n"] and _strong["holdout"]["n"] > 0)
 check("by-year table exists", "2024" in _strong["by_year"] or "2025" in _strong["by_year"])
@@ -747,6 +774,10 @@ check("all-on never exceeds any-on", _cr["all_on"] <= _cr["any_on"])
 check("every trial has in-sample and holdout windows", all("in_sample" in t and "holdout" in t for t in _cr["trials"]))
 check("the trial count is what was run", _cr["n_trials"] == 4)
 check("the best is named and deflated", _cr["best"] and 0.0 <= _cr["best_dsr"] <= 1.0)
+check("buy and hold is scored in both windows as the reference",
+      _cr["benchmark"]["in_sample"]["return"] is not None and _cr["benchmark"]["holdout"]["return"] is not None)
+check("the reference is not counted as a trial", _cr["n_trials"] == 4)
+check("the report shows the reference row", "buy_and_hold (reference)" in combine.render(_cr))
 check("an unknown signal is refused", _raises(KeyError, combine.run, s70, ["nope"], 5.0, "2026-01-01"))
 
 # ---------------------------------------------------------------- nulltest
