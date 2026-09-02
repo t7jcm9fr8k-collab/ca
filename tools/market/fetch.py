@@ -50,8 +50,14 @@ import tlsctx
 HERE = os.path.dirname(os.path.abspath(__file__))
 TIMEOUT = 25
 UA = "market-tools/1.0 (personal research; low volume)"
+# Stooq serves its front page to anything that does not look like a browser.
+# A browser UA for the one CSV request is the same courtesy rival.py extends
+# to Etsy: low volume, one file, identified as a person's browser.
+BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/122.0 Safari/537.36")
 
 STOOQ_URL = "https://stooq.com/q/d/l/?s={sym}&i=d"
+STOOQ_PAGE = "https://stooq.com/q/d/?s={sym}"
 ALPACA_DATA = "https://data.alpaca.markets/v2/stocks/{sym}/bars"
 ALPACA_TF = {"1d": "1Day", "1h": "1Hour", "15m": "15Min", "5m": "5Min", "1m": "1Min"}
 
@@ -97,13 +103,40 @@ def parse_stooq(body, symbol):
         raise Unparseable(f"stooq has no data for {symbol!r} — check the symbol "
                           f"(US tickers are `aapl.us`)")
     if "<html" in head or "<!doctype" in head:
-        raise Unreachable("stooq returned a page, not a file — throttled or blocked")
+        raise Unreachable(_page_message(body, symbol))
+    if "exceeded" in head and "limit" in head:
+        raise Unreachable(f"stooq daily hit limit reached — it said: "
+                          f"{body.strip()[:120]!r}. Try tomorrow, or download by hand: "
+                          f"{manual_download_hint(symbol)}")
     if len(body) < 40:
-        raise Unreachable(f"response too short to be a CSV ({len(body)} bytes)")
+        raise Unreachable(f"response too short to be a CSV ({len(body)} bytes): "
+                          f"{body.strip()[:80]!r}. {manual_download_hint(symbol)}")
     return B.parse_csv(body, symbol.upper(), "1d", "stooq",
                        adjusted=None,
                        extra={"url": STOOQ_URL.format(sym=_stooq_sym(symbol)),
                               "adjustment": "not documented by source"})
+
+
+def _visible_text(html, n=160):
+    """The first bit of a page a person would read, so the error can quote it."""
+    import re
+    t = re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.S | re.I)
+    t = re.sub(r"<[^>]+>", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t[:n]
+
+
+def manual_download_hint(symbol):
+    sym = _stooq_sym(symbol)
+    return (f"Download it in a browser instead — open "
+            f"{STOOQ_PAGE.format(sym=sym)} , click the CSV/download link, and save "
+            f"it as bars/{symbol.upper()}-1d.csv. bars.py reads Stooq's format as is.")
+
+
+def _page_message(body, symbol):
+    return (f"stooq returned a web page, not a CSV. It reads: "
+            f"{_visible_text(body)!r}. Usually a bot check or a rate limit. "
+            f"{manual_download_hint(symbol)}")
 
 
 def _stooq_sym(symbol):
@@ -112,7 +145,10 @@ def _stooq_sym(symbol):
 
 
 def fetch_stooq(symbol):
-    body = _get(STOOQ_URL.format(sym=_stooq_sym(symbol)))
+    body = _get(STOOQ_URL.format(sym=_stooq_sym(symbol)),
+                headers={"User-Agent": BROWSER_UA,
+                         "Accept": "text/csv,text/plain,*/*;q=0.8",
+                         "Referer": STOOQ_PAGE.format(sym=_stooq_sym(symbol))})
     return parse_stooq(body, symbol)
 
 

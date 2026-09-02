@@ -27,7 +27,7 @@ out/              the ledger and its report (gitignored)
 | `nulltest.py` | the null exercises: hammer, engulfing, pin-at-round-number, RSI<30 and its plain twin, each against **block-shuffled bars** with real costs. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 293 checks. `python3 test_tools.py` |
+| `test_tools.py` | 298 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -45,6 +45,14 @@ If `--dry-run` still says `OpenSSL defaults`, no CA bundle was ever installed:
 `open "/Applications/Python 3.*/Install Certificates.command"`. The tools will
 tell you this themselves when it happens. Verification is never turned off —
 these tools will eventually send orders to a broker.
+
+### If Stooq returns a web page instead of a CSV
+
+Stooq serves its front page to non-browser clients and rate-limits by IP. The
+error quotes what the page said. The fallback that always works: open
+`https://stooq.com/q/d/?s=spy.us` in a browser, click the CSV download, and save
+it as `bars/SPY-1d.csv` — `bars.py` reads Stooq's format as is. Then carry on
+with `barqc.py`.
 
 ## Candles or the data?
 
@@ -69,6 +77,10 @@ Better representation is not edge. Build the bar layer for the correctness; do
 not expect the candles themselves to be the profitable part.
 
 ## The order
+
+Before pasting any block that has `#` comments into zsh, run
+`setopt interactivecomments` once (or add it to `~/.zshrc`) — without it zsh
+hands the `#` to the command, which is how `pip install truststore # note` fails.
 
 ```bash
 # on the Mac — every market host is unreachable from a cloud session

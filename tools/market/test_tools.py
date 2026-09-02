@@ -340,6 +340,22 @@ print("\nfetch — NETWORK / PARSE / OK kept apart")
 check("stooq 'No data' is PARSE, never an empty series",
       _raises(B.Unparseable, fetch.parse_stooq, "No data", "ZZZZ"))
 check("an html page from stooq is NETWORK", _raises(fetch.Unreachable, fetch.parse_stooq, "<html><body>slow down</body></html>", "AAPL"))
+try:
+    fetch.parse_stooq("<html><head><script>x()</script></head><body><h1>Too many requests</h1></body></html>", "SPY")
+    _pm = ""
+except fetch.Unreachable as e:
+    _pm = str(e)
+check("the page error quotes what the page said", "Too many requests" in _pm and "x()" not in _pm)
+check("the page error gives the browser fallback with the right file name",
+      "stooq.com/q/d/?s=spy.us" in _pm and "bars/SPY-1d.csv" in _pm)
+try:
+    fetch.parse_stooq("Exceeded the daily hits limit", "SPY")
+    _hm = ""
+except fetch.Unreachable as e:
+    _hm = str(e)
+check("the hit-limit reply is named and given the fallback", "hit limit" in _hm and "bars/SPY-1d.csv" in _hm)
+check("stooq is asked with a browser user agent", fetch.BROWSER_UA.startswith("Mozilla/5.0"))
+check("visible text strips tags and scripts", fetch._visible_text("<p>a <b>b</b></p><script>z</script>") == "a b")
 check("a short body is NETWORK", _raises(fetch.Unreachable, fetch.parse_stooq, "x", "AAPL"))
 ok = fetch.parse_stooq(STOOQ, "aapl")
 check("a real stooq body is OK with provenance",
