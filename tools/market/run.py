@@ -169,6 +169,26 @@ def main():
         st = barqc.check_staleness(s)
         print(f"         {st['value']}"
               + (f" — {st['note']}" if st.get("note") else ""))
+        # The chart, as numbers, at the last close — what a discretionary
+        # trader would read off it, without the picture.
+        import features
+        d = features.describe(cur[-250:])
+        va = d.get("value_area")
+        print(f"\nreadings at {last.ts:%Y-%m-%d} close {d['close']:g}")
+        print(f"  ema20        {d['ema']:.4g}   {'above' if d['close'] > d['ema'] else 'below'}"
+              if d.get("ema") else "  ema20        (not enough bars)")
+        print(f"  vwap         {d['vwap_anchored']:.4g}   anchored at the first bar shown"
+              if d.get("vwap_anchored") else "  vwap         (no volume)")
+        print(f"  atr14        {d['atr']:.4g}" if d.get("atr") else "  atr14        (not enough bars)")
+        print(f"  rejection    {d['rejection'] or 'none'}   (pin-bar geometry on the last bar)")
+        if d.get("nearest_level") is not None:
+            print(f"  level        {d['nearest_level']:.4g}   {d['distance_to_level']:+.2%} away, "
+                  f"of {d['levels']} swing level(s)")
+        else:
+            print(f"  level        none yet   (no confirmed swing in the window)")
+        if d.get("poc") is not None:
+            print(f"  poc          {d['poc']:.4g}   value area {va[0]:.4g} – {va[1]:.4g}")
+        print(f"  cvd proxy    {d['cvd_proxy']:+.3g}   (bar-delta PROXY — not order flow)")
         return
 
     # ---- backtest -------------------------------------------------------

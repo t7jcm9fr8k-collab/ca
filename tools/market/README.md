@@ -1,6 +1,6 @@
 # Market bars pipeline
 
-Eight files that take OHLCV bars from a source to a strategy decision, with a
+Nine files that take OHLCV bars from a source to a strategy decision, with a
 gate between every stage that has to be earned past. Python 3, stdlib only,
 offline — the same posture as `../etsy/`, and the same idiom: tools that report
 a **number** rather than a verdict, and refuse rather than guess.

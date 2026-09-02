@@ -403,6 +403,11 @@ SMA = ["--strategy", "sma_cross:10,30"]
 BRK = ["--strategy", "breakout:20"]
 
 check("signal runs with no gate", _run(["--mode", "signal"] + SMA + BASE) == 0)
+_sig = subprocess.run([sys.executable, "run.py", "--mode", "signal"] + SMA + BASE,
+                      cwd=HERE, capture_output=True, text=True).stdout
+check("signal mode prints the readings — ema, vwap, rejection, level, poc",
+      all(k in _sig for k in ("ema20", "vwap", "rejection", "level", "poc")))
+check("signal mode labels the order-flow proxy as a proxy", "PROXY" in _sig)
 check("an unknown strategy is refused (2)", _run(["--mode", "signal", "--strategy", "nope"] + BASE) == 2)
 check("paper is refused with no backtest (3)", _run(["--mode", "paper", "--qty", "5", "--dry-run"] + SMA + BASE) == 3)
 check("refusal wrote nothing", ledger.events(strategy="sma_cross_10_30") == [])
