@@ -240,6 +240,35 @@ def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split
         "session": session, "extended_bars_dropped": dropped})
 
 
+# ---------------------------------------------------------------- merge
+
+def merge(existing, new):
+    """
+    Union of two Series of the same symbol and timeframe, by timestamp; the
+    new bar wins on a collision. For patching a feed hole — one missing day
+    fetched on its own and folded back in — without refetching six years.
+    Returns (merged Series, bars added, bars replaced).
+    """
+    if existing.symbol != new.symbol or existing.timeframe != new.timeframe:
+        raise ValueError(f"cannot merge {existing.symbol} {existing.timeframe} with "
+                         f"{new.symbol} {new.timeframe}")
+    by = {b.ts: b for b in existing.bars}
+    added = replaced = 0
+    for b in new.bars:
+        if b.ts in by:
+            replaced += 1
+        else:
+            added += 1
+        by[b.ts] = b
+    prov = dict(existing.provenance)
+    prov["merged"] = (prov.get("merged") or []) + [{
+        "from": new.provenance.get("source"), "start": new.provenance.get("start"),
+        "end": new.provenance.get("end"), "added": added, "replaced": replaced,
+        "at": dt.datetime.now(B.UTC).isoformat(timespec="seconds")}]
+    return B.Series(existing.symbol, existing.timeframe,
+                    [by[k] for k in sorted(by)], prov), added, replaced
+
+
 # ---------------------------------------------------------------- cli
 
 def dry_run():
@@ -286,6 +315,9 @@ def main():
     ap.add_argument("--include-extended", action="store_true",
                     help="alpaca intraday: keep pre/post-market bars (barqc will flag them)")
     ap.add_argument("--out", help="CSV path; default bars/<SYMBOL>-<tf>.csv")
+    ap.add_argument("--merge-into", metavar="CSV",
+                    help="fold the fetched bars into this existing CSV (new bars win) "
+                         "instead of writing a new file — for patching a feed hole")
     a = ap.parse_args()
 
     if a.dry_run:
@@ -311,10 +343,24 @@ def main():
         print("Reached the source, could not read bars. Nothing was written.", file=sys.stderr)
         sys.exit(2)
 
-    path = a.out or B.bars_path(a.symbol, a.timeframe)
-    B.to_csv(s, path)
-    print(f"OK       {s.describe()}")
-    print(f"wrote    {path}")
+    if a.merge_into:
+        try:
+            base = B.load_csv(a.merge_into, a.symbol, a.timeframe, a.source)
+            s, added, replaced = merge(base, s)
+        except (B.Unparseable, B.NoProvenance, ValueError) as e:
+            sys.exit(f"REFUSED: {e}")
+        if added == 0 and replaced == 0:
+            sys.exit(f"NOTHING  the fetch returned no bars for that range; {a.merge_into} untouched. "
+                     f"If the source has no data for those dates, the hole is real.")
+        path = a.merge_into
+        B.to_csv(s, path)
+        print(f"OK       {s.describe()}")
+        print(f"merged   {added} bar(s) added, {replaced} replaced, into {path}")
+    else:
+        path = a.out or B.bars_path(a.symbol, a.timeframe)
+        B.to_csv(s, path)
+        print(f"OK       {s.describe()}")
+        print(f"wrote    {path}")
     print(f"\nnext:  python3 barqc.py --csv {path} --symbol {a.symbol} "
           f"--timeframe {a.timeframe} --source {a.source}"
           + (" --adjusted yes" if s.provenance.get("adjusted") is True else

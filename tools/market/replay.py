@@ -138,7 +138,8 @@ def _stats(rets, bars_per_year):
             "returns_used": n}
 
 
-def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
+def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0,
+           dividend_yield=0.0):
     """
     Walk the bars. Returns a dict of stats plus the equity curve and fills.
 
@@ -149,6 +150,14 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
     `cash_yield` is an annual rate earned on idle cash. A trend filter that
     sits out a bear market is not earning nothing; leaving this at zero
     understates it, so say what you assumed.
+
+    `dividend_yield` is an annual rate credited on the HELD position, as cash,
+    every bar — a flat approximation of dividends for a price series that is
+    not dividend-adjusted. Over thirty years of SPY that is the difference
+    between buy-and-hold at ~7% a year and at ~9%; a filter that is out of the
+    market half the time collects half of it. Use it when the source's prices
+    are unadjusted (Stooq's are); leave it at zero when they are total-return.
+    The benchmark path gets the same credit.
     """
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
@@ -165,6 +174,7 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
                       f"and one fill after a warm-up of {warmup}")
     bpy = BARS_PER_YEAR.get(series.timeframe, 252)
     per_bar_yield = (1.0 + cash_yield) ** (1.0 / bpy) - 1.0 if cash_yield else 0.0
+    per_bar_div = (1.0 + dividend_yield) ** (1.0 / bpy) - 1.0 if dividend_yield else 0.0
 
     cash, units, pos = 1.0, 0.0, 0.0
     equity, equity_ts, targets, fills = [], [], [], []
@@ -188,6 +198,9 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
         #     after the fill, so cash deployed at this open earns nothing here
         if per_bar_yield and cash > 0:
             cash *= 1.0 + per_bar_yield
+        # 1c. the held position pays its flat dividend approximation, as cash
+        if per_bar_div and units > 0:
+            cash += units * b.close * per_bar_div
         # 2. mark to market at this close
         equity.append(cash + units * b.close)
         equity_ts.append(b.ts.isoformat())
@@ -202,7 +215,6 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
     # so buy_and_hold as a strategy equals it exactly (less cost). A benchmark
     # that bought one bar earlier would be holding a trade no strategy could
     # have made.
-    bench = bars[-1].close / bars[warmup + 1].open - 1
     held = sum(1 for i in range(len(equity)) if _pos_at(fills, bars, warmup, i) != 0)
     exposure = held / len(equity) if equity else 0.0
     rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity))]
@@ -213,9 +225,14 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
     # trend filter has to be read against; a filter's -20% means nothing until
     # you know whether holding was -25% or -12% over the same stretch.
     b0 = bars[warmup + 1].open
-    bh_equity = [1.0] + [bars[i].close / b0 for i in range(warmup + 1, len(bars))]
+    bh_units, bh_cash, bh_equity = 1.0 / b0, 0.0, [1.0]
+    for i in range(warmup + 1, len(bars)):
+        if per_bar_div:
+            bh_cash += bh_units * bars[i].close * per_bar_div
+        bh_equity.append(bh_cash + bh_units * bars[i].close)
     bh_rets = [bh_equity[i] / bh_equity[i - 1] - 1.0 for i in range(1, len(bh_equity))]
     bh = _stats(bh_rets, bpy)
+    bench = bh_equity[-1] - 1.0        # same path, same credit, same bars
     return {
         "strategy": name or getattr(strategy, "__name__", "strategy"),
         "symbol": series.symbol, "timeframe": series.timeframe,
@@ -227,6 +244,7 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0):
         "benchmark_max_drawdown": max_drawdown(bh_equity),
         "benchmark_sharpe": bh["sharpe"], "benchmark_volatility": bh["volatility"],
         "fills": len(fills), "cost_bps": cost_bps, "cash_yield": cash_yield,
+        "dividend_yield": dividend_yield,
         "exposure": exposure, "years": years, "bars_per_year": bpy,
         "warmup": warmup, "live_bars": len(equity),
         "scored_from": bars[warmup].ts.isoformat(),

@@ -104,11 +104,14 @@ def main():
         sys.exit(f"REFUSED: {e}")
     path = a.out or os.path.join(HERE, "bars", f"{a.symbol.upper()}-1d-agg.csv")
     B.to_csv(daily, path)
-    short = sorted((d, n) for d, n in counts.items() if n < 312)
+    # shortest first, so a hole (47 bars) is listed before the half-days (~205)
+    short = sorted(((d, n) for d, n in counts.items() if n < 312), key=lambda x: (x[1], x[0]))
     print(f"OK       {daily.describe()}")
     print(f"         from {len(s)} {a.timeframe} bars; {len(short)} short session(s)"
-          + (f", {dropped} dropped under --min-bars {a.min_bars}" if dropped else "")
-          + (": " + ", ".join(f"{d} ({n})" for d, n in short[:6]) + (" …" if len(short) > 6 else "") if short else ""))
+          + (f", {dropped} dropped under --min-bars {a.min_bars}" if dropped else ""))
+    for d, n in short:
+        kind = "HOLE — refetch this day" if n < 150 else "half-day" if 180 <= n <= 240 else "partial"
+        print(f"           {d}  {n:>3} bars  {kind}")
     print(f"         closes are the last regular-session print, not the official auction")
     print(f"wrote    {path}")
     print(f"\nnext:  python3 barqc.py --csv {path} --symbol {a.symbol} --source "

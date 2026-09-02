@@ -222,6 +222,10 @@ _ch = barqc.check_sessions(_series(_half, tf="1m"))
 check("a half-day is reported as short, not missing", _ch["ok"] is True and "1 short session" in _ch["note"] and "0 missing" in _ch["value"])
 _hole = [b for d in _days[:4] for b in _mins(d, 390)] + _mins(_days[4], 47)
 check("a 47-bar day is reported as short too", "1 short session" in barqc.check_sessions(_series(_hole, tf="1m"))["note"])
+_mixed = [b for d in _days[:3] for b in _mins(d, 390)] + _mins(_days[3], 205) + _mins(_days[4], 47)
+_note = barqc.check_sessions(_series(_mixed, tf="1m"))["note"]
+check("short sessions are listed shortest first, so the hole comes before the half-day",
+      _note.index(f"{_days[4].isoformat()} (47)") < _note.index(f"{_days[3].isoformat()} (205)"))
 
 wk = _daily(5) + [_bar(_d(2026, 1, 10), 100)]          # a Saturday
 check("a weekend bar fails calendar", barqc.check_calendar(_series(wk))["ok"] is False)
@@ -393,6 +397,13 @@ check("an unreachable host is NETWORK", _raises(fetch.Unreachable, fetch._get, "
 for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
     os.environ.pop(k, None)
 check("alpaca without keys refuses before any request", _raises(fetch.Unreachable, fetch.fetch_alpaca, "AAPL"))
+_m_old = _series(_daily(6))
+_m_new = _series([B.Bar(_m_old.bars[2].ts, 1, 2, 0.5, 1.5, 9)] + list(_daily(9)[6:8]), prov={"source": "patch", "fetched_at": "x", "start": "s", "end": "e"})
+_mrg, _added, _repl = fetch.merge(_m_old, _m_new)
+check("merge is a union by timestamp, sorted", len(_mrg) == 8 and [b.ts for b in _mrg] == sorted(b.ts for b in _mrg))
+check("the new bar wins on a collision", _repl == 1 and _added == 2 and _mrg.bars[2].close == 1.5)
+check("the merge is recorded in provenance", _mrg.provenance["merged"][0]["added"] == 2 and _mrg.provenance["merged"][0]["from"] == "patch")
+check("a different symbol or timeframe is refused", _raises(ValueError, fetch.merge, _m_old, _series(_daily(2), symbol="OTHER")))
 _out = io.StringIO()
 with contextlib.redirect_stdout(_out):
     fetch.dry_run()
@@ -684,6 +695,13 @@ check("the benchmark is measured from the same bar",
 check("a rising series: trend filter equals buy-and-hold from its warm-up, less nothing at zero cost",
       abs(_tf["return"] - _tf["benchmark"]) < 1e-12, f"{_tf['return']} vs {_tf['benchmark']}")
 check("an explicit warm-up longer than the strategy's wins", replay.replay(s70, strategies.buy_and_hold, warmup=30)["warmup"] == 30)
+_nd = replay.replay(s70, strategies.buy_and_hold, cost_bps=0)
+_wd = replay.replay(s70, strategies.buy_and_hold, cost_bps=0, dividend_yield=0.02)
+check("a dividend yield raises buy-and-hold's return", _wd["return"] > _nd["return"])
+check("the benchmark gets the same credit, so buy-and-hold still equals it",
+      abs(_wd["return"] - _wd["benchmark"]) < 1e-9, f"{_wd['return']} vs {_wd['benchmark']}")
+check("a flat strategy collects no dividend", replay.replay(s70, lambda c: 0.0, dividend_yield=0.02)["return"] == 0.0)
+check("the record carries the dividend assumption", _wd["dividend_yield"] == 0.02)
 # a series with real variation — s70 rises exactly 0.2% a bar, so its return
 # variance is zero and floating point decides the Sharpe
 _wob = _series(_daily(70, closes=[100 + ((i * 7) % 5) * 1.5 + i * 0.3 for i in range(70)]))
@@ -762,6 +780,26 @@ check("a session missing its 15:30 minute fills at the next bar and is counted a
 check("an IEX-sourced run names the closing auction as unmodelled",
       "AUCTION" in intraday.run(B.Series("X", "1m", _syn.bars, {**PROV, "source": "alpaca", "feed": "iex"}), "first30", 2.0, "2025-01-01", 5)["not_modelled"])
 check("a short session is skipped at barqc's 80% line", intraday.MIN_BARS == 312)
+# trial 3: the official close as the exit, joined by date
+_syn3 = intraday.synth(30, effect=0.0, seed=11)
+_agg3, _, _ = __import__("aggregate").aggregate(_syn3)
+_cm = intraday.official_closes(_agg3)
+check("official_closes maps dates to closes", len(_cm) == 30 and all(len(k) == 10 for k in _cm))
+_r3 = intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5, close_map=_cm, close_source="test-daily")
+check("trial 3 is named, numbered and says where its exits came from",
+      _r3["strategy"] == "intraday_first30_official_close" and _r3["trial"] == 3
+      and "official close from test-daily" in _r3["exit_price"])
+check("with the same closes the result equals the feed-close run",
+      abs(_r3["all"]["gross_bp"] - intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5)["all"]["gross_bp"]) < 1e-9)
+_cm_up = {k: v * 1.001 for k, v in _cm.items()}
+_r3u = intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5, close_map=_cm_up, close_source="t")
+check("a higher official close moves the last-half-hour return", _r3u["all"]["gross_bp"] != _r3["all"]["gross_bp"])
+_cm_part = dict(list(_cm.items())[:20])
+_r3p = intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5, close_map=_cm_part, close_source="t")
+check("sessions without an official close are skipped and counted",
+      _r3p["sessions"] == 20 and _r3p["skipped"].get("no official close for the date") == 10)
+check("trial 3 names the cross-feed basis, not the auction", "cent" in _r3p["not_modelled"] and "AUCTION" not in _r3p["not_modelled"])
+check("the report shows the exit source", "exit: official close" in intraday.render(_r3))
 check("the run records the data span", _strong["data_start"].startswith("2024") and _strong["data_end"] > _strong["data_start"])
 check("a feed that begins after 2019 cannot reproduce the papers, and says so",
       _strong["reproduction_possible"] is False and "NOT a reproduction" in intraday.render(_strong))

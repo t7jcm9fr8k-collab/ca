@@ -25,10 +25,10 @@ out/              the ledger and its report (gitignored)
 | `intraday.py` | **the one (c)-grade result**: first-30-min sign → last 30 min, exactly as published, with a permutation null and a 2021+ holdout. Needs minute bars. |
 | `combine.py` | "confluence" both ways — equal-weight average vs AND-gate — with the signal correlation matrix, an in-sample/holdout split, and the **Deflated Sharpe** after counting every trial. |
 | `nulltest.py` | the null exercises: hammer, engulfing, pin-near-round-number, RSI<30 and its plain twin, each against **volatility-matched comparison days** with real costs, events listed. (v1 used a block shuffle that kept the pattern→next-bar pair intact; its p-values were not p-values.) |
-| `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. |
+| `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 341 checks. `python3 test_tools.py` |
+| `test_tools.py` | 357 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -46,6 +46,21 @@ If `--dry-run` still says `OpenSSL defaults`, no CA bundle was ever installed:
 `open "/Applications/Python 3.*/Install Certificates.command"`. The tools will
 tell you this themselves when it happens. Verification is never turned off —
 these tools will eventually send orders to a broker.
+
+### Patching a hole in the minute feed
+
+`barqc` and `aggregate.py` name sessions that are short or missing. A day that
+is absent from the feed (2025-03-10 on SPY) or has a handful of bars can be
+refetched on its own and folded back in; the new bars win on a collision and
+the merge is recorded in the file's provenance:
+
+```bash
+python3 fetch.py --source alpaca --symbol SPY --timeframe 1m --start 2025-03-10 --end 2025-03-11 --merge-into bars/SPY-1m.csv
+python3 aggregate.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --adjusted yes
+```
+
+If the fetch returns no bars for that range, the tool says so and touches
+nothing: the hole is in the source, not in your file, and it stays documented.
 
 ### If Stooq returns a web page instead of a CSV
 
@@ -154,15 +169,27 @@ Nothing in them is tuned to the data: every rule is fixed before it sees a bar.
 
 ```bash
 # 1 · intraday momentum — the only (c)-grade result. Needs Alpaca minute bars (below).
+#     Both published variants were EXCLUDED on SPY 2020-07..2026-09 (see EVIDENCE.md).
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --cost-bps 2
+python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule open_to_1530
+#     trial 3, pre-registered 2026-09-02: same rule, exit at the OFFICIAL close (Stooq's daily
+#     closes are consolidated), which closes the IEX closing-auction caveat
+python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
 python3 intraday.py --synth 600 --effect 0.4 --no-record          # what "found" looks like, offline
 python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothing" looks like
 
-# 2 · the slow trend filter — drawdown, not return. Daily history: aggregate the minute bars
-#     (Alpaca's daily IEX history before 2020 is full of holes and barqc blocks it — correctly).
+# 2 · the slow trend filter — drawdown, not return. Two sources of daily history:
+#     (a) aggregate the minute bars: 2020-07 onward, includes the 2022 bear
+#         (Alpaca's daily IEX history before 2020 is full of holes and barqc blocks it — correctly)
 python3 aggregate.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --adjusted yes
 python3 barqc.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes
 python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --cash-yield 0.04
+#     (b) Stooq, back to 1993 — 2000 and 2008 are where a filter earns its keep. Stooq's prices
+#         are NOT dividend-adjusted, so credit a flat yield to held positions AND the reference,
+#         or buy-and-hold is understated by ~2% a year compounded over three decades.
+python3 fetch.py --source stooq --symbol SPY
+python3 barqc.py --csv bars/SPY-1d.csv --symbol SPY --source stooq
+python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.03 --dividend-yield 0.018
 
 # 3 · confluence done right, and the AND-gate beside it
 python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes \

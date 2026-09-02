@@ -105,7 +105,8 @@ def and_gate(strats):
     return s
 
 
-def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=False):
+def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=False,
+        dividend_yield=0.0):
     strats = [strategies.make(sp) for sp in specs]
     # One scoring start for every line, including the reference: the longest
     # warm-up among the signals. Otherwise a 200-day filter is scored flat
@@ -114,14 +115,16 @@ def run(series, specs, cost_bps, holdout_from, cash_yield=0.0, count_ledger=Fals
     warm = max([1] + [int(getattr(f, "warmup", 0) or 0) for f in strats])
     trials = []
     for f in strats + [average_of(strats), and_gate(strats)]:
-        r = replay.replay(series, f, cost_bps=cost_bps, cash_yield=cash_yield, warmup=warm)
+        r = replay.replay(series, f, cost_bps=cost_bps, cash_yield=cash_yield, warmup=warm,
+                          dividend_yield=dividend_yield)
         r["in_sample"] = replay.window_stats(r, end=holdout_from)
         r["holdout"] = replay.window_stats(r, start=holdout_from)
         trials.append(r)
     # The reference, scored the same way in the same windows from the same
     # bar. Not a trial — nobody chose it — but without it a 16% holdout return
     # in a 25% up-market reads as a result instead of as a lag.
-    bench = replay.replay(series, strategies.buy_and_hold, cost_bps=cost_bps, warmup=warm)
+    bench = replay.replay(series, strategies.buy_and_hold, cost_bps=cost_bps, warmup=warm,
+                          dividend_yield=dividend_yield)
     bench["in_sample"] = replay.window_stats(bench, end=holdout_from)
     bench["holdout"] = replay.window_stats(bench, start=holdout_from)
 
@@ -214,6 +217,8 @@ def main():
     ap.add_argument("--holdout-from", required=True, help="YYYY-MM-DD; scored separately")
     ap.add_argument("--cost-bps", type=float, default=5.0)
     ap.add_argument("--cash-yield", type=float, default=0.0)
+    ap.add_argument("--dividend-yield", type=float, default=0.0,
+                    help="credited on held positions and the reference when prices are unadjusted")
     ap.add_argument("--count-ledger", action="store_true",
                     help="add this symbol's prior backtests to the trial count")
     ap.add_argument("--no-record", action="store_true")
@@ -225,7 +230,8 @@ def main():
     except (B.Unparseable, B.NoProvenance) as e:
         sys.exit(f"REFUSED: {e}")
     try:
-        r = run(s, a.signals, a.cost_bps, a.holdout_from, a.cash_yield, a.count_ledger)
+        r = run(s, a.signals, a.cost_bps, a.holdout_from, a.cash_yield, a.count_ledger,
+                a.dividend_yield)
     except (replay.Blocked, KeyError, ValueError) as e:
         sys.exit(f"REFUSED: {e}")
     print(render(r))

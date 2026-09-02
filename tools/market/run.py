@@ -127,6 +127,9 @@ def main():
                     help="per-fill cost in basis points for backtests (default 5)")
     ap.add_argument("--cash-yield", type=float, default=0.0,
                     help="annual rate earned on idle cash in backtests, e.g. 0.04")
+    ap.add_argument("--dividend-yield", type=float, default=0.0,
+                    help="annual rate credited on the held position when prices are NOT "
+                         "dividend-adjusted (Stooq), e.g. 0.018 for SPY; 0 for total-return data")
     ap.add_argument("--qty", type=float, help="shares, for paper/live")
     ap.add_argument("--side", choices=["buy", "sell"],
                     help="override the side the signal implies")
@@ -197,7 +200,7 @@ def main():
     if a.mode == "backtest":
         try:
             r = replay.replay(s, strat, cost_bps=a.cost_bps, name=strat_name,
-                              cash_yield=a.cash_yield)
+                              cash_yield=a.cash_yield, dividend_yield=a.dividend_yield)
         except replay.Blocked as e:
             refuse(2, f"REFUSED: {e}")
         print(replay.summary(r))
@@ -208,7 +211,8 @@ def main():
         print(f"         sharpe {r['sharpe']:.2f}, cagr "
               f"{(format(r['cagr'], '+.1%') if r['cagr'] is not None else 'n/a')}, "
               f"vol {r['volatility']:.1%}, {r['years']:.1f} years"
-              + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else ""))
+              + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else "")
+              + (f", dividend yield {a.dividend_yield:.1%} credited to both" if a.dividend_yield else ""))
         print(f"not modelled: {r['not_modelled']}")
         keep = {k: v for k, v in r.items() if k not in replay.LEDGER_EXCLUDE}
         ledger.record("backtest", **keep)

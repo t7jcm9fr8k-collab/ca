@@ -37,8 +37,21 @@ THE NULL
     the right baseline for "does the morning predict the afternoon", because
     it keeps the afternoon returns exactly as they were.
 
+TRIAL 3 — THE OFFICIAL CLOSE
+    IEX has no closing cross for SPY, so on that feed the exit is the last IEX
+    print before 16:00 and the closing auction — which the papers' last-half-
+    hour return includes — is unobserved. --close-from joins a daily CSV whose
+    closes ARE official (Stooq's are consolidated) by date and uses that as the
+    exit: entry still the 15:30 bar's open on IEX, exit the official close.
+    Pre-registered 2026-09-02 as trial 3, rule first30, nothing else changed.
+    Sessions with no official close for their date are skipped and counted.
+    The two feeds can differ by a cent or so at any instant (~0.2 bp); that is
+    in not_modelled.
+
 USAGE
     python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --rule first30 --cost-bps 2
+    python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --rule first30 \
+                        --close-from bars/SPY-1d.csv --close-source stooq
     python3 intraday.py --synth 600 --effect 0.4          # planted effect, offline
     python3 intraday.py --synth 600 --effect 0.0          # no effect: expect p ~ 0.5
 """
@@ -117,6 +130,7 @@ def measure(pts):
     return {"date": pts[0][0].date().isoformat(),
             "r_first30": c_10 / open_930 - 1.0,
             "r_open_to_1530": c_1530 / open_930 - 1.0,
+            "open_1530": bar_1530.open,
             "r_last30": pts[-1][1].close / bar_1530.open - 1.0,
             "fill_slipped": fill_at != T_1530,        # the 15:30 minute was missing
             "exit_time": pts[-1][0].time().isoformat(timespec="minutes")}, None
@@ -180,7 +194,13 @@ def by_year(tr):
     return {y: stats(v) for y, v in sorted(years.items())}
 
 
-def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_BP):
+def official_closes(daily):
+    """{'YYYY-MM-DD': close} from a daily Series whose closes are official."""
+    return {b.ts.strftime("%Y-%m-%d"): b.close for b in daily.bars}
+
+
+def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_BP,
+        close_map=None, close_source=None):
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
         sys.exit(f"REFUSED: barqc blocked {series.describe()}: {', '.join(qc['failed'])}")
@@ -193,6 +213,20 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
             skipped[why] = skipped.get(why, 0) + 1
     if not rows:
         sys.exit("REFUSED: no complete regular sessions in these bars")
+    exit_price = "last regular-session print on this feed"
+    if close_map is not None:
+        joined, dropped = [], 0
+        for r in rows:
+            oc = close_map.get(r["date"])
+            if oc is None:
+                dropped += 1
+                continue
+            joined.append({**r, "r_last30": oc / r["open_1530"] - 1.0, "official_close": oc})
+        skipped["no official close for the date"] = dropped
+        rows = joined
+        if not rows:
+            sys.exit("REFUSED: no session had an official close for its date — check the dates line up")
+        exit_price = f"official close from {close_source or 'daily file'} (trial 3)"
 
     ins = [r for r in rows if r["date"] < holdout_from]
     out = [r for r in rows if r["date"] >= holdout_from]
@@ -202,16 +236,22 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
     iex = "alpaca" in src or "iex" in feed or "iex" in src
     not_modelled = ("partial fills, intraday slippage beyond the flat cost, "
                     "borrow for the short side")
-    if iex:
+    if close_map is not None:
+        not_modelled += ("; entry on this feed's 15:30 print, exit on the official close from "
+                         "another feed — the two can differ by about a cent at any instant (~0.2 bp)")
+    elif iex:
         not_modelled += ("; THE CLOSING AUCTION — IEX has no closing cross for SPY, so the "
                          "exit is the last IEX print before 16:00, not the official close. "
-                         "The published last-half-hour return includes the auction print.")
+                         "The published last-half-hour return includes the auction print. "
+                         "--close-from closes this gap.")
     # The published samples run 1993–2013 (Gao et al.) and 1974–2020
     # (Baltussen et al.). A feed that begins after 2019 cannot reproduce them;
     # its "< holdout" window is just more of the post-publication period, and
     # must not be read as "the paper checks out".
     reproduction = rows[0]["date"] <= "2019-01-01"
-    res = {"strategy": f"intraday_{rule}", "rule": RULES[rule],
+    res = {"strategy": f"intraday_{rule}" + ("_official_close" if close_map is not None else ""),
+           "rule": RULES[rule] + (" · exit at the official close" if close_map is not None else ""),
+           "exit_price": exit_price, "trial": 3 if close_map is not None else None,
            "symbol": series.symbol, "timeframe": series.timeframe,
            "source": series.provenance.get("source"),
            "data_start": rows[0]["date"], "data_end": rows[-1]["date"],
@@ -241,6 +281,7 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
 
 def render(r):
     L = [f"\n{'='*72}", f"INTRADAY — {r['symbol']} · {r['rule']}", "=" * 72,
+         f"exit: {r['exit_price']}",
          f"data {r['data_start']} → {r['data_end']}: sessions {r['sessions']}, "
          f"skipped {sum(r['skipped'].values())} "
          f"({', '.join(f'{v} {k}' for k, v in r['skipped'].items()) or 'none'}), "
@@ -326,6 +367,8 @@ def main():
     ap.add_argument("--shuffles", type=int, default=1000)
     ap.add_argument("--published-bp", type=float, default=PUBLISHED_BP,
                     help="the published gross effect per session, for the power statement")
+    ap.add_argument("--close-from", help="daily CSV with OFFICIAL closes; used as the exit (trial 3)")
+    ap.add_argument("--close-source", help="where that daily file came from, e.g. stooq; recorded")
     ap.add_argument("--synth", type=int, help="generate N synthetic sessions instead of loading")
     ap.add_argument("--effect", type=float, default=0.0)
     ap.add_argument("--no-record", action="store_true")
@@ -340,7 +383,17 @@ def main():
             s = B.load_csv(a.csv, a.symbol, "1m", a.source)
         except (B.Unparseable, B.NoProvenance) as e:
             sys.exit(f"REFUSED: {e}")
-    r = run(s, a.rule, a.cost_bps, a.holdout_from, a.shuffles, a.published_bp)
+    close_map = None
+    if a.close_from:
+        if not a.close_source:
+            ap.error("--close-source is required with --close-from, so the ledger records where the closes came from")
+        try:
+            daily = B.load_csv(a.close_from, a.symbol or s.symbol, "1d", a.close_source)
+        except (B.Unparseable, B.NoProvenance) as e:
+            sys.exit(f"REFUSED: {e}")
+        close_map = official_closes(daily)
+    r = run(s, a.rule, a.cost_bps, a.holdout_from, a.shuffles, a.published_bp,
+            close_map, a.close_source)
     print(render(r))
     if not a.no_record:
         ledger.record("backtest", **{k: v for k, v in r.items() if k != "by_year"},

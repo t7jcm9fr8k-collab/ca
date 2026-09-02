@@ -222,11 +222,14 @@ def check_sessions(s):
     if per_day is not None:
         full = FULL_SESSION_BARS.get(s.timeframe)
         if full:
-            short = sorted(d for d, n in per_day.items() if n < SHORT_SESSION_FRAC * full)
+            # shortest first: a hole shows before the half-days
+            short = sorted(((d, n) for d, n in per_day.items() if n < SHORT_SESSION_FRAC * full),
+                           key=lambda x: (x[1], x[0]))
             if short:
                 notes.append(f"{len(short)} short session(s) (< {SHORT_SESSION_FRAC:.0%} of "
-                             f"{full} bars): " + ", ".join(d.isoformat() for d in short[:4])
-                             + (" …" if len(short) > 4 else "")
+                             f"{full} bars), shortest first: "
+                             + ", ".join(f"{d.isoformat()} ({n})" for d, n in short[:5])
+                             + (" …" if len(short) > 5 else "")
                              + " — half-days are real; a day with a handful of bars is a hole")
         value = (f"{len(have)} session days, {len(expected)} sessions, "
                  f"{len(missing)} missing")
