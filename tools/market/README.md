@@ -15,13 +15,14 @@ out/              the ledger and its report (gitignored)
 | `bars.py` | `Bar` and `Series` — five exact numbers per period, with provenance the series **refuses to exist without**. Loads CSV. |
 | `barqc.py` | nine integrity checks on a series, each with a number. Session count against the real NYSE calendar. |
 | `replay.py` | walks bars through a strategy **without letting it see the future** — enforced by shape, not by rule. |
-| `strategies.py` | reference strategies, deliberately dull. The contract, not an edge. |
+| `features.py` | EMA, VWAP, ATR, rejection-candle geometry, swing levels, volume profile (POC, value area), a labelled order-flow **proxy**. The chart, as numbers. |
+| `strategies.py` | reference strategies, deliberately dull, plus three discretionary "confluence" setups made mechanical so they can be measured. The contract, not an edge. |
 | `ledger.py` | append-only record of backtests, paper runs, live runs and gate bypasses; renders `out/ledger.html`. |
 | `run.py` | the gate. `signal → backtest → paper → live`, each refused without the record the last one made. |
 | `fetch.py` | Stooq (no key) or Alpaca. **Runs on the Mac.** NETWORK / PARSE / OK kept strictly apart. |
 | `broker.py` | Alpaca paper and live orders. **Runs on the Mac, by Daniel's hand.** No agent calls it. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 144 checks. `python3 test_tools.py` |
+| `test_tools.py` | 191 checks. `python3 test_tools.py` |
 
 ## Candles or the data?
 
@@ -82,6 +83,34 @@ and the ledger's only value is that a live run sitting below a paper run
 *proves* the paper run happened.
 
 Run `./demo.sh` to watch all of it, refusals included.
+
+## The stack, as features — so it can be measured
+
+"Candles to see a pattern, rejection blocks, EMA, VWAP, order flow, market
+auction theory, options and greeks, price levels, indicators, sentiment." Every
+item that can be computed from bars now is, in `features.py`, and three
+discretionary "confluence" setups are in `strategies.py` so `replay.py` can
+test them with costs instead of trusting them:
+
+| you said | what it became | needs |
+|---|---|---|
+| candles, rejection candles | `rejection(bar)` — pin-bar geometry: wick ≥ 2× body, close in the top or bottom third | daily bars |
+| EMA, indicators | `ema`, `sma`, `atr` | daily bars |
+| VWAP | `vwap` (anchored/rolling) and `session_vwap` | daily; **minute bars** for the session VWAP institutions benchmark |
+| price levels | `swings` → `levels` with touch counts; `nearest_level` | daily bars — and a level is only known `right` bars after it printed |
+| market auction theory | `volume_profile` → point of control, value area | daily; better on minute bars |
+| order flow / volume | `bar_delta_proxy`, `cvd_proxy` — **a proxy, labelled as one** | real delta needs **tick / Level-2 data**, which OHLCV does not contain |
+| options and greeks | — | an **options chain** feed (open interest by strike, IV); not in this pipeline yet |
+| sentiment | — | an **external feed**; not in this pipeline yet |
+| "rejection blocks", order blocks (ICT) | — | not implemented: the definitions are not stated precisely enough to compute without hindsight |
+
+The setups: `ema_pullback:20,50,5` (trend + pullback to the fast EMA + bull
+rejection within one ATR), `vwap_reclaim:20`, `value_area:40`. **On a drifting
+random walk with no structure, all three lag buy-and-hold after 5 bps** — the
+machinery says so, pinned by test. Whether they do on real bars is the question;
+run them on `bars/AAPL-1d.csv` and read the ledger.
+
+`EVIDENCE.md` carries what the peer-reviewed record says about each item.
 
 ## No look-ahead, by shape
 

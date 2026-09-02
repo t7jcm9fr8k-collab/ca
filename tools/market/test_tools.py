@@ -453,6 +453,105 @@ ledger.LEDGER = _real_ledger
 shutil.rmtree(_tmp, ignore_errors=True)
 check("the real ledger path was restored", ledger.LEDGER.endswith(os.path.join("out", "ledger.json")))
 
+# ---------------------------------------------------------------- features
+
+print("\nfeatures — the chart, as numbers")
+
+import features as F
+
+
+def _b(o, h, l, c, v=100, d=1):
+    return B.Bar(dt.datetime(2026, 1, d, tzinfo=B.UTC), float(o), float(h), float(l), float(c), float(v))
+
+
+check("sma", F.sma([1, 2, 3, 4], 2) == 3.5)
+check("sma short of data is None", F.sma([1, 2], 3) is None)
+check("ema seeds with the SMA then smooths (alpha 0.5 for n=3)", F.ema([1, 2, 3, 4, 5], 3) == 4.0)
+check("ema_series is None before n values", F.ema_series([1, 2, 3, 4, 5], 3) == [None, None, 2.0, 3.0, 4.0])
+check("ema accepts bars or numbers", F.ema([_b(10, 11, 9, 1), _b(10, 11, 9, 2), _b(10, 11, 9, 3)], 2) == 2.5)
+_bs = [_b(10, 12, 9, 11, d=1), _b(11, 13, 10, 12, d=2), _b(12, 12.5, 11, 11.5, d=3)]
+check("true range uses the previous close", F.true_range(_bs[2], _bs[1].close) == 1.5)
+check("atr is the mean of the last n true ranges", F.atr(_bs, 2) == 2.25)
+check("atr short of data is None", F.atr(_bs, 3) is None)
+check("vwap weights typical price by volume", abs(F.vwap(_bs[:2]) - (10.6667 * 100 + 11.6667 * 100) / 200) < 1e-3)
+check("vwap with no volume is None", F.vwap([_b(10, 11, 9, 10, 0)]) is None)
+
+check("a hammer is a bull rejection", F.rejection(_b(10, 10.6, 8, 10.5)) == "bull")
+check("a shooting star is a bear rejection", F.rejection(_b(10, 12, 9.9, 9.5)) == "bear")
+check("a full-body bar is no rejection", F.rejection(_b(10, 11, 10, 11)) is None)
+check("a long-wick doji still counts (body floored at 5%)", F.rejection(_b(10, 10.1, 8, 10)) == "bull")
+check("a long lower wick that closed weak is NOT a bull rejection", F.rejection(_b(10, 10.2, 8, 8.5)) is None)
+check("a zero-range bar is no rejection", F.rejection(_b(10, 10, 10, 10)) is None)
+check("rejections indexes the sequence", F.rejections([_b(10, 11, 10, 11), _b(10, 10.6, 8, 10.5)]) == [(1, "bull")])
+
+_sw = [_b(10, 11, 9, 10, d=i + 1) for i in range(9)]
+_sw[4] = _b(10, 14, 9, 10, d=5)
+_sw[7] = _b(10, 11, 6, 10, d=8)
+check("a swing high needs higher than left AND right neighbours", F.swings(_sw, 2, 1)["highs"] == [(4, 14.0)])
+check("a swing low mirrors", F.swings(_sw, 2, 1)["lows"] == [(7, 6.0)])
+# A new highest high at the very end is not a swing yet — nothing has printed
+# after it. Placed past index 4's right-window so that swing survives.
+check("the last `right` bars can never be swings yet",
+      F.swings(_sw[:8] + [_b(10, 20, 9, 10, d=9)], 2, 2)["highs"] == [(4, 14.0)])
+check("a higher high inside the right-window cancels the earlier swing",
+      F.swings(_sw[:6] + [_b(10, 20, 9, 10, d=7)], 2, 2)["highs"] == [])
+check("levels are sorted with touch counts",
+      F.levels(_sw, 2, 1) == [{"price": 6.0, "touches": 1}, {"price": 14.0, "touches": 1}])
+_touch = _sw + [_b(10, 11, 9, 10, d=10), _b(10, 14.01, 9, 10, d=11), _b(10, 11, 9, 10, d=12), _b(10, 11, 9, 10, d=13)]
+check("swings within tolerance merge into one level with 2 touches",
+      any(l["touches"] == 2 and abs(l["price"] - 14.005) < 1e-9 for l in F.levels(_touch, 2, 1)))
+_n, _dist = F.nearest_level(13.5, F.levels(_sw, 2, 1))
+check("nearest level and signed distance", _n["price"] == 14.0 and abs(_dist - (13.5 - 14) / 13.5) < 1e-12)
+check("no levels gives (None, None)", F.nearest_level(1, []) == (None, None))
+
+_vp = [_b(10, 12, 10, 12, 100, d=1), _b(11, 13, 11, 13, 100, d=2), _b(10, 11, 10, 11, 60, d=3)]
+_p = F.volume_profile(_vp, bins=3)
+check("volume spreads evenly across each bar's range",
+      [round(v) for _, _, v in _p["bins"]] == [110, 100, 50])
+check("point of control is the heaviest bin's midpoint", _p["poc"] == 10.5)
+check("value area grows toward the heavier side", _p["va_low"] == 10.0 and _p["va_high"] == 12.0)
+check("value area holds at least the requested share", _p["value_area_share"] >= 0.70)
+check("a zero-range bar's volume lands in one bin",
+      F.volume_profile([_b(10, 10, 10, 10, 5), _b(9, 11, 9, 11, 0)], bins=2)["bins"][1][2] == 5)
+check("an empty profile is None", F.volume_profile([], 3) is None)
+
+check("bar delta proxy signs volume by close vs open",
+      (F.bar_delta_proxy(_b(10, 11, 9, 11)), F.bar_delta_proxy(_b(11, 11, 9, 10)), F.bar_delta_proxy(_b(10, 11, 9, 10))) == (100, -100, 0))
+check("cvd proxy cumulates", F.cvd_proxy([_b(10, 11, 9, 11), _b(11, 11, 9, 10, 40)]) == [100, 60])
+check("the proxy says so in its name", "proxy" in F.bar_delta_proxy.__name__ and "PROXY" in F.bar_delta_proxy.__doc__)
+
+_intra = [B.Bar(dt.datetime(2026, 1, 5, 14, 30, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 10),
+          B.Bar(dt.datetime(2026, 1, 5, 15, 30, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 10),
+          B.Bar(dt.datetime(2026, 1, 6, 14, 30, tzinfo=B.UTC), 1, 2, 0.5, 1.5, 10)]
+check("session_bars keeps only the last trading date", len(F.session_bars(_intra)) == 1)
+check("session vwap is over that session", F.session_vwap(_intra) == F.vwap(_intra[-1:]))
+
+check("features read a cursor slice, never the series",
+      F.ema(replay.Cursor(s70, 30)[-30:], 10) is not None
+      and F.ema(replay.Cursor(s70, 30)[-30:], 10) == F.ema(s70.bars[:30], 10))
+_dsc = F.describe(s70.bars)
+check("describe reports the readings at the last close",
+      _dsc["close"] == s70.bars[-1].close and _dsc["ema"] is not None and _dsc["poc"] is not None)
+
+print("\nstrategies — the discretionary setups, made testable")
+
+for spec, name in (("ema_pullback:20,50", "ema_pullback_20_50_5"), ("vwap_reclaim:20", "vwap_reclaim_20"),
+                   ("value_area:40", "value_area_40")):
+    st = strategies.make(spec)
+    check(f"{spec} names itself", st.__name__ == name)
+    rr = replay.replay(s70, st, cost_bps=5)
+    check(f"{spec} replays without peeking", rr["bars"] == 70 and rr["qc_verdict"] != "blocked")
+check("ema_pullback refuses fast >= slow", _raises(ValueError, strategies.make, "ema_pullback:50,20"))
+check("a feature strategy short of history is flat, not an error",
+      strategies.make("ema_pullback:20,50")(replay.Cursor(s70, 10)) == 0.0)
+_synth = os.path.join(HERE, "bars", "SYN-1d.csv")
+if os.path.exists(_synth):
+    _syn = B.load_csv(_synth, "SYN", "1d", "synthetic", True)
+    _res = {sp: replay.replay(_syn, strategies.make(sp), cost_bps=5) for sp in ("ema_pullback:20,50", "vwap_reclaim:20", "value_area:40")}
+    check("on a drifting random walk every setup lags buy-and-hold after costs — the machinery says so",
+          all(r["return"] < r["benchmark"] for r in _res.values()),
+          str({k: round(v["return"], 3) for k, v in _res.items()}))
+
 # ---------------------------------------------------------------- result
 
 print()

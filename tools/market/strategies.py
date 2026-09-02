@@ -21,6 +21,14 @@ SPEC STRINGS (for run.py --strategy)
     buy_and_hold
     sma_cross:10,30
     breakout:20
+    ema_pullback:20,50,5     trend + pullback to the fast EMA + bull rejection candle
+    vwap_reclaim:20          close above anchored VWAP and EMA
+    value_area:40            close above the volume profile's value-area high
+
+The last three are the discretionary "confluence" setups — candle + EMA +
+VWAP + level + volume — made mechanical so replay.py can measure them. On a
+drifting random walk all three lag buy-and-hold after costs; whether they do
+on real bars is exactly the question the pipeline exists to answer.
 """
 
 
@@ -57,10 +65,84 @@ def breakout(lookback=20):
     return s
 
 
+def ema_pullback(fast=20, slow=50, lookback=5):
+    """
+    The discretionary "trend + pullback + rejection" setup, made mechanical.
+
+    Long when the trend is up (close above the slow EMA, fast above slow) AND
+    within the last `lookback` bars a bull rejection candle printed with its
+    low within one ATR of the fast EMA — price came back to the average, was
+    refused, and closed strong. Flat when close is below the slow EMA. Between
+    those, flat: stateless, so it does not "hold" a position it cannot see.
+    """
+    import features as F
+    fast, slow, lookback = int(fast), int(slow), int(lookback)
+    if not 0 < fast < slow:
+        raise ValueError(f"need 0 < fast < slow, got {fast}, {slow}")
+
+    def s(cursor):
+        w = cursor[-(slow * 4):]
+        if len(w) < slow + 15:
+            return 0.0
+        e_fast, e_slow, a = F.ema(w, fast), F.ema(w, slow), F.atr(w, 14)
+        last = w[-1]
+        if e_fast is None or e_slow is None or a is None or a <= 0:
+            return 0.0
+        if last.close < e_slow or e_fast < e_slow:
+            return 0.0
+        for b in w[-lookback:]:
+            if F.rejection(b) == "bull" and abs(b.low - e_fast) <= a:
+                return 1.0
+        return 0.0
+    s.__name__ = f"ema_pullback_{fast}_{slow}_{lookback}"
+    return s
+
+
+def vwap_reclaim(n=20):
+    """Long when close is above both the n-bar anchored VWAP and the n EMA."""
+    import features as F
+    n = int(n)
+
+    def s(cursor):
+        w = cursor[-(n * 3):]
+        if len(w) < n:
+            return 0.0
+        v, e = F.vwap(w[-n:]), F.ema(w, n)
+        c = w[-1].close
+        return 1.0 if (v is not None and e is not None and c > v and c > e) else 0.0
+    s.__name__ = f"vwap_reclaim_{n}"
+    return s
+
+
+def value_area(window=40):
+    """
+    Market-profile style: long when close is above the value-area high of the
+    last `window` bars' volume profile — price accepted above value — flat
+    when below the point of control. In between, flat.
+    """
+    import features as F
+    window = int(window)
+
+    def s(cursor):
+        w = cursor[-window:]
+        if len(w) < window:
+            return 0.0
+        p = F.volume_profile(w)
+        if not p:
+            return 0.0
+        c = w[-1].close
+        return 1.0 if c > p["va_high"] else 0.0
+    s.__name__ = f"value_area_{window}"
+    return s
+
+
 REGISTRY = {
     "buy_and_hold": lambda: buy_and_hold,
     "sma_cross": sma_cross,
     "breakout": breakout,
+    "ema_pullback": ema_pullback,
+    "vwap_reclaim": vwap_reclaim,
+    "value_area": value_area,
 }
 
 
