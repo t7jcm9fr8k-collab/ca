@@ -28,7 +28,7 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 365 checks. `python3 test_tools.py` |
+| `test_tools.py` | 374 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -184,6 +184,11 @@ python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule op
 #     trial 3, pre-registered 2026-09-02: same rule, exit at the OFFICIAL close (Stooq's daily
 #     closes are consolidated), which closes the IEX closing-auction caveat
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
+#     measure here, analyse anywhere: the minute file is 35 MB, the per-session measurement is
+#     100 KB. Export on the machine with the bars; run the rules, the null and trial 3 from the
+#     export on any machine — the numbers are identical to the last digit, pinned by test.
+python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --export-sessions bars/SPY-sessions.csv
+python3 intraday.py --sessions-from bars/SPY-sessions.csv --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
 python3 intraday.py --synth 600 --effect 0.4 --no-record          # what "found" looks like, offline
 python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothing" looks like
 

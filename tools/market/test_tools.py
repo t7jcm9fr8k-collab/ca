@@ -816,6 +816,46 @@ check("sessions without an official close are skipped and counted",
       _r3p["sessions"] == 20 and _r3p["skipped"].get("no official close for the date") == 10)
 check("trial 3 names the cross-feed basis, not the auction", "cent" in _r3p["not_modelled"] and "AUCTION" not in _r3p["not_modelled"])
 check("the report shows the exit source", "exit: official close" in intraday.render(_r3))
+# measure here, analyse anywhere: the sessions file
+_sf = os.path.join(tempfile.mkdtemp(prefix="sess-"), "SYN-sessions.csv")
+_rows_m, _skip_m = intraday.rows_from_series(_syn3)
+intraday.write_sessions(_sf, _rows_m, _skip_m, dict(_syn3.provenance), _syn3.symbol, "1m")
+_rows_f, _skip_f, _prov_f, _sym_f, _tf_f = intraday.load_sessions(_sf)
+check("a sessions file round-trips every measured field exactly",
+      len(_rows_f) == len(_rows_m) and all(
+          a["date"] == b["date"] and a["r_first30"] == b["r_first30"] and a["open_1530"] == b["open_1530"]
+          and abs(a["r_last30"] - b["r_last30"]) < 1e-15 and a["fill_slipped"] == b["fill_slipped"]
+          for a, b in zip(_rows_f, _rows_m)))
+check("the header carries symbol, timeframe, provenance and skip counts",
+      _sym_f == _syn3.symbol and _tf_f == "1m" and _prov_f.get("source") == "synthetic-intraday" and _skip_f == _skip_m)
+_from_file = intraday.analyse(_rows_f, _skip_f, _prov_f, _sym_f, _tf_f, "first30", 2.0, "2024-02-01", 5)
+_from_bars = intraday.run(_syn3, "first30", 2.0, "2024-02-01", 5)
+check("analysing the file gives the minute-bar result to the last digit",
+      _from_file["all"]["gross_bp"] == _from_bars["all"]["gross_bp"] and _from_file["p_all"] == _from_bars["p_all"]
+      and _from_file["sessions"] == _from_bars["sessions"])
+_t3f = intraday.analyse(_rows_f, _skip_f, _prov_f, _sym_f, _tf_f, "first30", 2.0, "2024-02-01", 5, close_map=_cm, close_source="t")
+check("trial 3 from the file equals trial 3 from the bars", _t3f["all"]["gross_bp"] == _r3["all"]["gross_bp"] and _t3f["trial"] == 3)
+_nohead = _sf + ".nohead.csv"
+open(_nohead, "w").write("\n".join(l for l in open(_sf) if not l.startswith("#")))
+check("a sessions file without its header is refused", _raises(SystemExit, intraday.load_sessions, _nohead))
+_nocol = _sf + ".nocol.csv"
+open(_nocol, "w").write(open(_sf).read().replace("last_print", "lastprint"))
+check("a sessions file missing a column is refused", _raises(SystemExit, intraday.load_sessions, _nocol))
+_synm = os.path.join(os.path.dirname(_sf), "SYN3-1m.csv")
+B.to_csv(_syn3, _synm)
+_exp = os.path.join(os.path.dirname(_sf), "exported.csv")
+_cli = subprocess.run([sys.executable, "intraday.py", "--csv", _synm, "--symbol", _syn3.symbol, "--source", "synthetic-intraday",
+                       "--export-sessions", _exp], cwd=HERE, capture_output=True, text=True)
+check("--export-sessions writes the file and says what to do next",
+      _cli.returncode == 0 and os.path.exists(_exp) and "next, on any machine" in _cli.stdout
+      and open(_exp).readline().startswith("# intraday sessions v1"))
+_cli2 = subprocess.run([sys.executable, "intraday.py", "--sessions-from", _exp, "--rule", "first30", "--shuffles", "5",
+                        "--holdout-from", "2024-02-01", "--no-record"], cwd=HERE, capture_output=True, text=True)
+check("--sessions-from runs without minute bars", _cli2.returncode == 0 and "INTRADAY" in _cli2.stdout, _cli2.stderr[-300:])
+_cli3 = subprocess.run([sys.executable, "intraday.py", "--sessions-from", _exp, "--symbol", "OTHER", "--no-record"],
+                       cwd=HERE, capture_output=True, text=True)
+check("a --symbol that disagrees with the sessions file is refused", _cli3.returncode != 0 and "sessions file is for" in _cli3.stderr)
+shutil.rmtree(os.path.dirname(_sf), ignore_errors=True)
 _cm_adj = {k: v * 0.95 for k, v in _cm.items()}          # what a dividend-adjusted file looks like
 check("a close file on a different price basis is REFUSED, not joined",
       _raises(SystemExit, intraday.run, _syn3, "first30", 2.0, "2024-02-01", 5, close_map=_cm_adj, close_source="adj"))

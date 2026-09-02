@@ -48,16 +48,29 @@ TRIAL 3 — THE OFFICIAL CLOSE
     The two feeds can differ by a cent or so at any instant (~0.2 bp); that is
     in not_modelled.
 
+MEASURE HERE, ANALYSE ANYWHERE
+    The minute file is 35 MB; the per-session measurement is 100 KB. On the
+    machine that has the minute bars, --export-sessions writes one row per
+    complete session (date, the two predictors, the 15:30 open, the last
+    print, whether the fill slipped, the exit time) with the skip counts and
+    the minute file's provenance in a header. --sessions-from runs everything
+    else — the rules, the null, the holdout, trial 3's --close-from — from
+    that file, on any machine. Nothing is measured twice and nothing is lost.
+
 USAGE
     python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --rule first30 --cost-bps 2
     python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --rule first30 \
                         --close-from bars/SPY-1d.csv --close-source stooq
+    python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --export-sessions bars/SPY-sessions.csv
+    python3 intraday.py --sessions-from bars/SPY-sessions.csv --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
     python3 intraday.py --synth 600 --effect 0.4          # planted effect, offline
     python3 intraday.py --synth 600 --effect 0.0          # no effect: expect p ~ 0.5
 """
 
 import argparse
+import csv
 import datetime as dt
+import json
 import math
 import os
 import random
@@ -201,8 +214,8 @@ def official_closes(daily):
     return {b.ts.strftime("%Y-%m-%d"): b.close for b in daily.bars}
 
 
-def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_BP,
-        close_map=None, close_source=None):
+def rows_from_series(series):
+    """Measure every complete session; refuse a series barqc blocks."""
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
         sys.exit(f"REFUSED: barqc blocked {series.describe()}: {', '.join(qc['failed'])}")
@@ -215,6 +228,80 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
             skipped[why] = skipped.get(why, 0) + 1
     if not rows:
         sys.exit("REFUSED: no complete regular sessions in these bars")
+    return rows, skipped
+
+
+# ---------------------------------------------------------------- sessions file
+
+SESSION_COLS = ["date", "r_first30", "r_open_to_1530", "open_1530", "last_print",
+                "fill_slipped", "exit_time"]
+
+
+def write_sessions(path, rows, skipped, prov, symbol, timeframe):
+    """One row per measured session, provenance and skip counts in the header."""
+    head = {"symbol": symbol, "timeframe": timeframe, "provenance": prov, "skipped": skipped,
+            "sessions": len(rows), "measured_by": "intraday.measure v1",
+            "exported_at": dt.datetime.now(B.UTC).isoformat(timespec="seconds")}
+    with open(path, "w", newline="") as f:
+        f.write("# intraday sessions v1 — one row per complete regular session; "
+                "the rules, the null and trial 3 run from this file anywhere\n")
+        f.write("# " + json.dumps(head, default=str) + "\n")
+        w = csv.writer(f)
+        w.writerow(SESSION_COLS)
+        for r in rows:
+            w.writerow([r["date"], repr(float(r["r_first30"])), repr(float(r["r_open_to_1530"])),
+                        repr(float(r["open_1530"])), repr(float(r["last_print"])),
+                        "1" if r.get("fill_slipped") else "0", r.get("exit_time", "")])
+    return path
+
+
+def load_sessions(path):
+    """→ (rows, skipped, provenance, symbol, timeframe). Refuses a file without its header."""
+    if not os.path.exists(path):
+        sys.exit(f"REFUSED: no such file: {path}")
+    head, body = None, []
+    for line in open(path):
+        if line.startswith("#"):
+            if line.startswith("# {"):
+                try:
+                    head = json.loads(line[2:])
+                except json.JSONDecodeError as e:
+                    sys.exit(f"REFUSED: sessions header is not JSON: {e}")
+            continue
+        body.append(line)
+    if head is None:
+        sys.exit(f"REFUSED: {path} has no sessions header — it was not written by "
+                 f"--export-sessions, and its provenance is unknown")
+    rd = csv.DictReader(body)
+    missing = [c for c in SESSION_COLS if c not in (rd.fieldnames or [])]
+    if missing:
+        sys.exit(f"REFUSED: sessions file is missing column(s) {', '.join(missing)}")
+    rows = []
+    for i, r in enumerate(rd, 1):
+        try:
+            o, lp = float(r["open_1530"]), float(r["last_print"])
+            rows.append({"date": r["date"], "r_first30": float(r["r_first30"]),
+                         "r_open_to_1530": float(r["r_open_to_1530"]),
+                         "open_1530": o, "last_print": lp,
+                         "r_last30": lp / o - 1.0,          # the same formula measure() uses
+                         "fill_slipped": r["fill_slipped"] == "1", "exit_time": r["exit_time"]})
+        except (KeyError, ValueError) as e:
+            sys.exit(f"REFUSED: sessions row {i} unreadable: {e}")
+    if not rows:
+        sys.exit(f"REFUSED: {path} has a header and no sessions")
+    return rows, head.get("skipped", {}), head.get("provenance", {}), head.get("symbol"), head.get("timeframe", "1m")
+
+
+def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_BP,
+        close_map=None, close_source=None):
+    rows, skipped = rows_from_series(series)
+    return analyse(rows, skipped, dict(series.provenance), series.symbol, series.timeframe,
+                   rule, cost_bps, holdout_from, shuffles, published_bp, close_map, close_source)
+
+
+def analyse(rows, skipped, prov, symbol, timeframe, rule, cost_bps, holdout_from, shuffles,
+            published_bp=PUBLISHED_BP, close_map=None, close_source=None):
+    skipped = dict(skipped)
     exit_price = "last regular-session print on this feed"
     if close_map is not None:
         joined, dropped, gaps = [], 0, []
@@ -246,8 +333,8 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
     ins = [r for r in rows if r["date"] < holdout_from]
     out = [r for r in rows if r["date"] >= holdout_from]
     slipped = sum(1 for r in rows if r.get("fill_slipped"))
-    src = str(series.provenance.get("source", "")).lower()
-    feed = str(series.provenance.get("feed", "")).lower()
+    src = str(prov.get("source", "")).lower()
+    feed = str(prov.get("feed", "")).lower()
     iex = "alpaca" in src or "iex" in feed or "iex" in src
     not_modelled = ("partial fills, intraday slippage beyond the flat cost, "
                     "borrow for the short side")
@@ -267,8 +354,8 @@ def run(series, rule, cost_bps, holdout_from, shuffles, published_bp=PUBLISHED_B
     res = {"strategy": f"intraday_{rule}" + ("_official_close" if close_map is not None else ""),
            "rule": RULES[rule] + (" · exit at the official close" if close_map is not None else ""),
            "exit_price": exit_price, "trial": 3 if close_map is not None else None,
-           "symbol": series.symbol, "timeframe": series.timeframe,
-           "source": series.provenance.get("source"),
+           "symbol": symbol, "timeframe": timeframe,
+           "source": prov.get("source"),
            "data_start": rows[0]["date"], "data_end": rows[-1]["date"],
            "reproduction_possible": reproduction,
            "sessions": len(rows), "skipped": skipped, "cost_bps": cost_bps,
@@ -382,6 +469,10 @@ def main():
     ap.add_argument("--shuffles", type=int, default=1000)
     ap.add_argument("--published-bp", type=float, default=PUBLISHED_BP,
                     help="the published gross effect per session, for the power statement")
+    ap.add_argument("--export-sessions", metavar="PATH",
+                    help="measure every session from --csv, write PATH, and stop; analyse it anywhere with --sessions-from")
+    ap.add_argument("--sessions-from", metavar="PATH",
+                    help="run from a sessions file written by --export-sessions instead of minute bars")
     ap.add_argument("--close-from", help="daily CSV with OFFICIAL closes; used as the exit (trial 3)")
     ap.add_argument("--close-source", help="where that daily file came from, e.g. stooq; recorded")
     ap.add_argument("--synth", type=int, help="generate N synthetic sessions instead of loading")
@@ -389,15 +480,35 @@ def main():
     ap.add_argument("--no-record", action="store_true")
     a = ap.parse_args()
 
-    if a.synth:
+    s = None
+    if a.sessions_from:
+        if a.csv or a.synth:
+            ap.error("--sessions-from replaces --csv / --synth")
+        rows, skipped, prov, sym, tf = load_sessions(a.sessions_from)
+        if a.symbol and sym and a.symbol.upper() != sym.upper():
+            sys.exit(f"REFUSED: sessions file is for {sym}, --symbol says {a.symbol}")
+        a.symbol = a.symbol or sym
+    elif a.synth:
         s = synth(a.synth, a.effect)
     else:
         if not (a.csv and a.symbol):
-            ap.error("--csv and --symbol are required (or --synth N)")
+            ap.error("--csv and --symbol are required (or --synth N, or --sessions-from)")
         try:
             s = B.load_csv(a.csv, a.symbol, "1m", a.source)
         except (B.Unparseable, B.NoProvenance) as e:
             sys.exit(f"REFUSED: {e}")
+    if a.export_sessions:
+        if s is None:
+            ap.error("--export-sessions needs --csv (or --synth)")
+        rows, skipped = rows_from_series(s)
+        write_sessions(a.export_sessions, rows, skipped, dict(s.provenance), s.symbol, s.timeframe)
+        print(f"OK       {len(rows)} session(s) measured from {s.describe()}")
+        print(f"         skipped {sum(skipped.values())}: "
+              + (", ".join(f"{v} {k}" for k, v in skipped.items()) or "none"))
+        print(f"wrote    {a.export_sessions}")
+        print(f"\nnext, on any machine:  python3 intraday.py --sessions-from {a.export_sessions} "
+              f"--rule first30 --close-from bars/{s.symbol}-1d.csv --close-source stooq")
+        return
     close_map = None
     if a.close_from:
         if not a.close_source:
@@ -407,8 +518,13 @@ def main():
         except (B.Unparseable, B.NoProvenance) as e:
             sys.exit(f"REFUSED: {e}")
         close_map = official_closes(daily)
-    r = run(s, a.rule, a.cost_bps, a.holdout_from, a.shuffles, a.published_bp,
-            close_map, a.close_source)
+    if a.sessions_from:
+        r = analyse(rows, skipped, prov, a.symbol, tf, a.rule, a.cost_bps, a.holdout_from,
+                    a.shuffles, a.published_bp, close_map, a.close_source)
+        r["measured_from"] = a.sessions_from
+    else:
+        r = run(s, a.rule, a.cost_bps, a.holdout_from, a.shuffles, a.published_bp,
+                close_map, a.close_source)
     print(render(r))
     if not a.no_record:
         ledger.record("backtest", **{k: v for k, v in r.items() if k != "by_year"},
