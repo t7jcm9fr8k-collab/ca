@@ -1,0 +1,4 @@
+out/
+bars/
+__pycache__/
+*.tmp
