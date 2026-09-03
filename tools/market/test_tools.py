@@ -415,11 +415,15 @@ check("yahoo all-null rows are PARSE, never zero bars",
       _raises(B.Unparseable, fetch.parse_yahoo, json.dumps({"chart": {"result": [{"timestamp": [1], "indicators": {"quote": [{"open": [None], "high": [None], "low": [None], "close": [None], "volume": [None]}]}}], "error": None}}), "SPY"))
 _m_old = _series(_daily(6))
 _m_new = _series([B.Bar(_m_old.bars[2].ts, 1, 2, 0.5, 1.5, 9)] + list(_daily(9)[6:8]), prov={"source": "patch", "fetched_at": "x", "start": "s", "end": "e"})
-_mrg, _added, _repl = fetch.merge(_m_old, _m_new)
+_mrg, _added, _repl, _pd = fetch.merge(_m_old, _m_new)
 check("merge is a union by timestamp, sorted", len(_mrg) == 8 and [b.ts for b in _mrg] == sorted(b.ts for b in _mrg))
 check("the new bar wins on a collision", _repl == 1 and _added == 2 and _mrg.bars[2].close == 1.5)
 check("the merge is recorded in provenance", _mrg.provenance["merged"][0]["added"] == 2 and _mrg.provenance["merged"][0]["from"] == "patch")
 check("a different symbol or timeframe is refused", _raises(ValueError, fetch.merge, _m_old, _series(_daily(2), symbol="OTHER")))
+check("the merge reports what it touched per New York date",
+      set(_pd) == {b.ts.astimezone(__import__("zoneinfo").ZoneInfo("America/New_York")).date().isoformat() for b in _m_new.bars}
+      and sum(v[0] for v in _pd.values()) == 2 and sum(v[1] for v in _pd.values()) == 1)
+check("the per-date report is kept in provenance", _mrg.provenance["merged"][0]["per_date"] == _pd)
 _out = io.StringIO()
 with contextlib.redirect_stdout(_out):
     fetch.dry_run()

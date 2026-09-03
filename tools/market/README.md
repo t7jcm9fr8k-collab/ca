@@ -28,7 +28,7 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 374 checks. `python3 test_tools.py` |
+| `test_tools.py` | 376 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 

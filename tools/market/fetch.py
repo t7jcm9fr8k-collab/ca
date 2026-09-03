@@ -314,26 +314,37 @@ def merge(existing, new):
     Union of two Series of the same symbol and timeframe, by timestamp; the
     new bar wins on a collision. For patching a feed hole — one missing day
     fetched on its own and folded back in — without refetching six years.
-    Returns (merged Series, bars added, bars replaced).
+    Returns (merged Series, bars added, bars replaced, {NY date: [added, replaced]}).
     """
     if existing.symbol != new.symbol or existing.timeframe != new.timeframe:
         raise ValueError(f"cannot merge {existing.symbol} {existing.timeframe} with "
                          f"{new.symbol} {new.timeframe}")
     by = {b.ts: b for b in existing.bars}
     added = replaced = 0
+    per_date = {}                       # NY date -> [added, replaced]; "390 replaced" alone
+    try:                                # once hid that the requested day came back empty
+        from zoneinfo import ZoneInfo
+        ny = ZoneInfo("America/New_York")
+    except Exception:
+        ny = B.UTC
     for b in new.bars:
+        d = b.ts.astimezone(ny).date().isoformat()
+        slot = per_date.setdefault(d, [0, 0])
         if b.ts in by:
             replaced += 1
+            slot[1] += 1
         else:
             added += 1
+            slot[0] += 1
         by[b.ts] = b
     prov = dict(existing.provenance)
     prov["merged"] = (prov.get("merged") or []) + [{
         "from": new.provenance.get("source"), "start": new.provenance.get("start"),
         "end": new.provenance.get("end"), "added": added, "replaced": replaced,
+        "per_date": per_date,
         "at": dt.datetime.now(B.UTC).isoformat(timespec="seconds")}]
-    return B.Series(existing.symbol, existing.timeframe,
-                    [by[k] for k in sorted(by)], prov), added, replaced
+    out = B.Series(existing.symbol, existing.timeframe, [by[k] for k in sorted(by)], prov)
+    return out, added, replaced, per_date
 
 
 # ---------------------------------------------------------------- cli
@@ -420,7 +431,7 @@ def main():
     if a.merge_into:
         try:
             base = B.load_csv(a.merge_into, a.symbol, a.timeframe, a.source)
-            s, added, replaced = merge(base, s)
+            s, added, replaced, per_date = merge(base, s)
         except (B.Unparseable, B.NoProvenance, ValueError) as e:
             sys.exit(f"REFUSED: {e}")
         if added == 0 and replaced == 0:
@@ -430,6 +441,14 @@ def main():
         B.to_csv(s, path)
         print(f"OK       {s.describe()}")
         print(f"merged   {added} bar(s) added, {replaced} replaced, into {path}")
+        for d, (ad, rp) in sorted(per_date.items()):
+            print(f"           {d}  {ad:>4} added  {rp:>4} replaced")
+        # A requested day that came back with nothing is the point of the exercise.
+        if a.start:
+            want = a.start[:10]
+            if want not in per_date:
+                print(f"           {want}     0 bars came back — the source has none for that day; "
+                      f"the hole is theirs and stays documented")
     else:
         path = a.out or B.bars_path(a.symbol, a.timeframe)
         B.to_csv(s, path)
