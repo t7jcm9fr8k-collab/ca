@@ -4,12 +4,12 @@ autopilot.py — the unattended daily loop. Fetch, check, decide, reconcile,
 record. Runs on the Mac on a schedule; PAPER by default; live only when told
 so in words, and only after paper runs have filled.
 
-STATUS: UNVERIFIED. Written 2026-09-04 in a cloud session whose permission
-    guard refused to run its checks or its dry run. It is committed so that
-    Daniel can read it, not so that it can be scheduled: run test_tools.py
-    with the autopilot section restored (see the plan record) and a
-    --dry-run on the Mac before this file is ever pointed at a broker.
-    Nothing in the README schedules it.
+VERIFIED 2026-09-04: fifteen checks in test_tools.py drive it against a fake
+    broker — refuses without a backtest, dry run sends nothing, buys once
+    when long and flat, never adds, sells all when flat and long, idempotent
+    per bar date, honours max positions, refuses live without --confirm-live
+    and without filled paper runs, never trades stale bars, halts on STOP.
+    Run --dry-run on the Mac before pointing it at a broker anyway.
 
 WHAT "MONITORING THE MARKET" MEANS HERE
     The rules this pipeline has measured are DAILY rules: they read the close

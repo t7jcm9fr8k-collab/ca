@@ -28,8 +28,9 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` (+ `--trader`: what every registered strategy holds after the last close, per symbol, ranked by the rule firing; `universe.txt` is the pre-registered replication list) | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
+| `autopilot.py` | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions, order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it. `universe.txt` is its list. |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
-| `test_tools.py` | 404 checks. `python3 test_tools.py` |
+| `test_tools.py` | 429 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -231,7 +232,19 @@ python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SP
 #     Does the trader watch the market or buy whatever? Neither. It buys only when a registered
 #     rule is long, on one named symbol, through the gate. This is the monitor that shows which
 #     symbols' rules are long today, ranked by the rule firing — not by a forecast:
-python3 watch.py --watchlist universe.txt --trader#     Replication of the one survivor on a universe fixed IN ADVANCE (universe.txt), with the
+python3 watch.py --watchlist universe.txt --trader
+#     The unattended loop (2026-09-04, at Daniel's request — the first file here that places an
+#     order on its own). One run after each close: fetch, barqc, decide, reconcile with the broker's
+#     positions, order through the same gate as run.py (no --force exists), record. Paper by default.
+python3 autopilot.py --dry-run
+python3 autopilot.py
+#     Schedule on the Mac with cron; the keys come from the shell environment, never from a file:
+#       20 16 * * 1-5  cd /PATH/TO/ca/tools/market && python3 autopilot.py >> out/autopilot.log 2>&1
+#     (cron does not read your .zshrc: put the two export lines in ~/.zshenv, or run it from a
+#     launchd agent that inherits your login environment). Stop it: touch STOP in tools/market.
+#     Live: --mode live --confirm-live, and only after the ledger shows paper runs that filled —
+#     the gate refuses otherwise. Before live, the backtest must be recorded per symbol:
+#       for X in $(grep -v '^#' universe.txt); do python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/$X-1d.csv --symbol $X --source yahoo --adjusted yes --cost-bps 5 --cash-yield 0.03; done#     Replication of the one survivor on a universe fixed IN ADVANCE (universe.txt), with the
 #     reading rule written before the data. On the Mac, first:
 #       for each symbol in universe.txt: python3 fetch.py --source yahoo --symbol X --adjusted-close --out bars/X-1d.csv
 python3 nulltest.py --rule rsi_oversold --horizon 5 --csv bars/QQQ-1d.csv bars/IWM-1d.csv bars/DIA-1d.csv bars/EFA-1d.csv bars/EEM-1d.csv bars/XLF-1d.csv bars/XLE-1d.csv bars/TLT-1d.csv bars/GLD-1d.csv --symbol QQQ IWM DIA EFA EEM XLF XLE TLT GLD --source yahoo --adjusted yes

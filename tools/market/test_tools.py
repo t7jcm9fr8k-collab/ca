@@ -1119,6 +1119,134 @@ check("in between is mixed", nulltest.verdict_across(_rows([3, 3, 3, 3, 1, 1, 1,
 check("a positive t_ep with a negative mean does not count",
       nulltest.verdict_across([{"symbol": "X", "status": "ok", "n": 5, "t_ep": 3, "mean_bp": -1}] * 9).startswith("DOES NOT"))
 
+# ---------------------------------------------------------------- autopilot
+
+print("\nautopilot — the unattended loop, against a fake broker")
+
+import autopilot
+
+
+class _FakeBroker:
+    """Stands in for broker.py: records what it was asked to send, fills or not."""
+    PAPER, LIVE = "paper://", "live://"
+
+    def __init__(self, held=None, fill=True):
+        self.held = dict(held or {})
+        self.fill = fill
+        self.orders = []
+
+    def credentials(self):
+        return {"k": "v"}
+
+    def account(self, base, hdr):
+        return {"account_number": "FAKE", "status": "ACTIVE", "equity": "1",
+                "buying_power": "1", "paper": base == self.PAPER}
+
+    def positions(self, base, hdr):
+        return dict(self.held)
+
+    def place_order(self, base, hdr, symbol, side, qty):
+        self.orders.append((base, symbol, side, qty))
+        return {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side, "qty": str(qty)}
+
+    def wait_for_fill(self, base, hdr, oid):
+        _, _, side, qty = self.orders[-1]
+        return {"id": oid, "status": "filled" if self.fill else "accepted", "side": side,
+                "qty": str(qty), "filled_qty": str(qty) if self.fill else "0",
+                "filled_avg_price": "100.0" if self.fill else None,
+                "submitted_at": "t", "filled_at": "t" if self.fill else None}
+
+    def summarise(self, o):
+        return broker.summarise(o)
+
+
+_ap_sand = tempfile.mkdtemp(prefix="autopilot-")
+_ap_root = os.path.join(_ap_sand, "bars")
+os.makedirs(_ap_root)
+_ap_now = dt.datetime(2026, 4, 1, 21, 0, tzinfo=B.UTC)
+# 60 sessions ending 2026-03-31: a slide then a climb, so RSI<30 fires and then clears.
+_ap_closes = [100 - 0.6 * i for i in range(25)] + [85 + 0.5 * i for i in range(35)]
+_ap_days = barqc.sessions_between(dt.date(2026, 1, 2), dt.date(2026, 3, 31))[-60:]
+_ap_bars = [_bar(_d(d.year, d.month, d.day), c, c + 0.5, c - 0.5, c)
+            for d, c in zip(_ap_days, _ap_closes)]
+_ap_series = _series(_ap_bars, symbol="DIPX")
+
+
+def _ap_fetch(sym, root):
+    return (_ap_series, "60 bars (fake)") if sym == "DIPX" else (None, "NETWORK (fake)")
+
+
+_ap_ledger_real = ledger.LEDGER
+ledger.LEDGER = os.path.join(_ap_sand, "ledger.json")
+try:
+    _fb = _FakeBroker()
+    _r = autopilot.run(["DIPX", "NOPE"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
+    check("a symbol with no bars is skipped, not traded", _r[1]["action"] == "skipped: no bars")
+    check("a long target with no recorded backtest is REFUSED",
+          _r[0]["action"].startswith("REFUSED") and _fb.orders == [], _r[0]["action"])
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPX")
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now, dry_run=True)
+    check("dry run decides and sends nothing",
+          _r[0]["action"] == "would buy 2 (paper)" and _fb.orders == [], _r[0]["action"])
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
+    check("long wanted and flat → one paper buy of qty",
+          _fb.orders == [("paper://", "DIPX", "buy", 2)], str(_fb.orders))
+    _last = ledger.events("paper", symbol="DIPX")[-1]
+    check("the order is recorded as an autopilot paper run on its bar date",
+          _last.get("autopilot") is True and _last.get("bar_date") == "2026-03-31")
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
+    check("re-running the same day sends nothing twice",
+          len(_fb.orders) == 1 and "already acted" in _r[0]["action"], _r[0]["action"])
+    _fb2 = _FakeBroker(held={"DIPX": 2})
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb2, now=_ap_now)
+    check("long wanted and already long → nothing, never adds",
+          _fb2.orders == [] and "aligned" in _r[0]["action"], _r[0]["action"])
+    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPX")
+    _fb3 = _FakeBroker(held={"DIPX": 3})
+    _r = autopilot.run(["DIPX"], "rsi_dip:14,30,5", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb3, now=_ap_now)
+    check("flat wanted and long → sell ALL held",
+          _fb3.orders == [("paper://", "DIPX", "sell", 3)], str(_fb3.orders))
+    _fb4 = _FakeBroker(held={"A": 1, "B": 1, "C": 1})
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       max_positions=3, fetch_fn=_ap_fetch, broker_api=_fb4, now=_ap_now)
+    check("no new buy past max positions",
+          _fb4.orders == [] and "max 3" in _r[0]["action"], _r[0]["action"])
+    _fb5 = _FakeBroker()
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "live", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb5, now=_ap_now, confirm_live=False)
+    check("live without --confirm-live is refused",
+          _fb5.orders == [] and "confirm-live" in _r[0]["action"], _r[0]["action"])
+    ledger.record("backtest", strategy="sma_cross_5_10", symbol="DIPX")
+    _fb6 = _FakeBroker()
+    _r = autopilot.run(["DIPX"], "sma_cross:5,10", "live", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fb6, now=_ap_now, confirm_live=True)
+    check("live without a filled paper run is refused even when confirmed",
+          _fb6.orders == [] and "paper run that filled" in _r[0]["action"], _r[0]["action"])
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_FakeBroker(),
+                       now=_ap_now + dt.timedelta(days=10))
+    check("stale bars are never traded", "STALE" in _r[0]["action"], _r[0]["action"])
+    _sf = autopilot.STOP_FILE
+    autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP")
+    open(autopilot.STOP_FILE, "w").write("")
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_FakeBroker(), now=_ap_now)
+    check("a STOP file halts the run before anything happens", "STOP" in _r[0]["action"])
+    autopilot.STOP_FILE = _sf
+    _ap_src = open(os.path.join(os.path.dirname(autopilot.__file__), "autopilot.py")).read()
+    check("autopilot has no --force", "--force" not in _ap_src.split("USAGE")[1])
+    check("the report names the gate and the STOP file",
+          "gate" in autopilot.render(_r, "paper", "x") and "STOP" in autopilot.render(_r, "paper", "x"))
+finally:
+    ledger.LEDGER = _ap_ledger_real
+    shutil.rmtree(_ap_sand)
+
 # ---------------------------------------------------------------- aggregate
 
 print("\naggregate — minute bars to sessions")
