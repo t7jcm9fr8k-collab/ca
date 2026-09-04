@@ -36,10 +36,19 @@ WHAT ONE RUN DOES, PER SYMBOL IN THE UNIVERSE
 SIZING
     --qty N        whole shares per position; targets are read as long/flat.
     --notional D   dollars per symbol; the rule's fractional target (a
-                   vol_target wrapper returns 0.37, say) is held as 0.37 × D
-                   in fractional shares, and only re-traded when the wanted
-                   value moves by more than 10% of D. The position the
-                   cursor sees is held value ÷ D.
+                   vol_target wrapper returns 0.37, say) is bought as 0.37 × D
+                   in fractional shares, then traded ONLY when the target
+                   changes by more than 10% — never because the price moved,
+                   which is exactly how replay treats a target. The position
+                   the cursor sees is the last target this loop sent for the
+                   symbol, read back from the ledger; flat is 0.
+
+REVIEWED 2026-09-04 (four finders, three refuters per finding): an order is
+    recorded the moment the broker accepts it, so a failed fill poll cannot
+    lead to a duplicate; one order per symbol per bar date for ANY strategy;
+    a same-day bar seen before 21:05 UTC is the open session and is dropped;
+    no equity reading → nothing traded; a backtest that failed its leak check
+    does not pass the gate.
 
 WHAT STOPS IT
     A file named STOP beside this script: the run exits before fetching.
@@ -121,8 +130,19 @@ def decide(series, strategy, now=None, position=0.0):
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
         return None, "BLOCKED: " + ", ".join(qc["failed"])
+    now = now or dt.datetime.now(B.UTC)
+    # A daily bar dated today, seen before the close has printed, is the
+    # session in progress, not a closed bar. Yahoo and Alpaca both hand it
+    # out. 21:05 UTC is after the 16:00 New York close in both winter and
+    # summer, so before that a same-day bar is dropped, and the decision is
+    # made on yesterday's close — which is what the rule was measured on.
+    if series.last.ts.date() == now.date() and now.time() < dt.time(21, 5):
+        if len(series.bars) < 2:
+            return None, "only an in-progress bar"
+        series = type(series)(series.symbol, series.timeframe, list(series.bars)[:-1],
+                              dict(series.provenance))
     st = barqc.check_staleness(series, now)
-    age = (now or dt.datetime.now(B.UTC)) - series.last.ts
+    age = now - series.last.ts
     if age / series.period > barqc.STALE_PERIODS:
         return None, f"STALE: {st['value']}"
     cur = replay.Cursor(series, len(series), position=position)
@@ -145,25 +165,53 @@ def reconcile(target, held, qty):
     return None, "aligned"
 
 
-def reconcile_notional(target, held_qty, last_close, notional, band=BAND):
+def last_target(mode, symbol):
     """
-    Value-based: (side, {"qty": q} | {"notional": d}) or (None, reason).
-    Wanted value is target × notional. A gap under `band` × notional is not
-    traded. Flat wanted with anything held sells the whole quantity, so
-    nothing fractional is left behind.
+    The target the loop last sent for this symbol in this mode, from the
+    ledger, or None if it never has. This — not the marked-to-market value —
+    is what replay's cursor.position means: the last FILLED target. Reading
+    it from the ledger keeps the loop stateless across processes and makes
+    the backtest and the live loop agree on what "position" is.
+    """
+    ev = [e for e in ledger.events(mode, symbol=symbol) if e.get("autopilot")]
+    if not ev:
+        return None
+    try:
+        return float(ev[-1].get("signal"))
+    except (TypeError, ValueError):
+        return None
+
+
+def reconcile_notional(target, last, held_qty, notional, band=BAND):
+    """
+    Trade only when the TARGET changes — exactly as replay does — never
+    because the price moved. `last` is the last target sent (last_target()).
+    Returns (side, {"qty": q} | {"notional": d}) or (None, reason).
+
+        flat, target > 0            buy target × D
+        held, target 0              sell every share held
+        held, |target − last| < band nothing (price drift is not a signal)
+        held, target up             buy (target − last) × D
+        held, target down           sell the same FRACTION of the held shares,
+                                    (last − target) / last, so a fallen price
+                                    is never re-bought and never over-sold
     """
     if target is None:
         return None, "no decision"
-    held_value = held_qty * last_close
-    wanted = max(0.0, min(1.0, target)) * notional
-    gap = wanted - held_value
-    if target <= 0 and held_qty > 0:
-        return "sell", {"qty": held_qty}
-    if abs(gap) < band * notional:
+    target = max(0.0, min(1.0, target))
+    if held_qty <= 0:
+        if target > 0:
+            return "buy", {"notional": round(target * notional, 2)}
         return None, "aligned"
-    if gap > 0:
-        return "buy", {"notional": round(gap, 2)}
-    return "sell", {"notional": round(-gap, 2)}
+    if target <= 0:
+        return "sell", {"qty": held_qty}
+    base = last if (last is not None and last > 0) else 1.0
+    delta = target - base
+    if abs(delta) < band:
+        return None, "aligned"
+    if delta > 0:
+        return "buy", {"notional": round(delta * notional, 2)}
+    return "sell", {"qty": round(held_qty * (-delta / base), 6)}
 
 
 def drawdown_halt(mode, equity, max_drawdown):
@@ -185,8 +233,13 @@ def drawdown_halt(mode, equity, max_drawdown):
 
 def gate(mode, strategy_name, symbol, confirm_live):
     """The same gate as run.py, with no bypass. Returns a refusal or None."""
-    if ledger.latest("backtest", strategy=strategy_name, symbol=symbol) is None:
+    bt = ledger.latest("backtest", strategy=strategy_name, symbol=symbol)
+    if bt is None:
         return "no recorded backtest for this strategy on this symbol"
+    lk = bt.get("leak_check") or {}
+    if lk.get("differences"):
+        return (f"the recorded backtest failed its leak check "
+                f"({len(lk['differences'])} of {lk.get('checked')} bars) — fix the strategy")
     if mode == "live":
         if not confirm_live:
             return "live needs --confirm-live"
@@ -195,8 +248,9 @@ def gate(mode, strategy_name, symbol, confirm_live):
     return None
 
 
-def already_acted(mode, strategy_name, symbol, bar_date):
-    for e in ledger.events(mode, strategy=strategy_name, symbol=symbol):
+def already_acted(mode, symbol, bar_date):
+    """One order per symbol per bar date, whatever strategy sent it."""
+    for e in ledger.events(mode, symbol=symbol):
         if e.get("autopilot") and e.get("bar_date") == bar_date:
             return True
     return False
@@ -237,6 +291,9 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             equity = float(acct.get("equity")) if acct and acct.get("equity") is not None else None
         except (TypeError, ValueError):
             equity = None
+        if equity is None:
+            return [{"symbol": "*", "action": "no equity reading from the broker — the drawdown "
+                                             "guard cannot run, so nothing is traded"}]
         halt = drawdown_halt(mode, equity, max_drawdown)
         if halt:
             with open(STOP_FILE, "w") as f:
@@ -253,15 +310,18 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             recs.append(rec)
             continue
         held_qty = held.get(sym, 0.0)
-        if notional:
-            pos = max(0.0, min(1.0, held_qty * s.last.close / notional))
+        last = last_target(mode, sym) if held_qty > 0 else None
+        if held_qty <= 0:
+            pos = 0.0
+        elif notional:
+            pos = last if (last is not None and last > 0) else 1.0
         else:
-            pos = 1.0 if held_qty > 0 else 0.0
+            pos = 1.0
         target, why = decide(s, strat, now, position=pos)
         rec["target"], rec["decision"] = target, why
         rec["bar_date"] = f"{s.last.ts:%Y-%m-%d}"
         if notional:
-            side, amount = reconcile_notional(target, held_qty, s.last.close, notional)
+            side, amount = reconcile_notional(target, last, held_qty, notional)
         else:
             side, amount = reconcile(target, held_qty, qty)
         rec["held"] = held_qty
@@ -278,7 +338,7 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = f"REFUSED: {refusal}"
             recs.append(rec)
             continue
-        if already_acted(mode, strat.__name__, sym, rec["bar_date"]):
+        if already_acted(mode, sym, rec["bar_date"]):
             rec["action"] = f"none: already acted on {rec['bar_date']}"
             recs.append(rec)
             continue
@@ -290,15 +350,25 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             continue
         try:
             o = broker_api.place_order(base, hdr, sym, side, **order)
-            o = broker_api.wait_for_fill(base, hdr, o["id"])
         except Exception as e:
             rec["action"] = f"broker refused: {e}"
             recs.append(rec)
             continue
+        # Recorded the moment the broker accepts it, BEFORE the fill poll: an
+        # order that exists at the broker and not in the ledger would be sent
+        # again by the next run. The fill, when it comes, is a second record.
+        common = dict(strategy=strat.__name__, symbol=sym, signal=target, endpoint=base,
+                      account=acct["account_number"], autopilot=True, bar_date=rec["bar_date"])
+        ledger.record(mode, **common, **broker_api.summarise(o))
+        try:
+            o = broker_api.wait_for_fill(base, hdr, o["id"])
+        except Exception as e:
+            rec["action"] = f"{side} {desc}: sent, fill unknown ({e}); recorded as unfilled"
+            recs.append(rec)
+            continue
         summary = broker_api.summarise(o)
-        ledger.record(mode, strategy=strat.__name__, symbol=sym, signal=target,
-                      endpoint=base, account=acct["account_number"], autopilot=True,
-                      bar_date=rec["bar_date"], **summary)
+        if summary.get("filled_qty"):
+            ledger.record(mode, **common, **summary)
         rec["action"] = (f"{side} {desc}: {summary['status']}, filled "
                          f"{summary['filled_qty']:g}")
         if side == "buy":
@@ -320,7 +390,7 @@ def render(recs, mode, strategy_name):
     for r in recs:
         t = r.get("target")
         L.append(f"{r['symbol']:<7}{(r.get('fetch') or '')[:31]:<32}"
-                 f"{('-' if t is None else format(t, '+.0f')):>7}"
+                 f"{('-' if t is None else format(t, '+.2f')):>7}"
                  f"{(format(r['held'], 'g') if 'held' in r else '-'):>7}  {r['action']}")
     L.append("-" * 90)
     L.append("Orders go only through the gate: a recorded backtest per symbol; live also "

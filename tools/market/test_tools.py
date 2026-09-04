@@ -369,6 +369,27 @@ check("the cursor carries the held position into each decision",
 _stay_lk = replay.leak_check(_lk_series, _stay, _stay_r["targets"], _stay_r["warmup"], positions=_stay_r["positions"])
 check("a strategy that reads cursor.position passes the leak check", _stay_lk["differences"] == [], str(_stay_lk))
 check("the cursor's position defaults to flat", replay.Cursor(_lk_series, 5).position == 0.0)
+
+
+def _memo_factory():
+    # computes a table from the FULL private bar list on its first call and reuses it:
+    # a look-ahead that a reused object carries into the check
+    def s(cursor):
+        if not hasattr(s, "table"):
+            s.table = [b.close for b in cursor._bars]
+        nxt = s.table[min(len(cursor), len(s.table) - 1)]
+        return 1.0 if nxt > cursor[-1].close else 0.0
+    s.warmup = 1
+    return s
+
+
+_memo = _memo_factory()
+_memo_r = replay.replay(_lk_series, _memo, cost_bps=0.0, name="memo")
+_memo_reused = replay.leak_check(_lk_series, _memo, _memo_r["targets"], _memo_r["warmup"], positions=_memo_r["positions"])
+_memo_fresh = replay.leak_check(_lk_series, _memo, _memo_r["targets"], _memo_r["warmup"], positions=_memo_r["positions"],
+                                factory=_memo_factory)
+check("a memoising look-ahead slips past a reused strategy object", _memo_reused["differences"] == [])
+check("and is caught when the check rebuilds the strategy per sample", len(_memo_fresh["differences"]) > 0, str(_memo_fresh))
 check("the leak check samples live bars only", _lk["checked"] <= len(s70.bars) - _lk_r["warmup"])
 
 # ---------------------------------------------------------------- strategies
@@ -404,6 +425,13 @@ check("rsi_dip declares its warm-up and name",
       _rd.warmup == 15 and _rd.__name__ == "rsi_dip_14_30_5")
 check("rsi_dip is built from a spec string", strategies.make("rsi_dip:14,30,5").__name__ == "rsi_dip_14_30_5")
 check("rsi_dip refuses a zero hold", _raises(ValueError, strategies.rsi_dip, 14, 30, 0))
+_tod = strategies.trend_or_dip(20, 14, 30, 5)
+_tf20, _rd5 = strategies.trend_filter(20), strategies.rsi_dip(14, 30, 5)
+_or_cases = [(float(_tf20(replay.Cursor(_rd_series, k))), float(_rd5(replay.Cursor(_rd_series, k))),
+              float(_tod(replay.Cursor(_rd_series, k)))) for k in range(21, len(_rd_bars) + 1)]
+check("trend_or_dip is long when the dip rule is long and the filter is flat",
+      any(f == 0.0 and d == 1.0 and o == 1.0 for f, d, o in _or_cases)
+      and all(o == max(f, d) for f, d, o in _or_cases), str(_or_cases[:5]))
 
 # vol_target: scale never above 1, scales down when realised vol is above the
 # target, holds still inside the band, nested spec parses, warm-up declared.
@@ -1232,34 +1260,39 @@ check("a positive t_ep with a negative mean does not count",
 print("\nautopilot — the unattended loop, against a fake broker")
 
 import autopilot
+import types as _types
 
 
 class _FakeBroker:
     """Stands in for broker.py: records what it was asked to send, fills or not."""
     PAPER, LIVE = "paper://", "live://"
 
-    def credentials(self):
-        return {"k": "v"}
-
-    def positions(self, base, hdr):
-        return dict(self.held)
-
-    def __init__(self, held=None, fill=True, equity="1000"):
+    def __init__(self, held=None, fill=True, equity="1000", fill_raises=False):
         self.held = dict(held or {})
         self.fill = fill
         self.orders = []
         self.equity = equity
+        self.fill_raises = fill_raises
+
+    def credentials(self):
+        return {"k": "v"}
 
     def account(self, base, hdr):
         return {"account_number": "FAKE", "status": "ACTIVE", "equity": self.equity,
                 "buying_power": "1", "paper": base == self.PAPER}
 
+    def positions(self, base, hdr):
+        return dict(self.held)
+
     def place_order(self, base, hdr, symbol, side, qty=None, notional=None):
         self.orders.append((base, symbol, side, qty if qty is not None else notional))
         return {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side,
-                "qty": str(qty if qty is not None else 0)}
+                "qty": str(qty if qty is not None else 0), "status": "accepted",
+                "filled_qty": "0"}
 
     def wait_for_fill(self, base, hdr, oid):
+        if self.fill_raises:
+            raise RuntimeError("poll timed out")
         _, _, side, qty = self.orders[-1]
         return {"id": oid, "status": "filled" if self.fill else "accepted", "side": side,
                 "qty": str(qty), "filled_qty": str(qty) if self.fill else "0",
@@ -1279,15 +1312,18 @@ _ap_closes = [100 - 0.6 * i for i in range(25)] + [85 + 0.5 * i for i in range(3
 _ap_days = barqc.sessions_between(dt.date(2026, 1, 2), dt.date(2026, 3, 31))[-60:]
 _ap_bars = [_bar(_d(d.year, d.month, d.day), c, c + 0.5, c - 0.5, c)
             for d, c in zip(_ap_days, _ap_closes)]
-_ap_series = _series(_ap_bars, symbol="DIPX")
 
 
 def _ap_fetch(sym, root):
-    return (_ap_series, "60 bars (fake)") if sym == "DIPX" else (None, "NETWORK (fake)")
+    # any DIP* symbol gets the same bars under its own name; anything else has none
+    return ((_series(_ap_bars, symbol=sym), "60 bars (fake)") if sym.startswith("DIP")
+            else (None, "NETWORK (fake)"))
 
 
+_ap_series = _series(_ap_bars, symbol="DIPX")
 _ap_ledger_real = ledger.LEDGER
 ledger.LEDGER = os.path.join(_ap_sand, "ledger.json")
+_sf = autopilot.STOP_FILE
 try:
     _fb = _FakeBroker()
     _r = autopilot.run(["DIPX", "NOPE"], "trend_filter:20", "paper", qty=2, root=_ap_root,
@@ -1295,7 +1331,8 @@ try:
     check("a symbol with no bars is skipped, not traded", _r[1]["action"] == "skipped: no bars")
     check("a long target with no recorded backtest is REFUSED",
           _r[0]["action"].startswith("REFUSED") and _fb.orders == [], _r[0]["action"])
-    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPX")
+    for _sym in ("DIPX", "DIPY", "DIPZ", "DIPW", "DIPU"):
+        ledger.record("backtest", strategy="trend_filter_20", symbol=_sym)
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now, dry_run=True)
     check("dry run decides and sends nothing",
@@ -1304,24 +1341,31 @@ try:
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
     check("long wanted and flat → one paper buy of qty",
           _fb.orders == [("paper://", "DIPX", "buy", 2)], str(_fb.orders))
-    _last = ledger.events("paper", symbol="DIPX")[-1]
-    check("the order is recorded as an autopilot paper run on its bar date",
-          _last.get("autopilot") is True and _last.get("bar_date") == "2026-03-31")
+    _ev = [e for e in ledger.events("paper", symbol="DIPX") if e.get("autopilot")]
+    check("the order is recorded twice: accepted, then filled",
+          len(_ev) == 2 and _ev[0]["filled_qty"] == 0 and _ev[1]["filled_qty"] == 2
+          and _ev[1]["bar_date"] == "2026-03-31", str([(e["status"], e["filled_qty"]) for e in _ev]))
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
     check("re-running the same day sends nothing twice",
           len(_fb.orders) == 1 and "already acted" in _r[0]["action"], _r[0]["action"])
+    ledger.record("backtest", strategy="sma_cross_5_10", symbol="DIPX")
+    _fbx = _FakeBroker()
+    _r = autopilot.run(["DIPX"], "sma_cross:5,10", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fbx, now=_ap_now)
+    check("a DIFFERENT strategy on the same symbol and day also sends nothing",
+          _fbx.orders == [] and "already acted" in _r[0]["action"], _r[0]["action"])
     _fb2 = _FakeBroker(held={"DIPX": 2})
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb2, now=_ap_now)
     check("long wanted and already long → nothing, never adds",
           _fb2.orders == [] and "aligned" in _r[0]["action"], _r[0]["action"])
-    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPX")
-    _fb3 = _FakeBroker(held={"DIPX": 3})
-    _r = autopilot.run(["DIPX"], "rsi_dip:14,30,5", "paper", qty=2, root=_ap_root,
+    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPY")
+    _fb3 = _FakeBroker(held={"DIPY": 3})
+    _r = autopilot.run(["DIPY"], "rsi_dip:14,30,5", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb3, now=_ap_now)
     check("flat wanted and long → sell ALL held",
-          _fb3.orders == [("paper://", "DIPX", "sell", 3)], str(_fb3.orders))
+          _fb3.orders == [("paper://", "DIPY", "sell", 3)], str(_fb3.orders))
     _fb4 = _FakeBroker(held={"A": 1, "B": 1, "C": 1})
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        max_positions=3, fetch_fn=_ap_fetch, broker_api=_fb4, now=_ap_now)
@@ -1332,7 +1376,6 @@ try:
                        fetch_fn=_ap_fetch, broker_api=_fb5, now=_ap_now, confirm_live=False)
     check("live without --confirm-live is refused",
           _fb5.orders == [] and "confirm-live" in _r[0]["action"], _r[0]["action"])
-    ledger.record("backtest", strategy="sma_cross_5_10", symbol="DIPX")
     _fb6 = _FakeBroker()
     _r = autopilot.run(["DIPX"], "sma_cross:5,10", "live", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb6, now=_ap_now, confirm_live=True)
@@ -1342,7 +1385,6 @@ try:
                        fetch_fn=_ap_fetch, broker_api=_FakeBroker(),
                        now=_ap_now + dt.timedelta(days=10))
     check("stale bars are never traded", "STALE" in _r[0]["action"], _r[0]["action"])
-    _sf = autopilot.STOP_FILE
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP")
     open(autopilot.STOP_FILE, "w").write("")
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
@@ -1353,21 +1395,83 @@ try:
     check("autopilot has no --force", "--force" not in _ap_src.split("USAGE")[1])
     check("the report names the gate and the STOP file",
           "gate" in autopilot.render(_r, "paper", "x") and "STOP" in autopilot.render(_r, "paper", "x"))
-    # notional sizing: fractional targets are held as a share of the allocation
-    check("notional reconcile: long wanted and flat buys the whole allocation",
-          autopilot.reconcile_notional(1.0, 0.0, 100.0, 1000.0) == ("buy", {"notional": 1000.0}))
-    check("notional reconcile: a smaller target sells the difference",
-          autopilot.reconcile_notional(0.4, 10.0, 100.0, 1000.0) == ("sell", {"notional": 600.0}))
-    check("notional reconcile: a gap inside the band is not traded",
-          autopilot.reconcile_notional(0.45, 4.0, 100.0, 1000.0) == (None, "aligned"))
-    check("notional reconcile: flat wanted sells every share, never a notional remainder",
-          autopilot.reconcile_notional(0.0, 3.7, 100.0, 1000.0) == ("sell", {"qty": 3.7}))
-    ledger.record("backtest", strategy="trend_filter_25", symbol="DIPX")   # a rule not yet acted on today
+    check("the report shows a fractional target to two places",
+          "+0.37" in autopilot.render([{"symbol": "Q", "target": 0.37, "held": 0, "action": "x"}], "paper", "x"))
+
+    # --- review fix 1: an accepted order whose fill poll raises is recorded, so no duplicate
+    _fbw = _FakeBroker(fill_raises=True)
+    _r = autopilot.run(["DIPW"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fbw, now=_ap_now)
+    _evw = [e for e in ledger.events("paper", symbol="DIPW") if e.get("autopilot")]
+    check("an order whose fill poll raises is still recorded as sent",
+          len(_fbw.orders) == 1 and "fill unknown" in _r[0]["action"] and len(_evw) == 1
+          and _evw[0]["filled_qty"] == 0, f"{_r[0]['action']} / {len(_evw)}")
+    _fbw2 = _FakeBroker()
+    _r = autopilot.run(["DIPW"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fbw2, now=_ap_now)
+    check("and the next run does not send it again", _fbw2.orders == [] and "already acted" in _r[0]["action"])
+    check("an unfilled record is not live-gate evidence", ledger.filled_paper_runs("trend_filter_20", "DIPW") == [])
+
+    # --- review fix 3: notional trades only on a target change, never on price drift
+    check("notional: flat and target 0.37 buys 0.37 of the allocation",
+          autopilot.reconcile_notional(0.37, None, 0.0, 1000.0) == ("buy", {"notional": 370.0}))
+    check("notional: same target after a price drop → nothing (drift is not a signal)",
+          autopilot.reconcile_notional(1.0, 1.0, 8.8, 1000.0) == (None, "aligned"))
+    check("notional: target up 0.37→0.90 buys the difference",
+          autopilot.reconcile_notional(0.90, 0.37, 3.7, 1000.0) == ("buy", {"notional": 530.0}))
+    check("notional: target 1.0→0.4 sells 60% of the shares held, not a dollar figure",
+          autopilot.reconcile_notional(0.4, 1.0, 10.0, 1000.0) == ("sell", {"qty": 6.0}))
+    check("notional: a change inside the band is not traded",
+          autopilot.reconcile_notional(0.45, 0.4, 4.0, 1000.0) == (None, "aligned"))
+    check("notional: flat wanted sells every share, never a remainder",
+          autopilot.reconcile_notional(0.0, 1.0, 3.7, 1000.0) == ("sell", {"qty": 3.7}))
     _fb7 = _FakeBroker()
-    _r = autopilot.run(["DIPX"], "trend_filter:25", "paper", root=_ap_root, notional=500.0,
+    _r = autopilot.run(["DIPZ"], "trend_filter:20", "paper", root=_ap_root, notional=500.0,
                        fetch_fn=_ap_fetch, broker_api=_fb7, now=_ap_now)
-    check("a notional run sends a notional order", _fb7.orders == [("paper://", "DIPX", "buy", 500.0)], str(_fb7.orders))
-    # the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
+    check("a notional run sends a notional order", _fb7.orders == [("paper://", "DIPZ", "buy", 500.0)], str(_fb7.orders))
+    check("the cursor's position is the last target the loop sent, read from the ledger",
+          autopilot.last_target("paper", "DIPZ") == 1.0 and autopilot.last_target("paper", "NEVER") is None)
+
+    # --- the position reaches the strategy: a position-reading rule exits when held, does nothing when flat
+    ledger.record("backtest", strategy="rsi_dip_exit_14_30_50_10", symbol="DIPU")
+    _fbu = _FakeBroker(held={"DIPU": 1})
+    _r = autopilot.run(["DIPU"], "rsi_dip_exit:14,30,50,10", "paper", qty=1, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fbu, now=_ap_now)
+    _fbu2 = _FakeBroker()
+    _r2 = autopilot.run(["DIPU"], "rsi_dip_exit:14,30,50,10", "paper", qty=1, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbu2, now=_ap_now + dt.timedelta(days=1))
+    check("decide() hands the broker's position to the strategy",
+          _fbu.orders == [("paper://", "DIPU", "sell", 1)] and _fbu2.orders == [], f"{_fbu.orders} {_fbu2.orders}")
+
+    # --- review fix 4: a same-day bar before the close is the open session, not a closed bar
+    _tf = strategies.trend_filter(20)
+    _early = dt.datetime(2026, 3, 31, 15, 0, tzinfo=B.UTC)
+    _late = dt.datetime(2026, 3, 31, 22, 0, tzinfo=B.UTC)
+    _t_early, _ = autopilot.decide(_ap_series, _tf, now=_early)
+    _t_trunc, _ = autopilot.decide(_series(_ap_bars[:-1], symbol="DIPX"), _tf, now=_late)
+    _t_late, _ = autopilot.decide(_ap_series, _tf, now=_late)
+    _t_full = float(_tf(replay.Cursor(_ap_series, 60)))
+    check("before 21:05 UTC a bar dated today is dropped and yesterday's close decides",
+          _t_early == _t_trunc, f"{_t_early} vs {_t_trunc}")
+    check("after 21:05 UTC the same-day bar is a closed bar", _t_late == _t_full)
+
+    # --- review fix 5: no equity reading → nothing traded
+    _fbe = _FakeBroker(equity="n/a")
+    _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                       fetch_fn=_ap_fetch, broker_api=_fbe, now=_ap_now)
+    check("no equity reading means nothing is traded", _fbe.orders == [] and "no equity" in _r[0]["action"])
+
+    # --- review fix 6: a backtest that failed its leak check does not pass the gate
+    ledger.record("backtest", strategy="breakout_20", symbol="DIPX",
+                  leak_check={"checked": 25, "differences": [5, 9]})
+    check("a leak-failed backtest is refused by the gate",
+          "leak check" in (autopilot.gate("paper", "breakout_20", "DIPX", False) or ""))
+    check("a clean backtest passes the gate", autopilot.gate("paper", "trend_filter_20", "DIPX", False) is None)
+    _ns = _types.SimpleNamespace(mode="paper", symbol="DIPX", force=False, force_reason="",
+                                 strategy="breakout:20", qty=1)
+    check("run.py's gate refuses it too", _raises(SystemExit, run.gate, _ns, "breakout_20"))
+
+    # --- the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP2")
     _fb8 = _FakeBroker(equity="1000")
     autopilot.run(["DIPX"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
@@ -1377,20 +1481,22 @@ try:
                         broker_api=_fb9, now=_ap_now)
     check("a 10% drawdown from the recorded peak does not halt",
           not os.path.exists(autopilot.STOP_FILE) and "HALTED" not in _r9[0]["action"], _r9[0]["action"])
-    _fb10 = _FakeBroker(equity="840")
-    _r10 = autopilot.run(["DIPX"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
-                         broker_api=_fb10, now=_ap_now)
+    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPX")
+    _fb10 = _FakeBroker(equity="840", held={"DIPX": 5, "DIPY": 2})
+    _r10 = autopilot.run(["DIPX", "DIPY"], "rsi_dip:14,30,5", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                         broker_api=_fb10, now=_ap_now + dt.timedelta(days=2))
     check("a 16% drawdown from the recorded peak halts, writes STOP, trades nothing",
           os.path.exists(autopilot.STOP_FILE) and "HALTED" in _r10[0]["action"] and _fb10.orders == [],
           _r10[0]["action"])
-    _runs = ledger.events("autopilot_run", mode="paper")
+    check("a halt never liquidates, even with positions the rule would sell",
+          _fb10.held == {"DIPX": 5, "DIPY": 2} and not any(o[2] == "sell" for o in _fb10.orders))
     check("the run records its equity and the peak each time",
-          [e["equity"] for e in _runs[-3:]] == [1000.0, 900.0, 840.0] and _runs[-1]["peak"] == 1000.0,
-          str([e["equity"] for e in _runs[-3:]]))
-    check("a halt never liquidates", "sell" not in str(_fb10.orders))
+          [e["equity"] for e in ledger.events("autopilot_run", mode="paper")][-3:] == [1000.0, 900.0, 840.0]
+          and ledger.events("autopilot_run", mode="paper")[-1]["peak"] == 1000.0)
     autopilot.STOP_FILE = _sf
 finally:
     ledger.LEDGER = _ap_ledger_real
+    autopilot.STOP_FILE = _sf
     shutil.rmtree(_ap_sand)
 
 # ---------------------------------------------------------------- aggregate

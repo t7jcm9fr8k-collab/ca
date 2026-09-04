@@ -88,8 +88,11 @@ def gate(a, strat_name):
     """
     need = []
     if a.mode in ("paper", "live"):
-        if ledger.latest("backtest", strategy=strat_name, symbol=a.symbol) is None:
+        bt = ledger.latest("backtest", strategy=strat_name, symbol=a.symbol)
+        if bt is None:
             need.append("a recorded backtest")
+        elif (bt.get("leak_check") or {}).get("differences"):
+            need.append("a backtest that passed its leak check (the recorded one did not)")
     if a.mode == "live":
         if not ledger.filled_paper_runs(strat_name, a.symbol):
             need.append("a paper run that filled")
@@ -213,7 +216,8 @@ def main():
               f"vol {r['volatility']:.1%}, {r['years']:.1f} years"
               + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else "")
               + (f", dividend yield {a.dividend_yield:.1%} credited to both" if a.dividend_yield else ""))
-        lk = replay.leak_check(s, strat, r["targets"], r["warmup"], positions=r["positions"])
+        lk = replay.leak_check(s, strat, r["targets"], r["warmup"], positions=r["positions"],
+                               factory=lambda: strategies.make(a.strategy))
         r["leak_check"] = lk
         if lk["differences"]:
             print(f"LEAK: the strategy decided differently at {len(lk['differences'])} of "

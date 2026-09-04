@@ -108,7 +108,8 @@ class Cursor:
         return [b.close for b in w]
 
 
-def leak_check(series, strategy, targets, warmup, samples=25, seed=0, positions=None):
+def leak_check(series, strategy, targets, warmup, samples=25, seed=0, positions=None,
+               factory=None):
     """
     Freqtrade's lookahead-analysis idea, in this idiom: re-run the strategy at
     a sample of bars on a series TRUNCATED at that bar, where the future does
@@ -135,7 +136,11 @@ def leak_check(series, strategy, targets, warmup, samples=25, seed=0, positions=
         cut = type(series)(series.symbol, series.timeframe, bars[:i + 1],
                            dict(series.provenance))
         pos = positions[i - warmup] if positions is not None else 0.0
-        got = max(-1.0, min(1.0, float(strategy(Cursor(cut, i + 1, position=pos)))))
+        # A FRESH strategy per sample when a factory is given: a strategy
+        # that memoises something on its first call would otherwise carry
+        # the memo (computed on the full series) into the check and pass.
+        fn = factory() if factory is not None else strategy
+        got = max(-1.0, min(1.0, float(fn(Cursor(cut, i + 1, position=pos)))))
         if abs(got - targets[i - warmup]) > 1e-12:
             diffs.append(i)
     return {"checked": len(picks), "differences": diffs}
