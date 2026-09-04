@@ -532,6 +532,49 @@ with contextlib.redirect_stdout(_out):
 check("dry run proves all three outcomes offline",
       _out.getvalue().count("  ok   ") == 4 and "??" not in _out.getvalue())
 
+# 429 and 5xx are retried with backoff, then NETWORK; 401/403 and 404 are not retried.
+import urllib.error as _ue
+import io as _io
+
+
+def _fake_urlopen(codes):
+    calls = []
+
+    def opener(req, timeout=None, context=None):
+        calls.append(req.full_url)
+        code = codes[min(len(calls) - 1, len(codes) - 1)]
+        if code == 200:
+            class R:
+                status = 200
+                def __enter__(self): return self
+                def __exit__(self, *a): return False
+                def read(self): return b"ok"
+            return R()
+        raise _ue.HTTPError(req.full_url, code, "x", {"Retry-After": "0"}, _io.BytesIO(b""))
+    return opener, calls
+
+
+_real_urlopen, _real_sleep = fetch.urllib.request.urlopen, fetch._sleep
+_slept = []
+fetch._sleep = lambda s: _slept.append(s)
+try:
+    _op, _calls = _fake_urlopen([429, 429, 200])
+    fetch.urllib.request.urlopen = _op
+    check("a 429 is retried and then succeeds", fetch._get("https://x/y") == "ok" and len(_calls) == 3, str(_calls))
+    check("the waits back off", _slept[:2] == [2.0, 5.0], str(_slept))
+    _op, _calls = _fake_urlopen([429])
+    fetch.urllib.request.urlopen = _op
+    check("four 429s in a row are NETWORK, with the retry count named",
+          _raises(fetch.Unreachable, fetch._get, "https://x/y") and len(_calls) == 4, str(len(_calls)))
+    _op, _calls = _fake_urlopen([403])
+    fetch.urllib.request.urlopen = _op
+    check("a 403 is not retried", _raises(fetch.Unreachable, fetch._get, "https://x/y") and len(_calls) == 1)
+    _op, _calls = _fake_urlopen([404])
+    fetch.urllib.request.urlopen = _op
+    check("a 404 is not retried", _raises(fetch.Unreachable, fetch._get, "https://x/y") and len(_calls) == 1)
+finally:
+    fetch.urllib.request.urlopen, fetch._sleep = _real_urlopen, _real_sleep
+
 # ---------------------------------------------------------------- tls
 
 print("\ntls — verifying, always")

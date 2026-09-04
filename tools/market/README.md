@@ -77,7 +77,12 @@ said. Two ways on:
   (the basis guard measured a 2.3% median gap against the feed's last print,
   shrinking from −6.25% in 2020 to 0 in 2025). So it is the right file for the
   trend filter with **no `--dividend-yield`**, and the wrong file for trial 3.
-- **`--source yahoo`.** Keyless, official consolidated closes, back to 1993.
+- **`--source yahoo`.** Keyless, official consolidated closes, back to 1993 —
+  but Yahoo rate-limits anonymous clients (HTTP 429 on 2026-09-04). `fetch.py`
+  now waits 2, 5 and 12 seconds and retries three times before calling it
+  NETWORK; if it still fails, use Alpaca daily (`--source alpaca --timeframe 1d
+  --start 2020-07-01 --adjustment all`, six years, needs the keys) or the
+  Stooq browser download.
   `python3 fetch.py --source yahoo --symbol SPY --out bars/SPY-1d-raw.csv`
   gives the raw closes **trial 3 needs**. Add `--adjusted-close` for the
   total-return series (then no `--dividend-yield` is needed) — but never for

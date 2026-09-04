@@ -48,6 +48,7 @@ import datetime as dt
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -78,23 +79,51 @@ class Unreachable(Exception):
 Unparseable = B.Unparseable      # reached it; body is not bars. NOT zero bars.
 
 
-def _get(url, headers=None):
+# A 429 or a 5xx is the host saying "not now", not "no". Wait and ask again,
+# a few times, then it is NETWORK like anything else. Yahoo answered 429 to a
+# clean request on 2026-09-04; one retry a few seconds later is usually enough.
+RETRY_ON = (429, 500, 502, 503, 504)
+RETRY_WAITS = (2.0, 5.0, 12.0)
+
+
+def _sleep(seconds):
+    time.sleep(seconds)
+
+
+def _get(url, headers=None, waits=RETRY_WAITS):
     req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
-            if r.status != 200:
-                raise Unreachable(f"HTTP {r.status}")
-            return r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            raise Unreachable(f"HTTP {e.code} — credentials refused") from e
-        raise Unreachable(f"HTTP {e.code}") from e
-    except Exception as e:
-        # A certificate failure is NETWORK — nothing was read — but it is the
-        # one network failure with a fix on this machine, so say what it is.
-        if tlsctx.is_cert_failure(e):
-            raise Unreachable(tlsctx.explain(e)) from e
-        raise Unreachable(f"{type(e).__name__}: {e}") from e
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
+                if r.status != 200:
+                    raise Unreachable(f"HTTP {r.status}")
+                return r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise Unreachable(f"HTTP {e.code} — credentials refused") from e
+            if e.code in RETRY_ON and attempt < len(waits):
+                wait = waits[attempt]
+                ra = (e.headers or {}).get("Retry-After") if hasattr(e, "headers") else None
+                try:
+                    if ra is not None:
+                        wait = max(wait, min(float(ra), 60.0))
+                except (TypeError, ValueError):
+                    pass
+                attempt += 1
+                print(f"HTTP {e.code} — waiting {wait:g} s, retry {attempt} of {len(waits)}",
+                      file=sys.stderr)
+                _sleep(wait)
+                continue
+            raise Unreachable(f"HTTP {e.code}" + (f" after {attempt} retries" if attempt else "")) from e
+        except Unreachable:
+            raise
+        except Exception as e:
+            # A certificate failure is NETWORK — nothing was read — but it is the
+            # one network failure with a fix on this machine, so say what it is.
+            if tlsctx.is_cert_failure(e):
+                raise Unreachable(tlsctx.explain(e)) from e
+            raise Unreachable(f"{type(e).__name__}: {e}") from e
 
 
 # ---------------------------------------------------------------- stooq
