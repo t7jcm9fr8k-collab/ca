@@ -213,7 +213,7 @@ def main():
               f"vol {r['volatility']:.1%}, {r['years']:.1f} years"
               + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else "")
               + (f", dividend yield {a.dividend_yield:.1%} credited to both" if a.dividend_yield else ""))
-        lk = replay.leak_check(s, strat, r["targets"], r["warmup"])
+        lk = replay.leak_check(s, strat, r["targets"], r["warmup"], positions=r["positions"])
         r["leak_check"] = lk
         if lk["differences"]:
             print(f"LEAK: the strategy decided differently at {len(lk['differences'])} of "

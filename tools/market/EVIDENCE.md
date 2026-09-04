@@ -666,3 +666,78 @@ do; anything else is mixed and will be reported as mixed. `nulltest.py
 that rule. Until those bars arrive this stays an open question, and the
 plan does not spend the answer in advance.
 
+## Day run, 2026-09-04 — pushing the survivor, one pre-registered step at a time
+
+Rules for this run: every number below is copied from a saved output file
+of a run made that day; every rule was written into a docstring before it
+ran; a change after seeing a result is a new version and both count.
+
+### A · Volatility targeting (v1: 10% annualised, 20-bar window, 10% band)
+
+Harvey et al. 2018 say a volatility target raises the Sharpe ratio of
+equity trend rules and cuts their left tail, at the cost of return. On 21
+years of SPY, 5 bp, idle cash at 3%, applied to the three rules that have
+anything (`A-21y-*.txt`):
+
+| rule | Sharpe | → with target | CAGR | → | max DD | → | fills | → |
+|---|---|---|---|---|---|---|---|---|
+| trend_filter 200 | 0.78 | **0.87** | 8.8% | 7.5% | −19.7% | **−10.3%** | 121 | 400 |
+| rsi_dip 14/30/5 | 0.50 | **1.23** | 4.2% | 4.1% | −26.6% | **−7.9%** | 68 | 88 |
+| trend_or_dip | 0.71 | **0.89** | 9.7% | 8.2% | −31.5% | **−12.7%** | 139 | 431 |
+
+Buy-and-hold over the same bars: Sharpe 0.61, CAGR ~10.4%, drawdown −56.5%.
+On the 2020–26 file (`A-6y-*.txt`) the same shape: trend_or_dip 1.05 → 1.11,
+drawdown −17.3% → −8.3%, CAGR 13.4% → 10.4%; and note that on those six
+years the un-targeted trend_or_dip beat buy-and-hold outright (+94.8% vs
++87.0%, Sharpe 1.05 vs 0.79), the first time any line here has.
+
+The reading is the paper's, to the digit: the target buys a higher Sharpe
+and a drawdown cut of half or more, and pays for it in compound return and
+in three times as many fills. Without leverage there is no way to spend the
+Sharpe — a 9% vol rule cannot be scaled back up to the index's 19% — so for
+an account that measures itself in dollars, the un-targeted combined rule
+keeps more; for one that measures itself in worst-month, the targeted one is
+the better instrument. Both are now `vol_target[SPEC]:0.10,20` in
+`strategies.py`. One setting was tried; nothing was tuned.
+
+*Provenance note.* The first version of the wrapper kept the held fraction
+in closure state, and the leak check flagged it on 12 and 16 of 25 sampled
+bars in the two trend runs: re-run from a truncated series with no call
+history, it decided differently. The numbers were identical in replay
+(which always calls in order) but they were not trustworthy until the rule
+was made a pure function of the bars and the position the cursor now
+carries. `A2-*.txt` are the re-runs, 0 differences on every line; the table
+above is from those files. The catch is the point of the check.
+
+### B · One alternative exit for the dip rule (v2, stateless)
+
+Enter as before; leave on the first close with RSI(14) above 50, or ten
+bars after the last RSI-below-30 close, whichever comes first
+(`B2-*.txt`). 21 years: Sharpe 0.50 against 0.50 for the fixed five-bar
+hold, CAGR 4.7% against 4.2%, drawdown −28.7% against −26.6%, 60 fills
+against 68. Six years: 1.21 against 1.24. Nothing to choose; the fixed hold
+stays, the alternative is recorded as a trial, and the exit is not where the
+premium lives. (v1 of this rule kept "in" and an age counter between calls
+and was the first thing the leak check ever caught — one bar in 25 — which
+is what led to the cursor carrying the position.)
+
+### C · Overnight against intraday, 21 years, descriptive (`C-overnight-split.txt`)
+
+Pre-registered as descriptive, with the trade version expected to fail on
+cost. Close-to-open on SPY 2005–2026 compounds to **+367%**, open-to-close
+to **+75%**; the whole is +717%. Mean +3.1 bp a night against +1.5 bp a day,
+Sharpe 0.69 against 0.25, and it holds in both halves (overnight +82% then
++157%; intraday +2% then +71%). This is the documented night-return
+premium (Lou, Polk & Skouras 2019), and it is real on this data.
+
+The trade is not. "Hold overnight only" is two legs a day: at 5 bp a leg it
+is −17% a year; at 1 bp, +2.8%; at 0.5 bp — an institutional cost this
+account does not get, before the closing and opening auctions' own spread —
++5.3% a year, against roughly 10.4% for holding. Replay cannot even price
+it, because its one fill model is "next open"; a rule that sells at the
+close needs a fill model this pipeline does not have and will not fake.
+Recorded as the second null of the day run. What it does say is worth
+keeping: for a daily rule on this index, being out of the market overnight
+is where the return is not, so the after-close cadence of the autopilot,
+which holds through the night by construction, is the right one.
+

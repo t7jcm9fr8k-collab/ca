@@ -98,10 +98,12 @@ def refresh(symbol, root, source="yahoo"):
     return s, f"{len(s.bars)} bars to {s.last.ts:%Y-%m-%d}"
 
 
-def decide(series, strategy, now=None):
+def decide(series, strategy, now=None, position=0.0):
     """
     Target after the last closed bar, or a refusal. Returns (target, note).
-    target None = do not act.
+    target None = do not act. `position` is what the broker says is held, as
+    a fraction (1.0 = the position this loop sizes), so a strategy that
+    reads cursor.position sees the truth rather than a fresh process.
     """
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
@@ -110,7 +112,7 @@ def decide(series, strategy, now=None):
     age = (now or dt.datetime.now(B.UTC)) - series.last.ts
     if age / series.period > barqc.STALE_PERIODS:
         return None, f"STALE: {st['value']}"
-    cur = replay.Cursor(series, len(series))
+    cur = replay.Cursor(series, len(series), position=position)
     if len(cur) < strategy.warmup:
         return None, f"warm-up: {len(cur)} of {strategy.warmup} bars"
     return max(-1.0, min(1.0, float(strategy(cur)))), "ok"
@@ -187,7 +189,7 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = "skipped: no bars"
             recs.append(rec)
             continue
-        target, why = decide(s, strat, now)
+        target, why = decide(s, strat, now, position=1.0 if held.get(sym, 0.0) > 0 else 0.0)
         rec["target"], rec["decision"] = target, why
         rec["bar_date"] = f"{s.last.ts:%Y-%m-%d}"
         side, amount = reconcile(target, held.get(sym, 0.0), qty)

@@ -63,15 +63,21 @@ class Cursor:
     strategy that asks for bar 200 when 150 have closed has a bug, not a
     preference.
     """
-    __slots__ = ("_bars", "_n", "symbol", "timeframe")
+    __slots__ = ("_bars", "_n", "symbol", "timeframe", "position")
 
-    def __init__(self, series, n):
+    def __init__(self, series, n, position=0.0):
         if n < 0 or n > len(series.bars):
             raise ValueError(f"cursor n={n} outside 0..{len(series.bars)}")
         self._bars = series.bars
         self._n = n
         self.symbol = series.symbol
         self.timeframe = series.timeframe
+        # The fraction of equity currently held, as replay (or the broker)
+        # knows it. A strategy that needs to know whether it is "in" reads
+        # this instead of keeping state between calls — state between calls
+        # is invisible to the leak check, dies with the process in autopilot,
+        # and is exactly what the day-run's exit rule got caught doing.
+        self.position = float(position)
 
     def __len__(self):
         return self._n
@@ -102,14 +108,17 @@ class Cursor:
         return [b.close for b in w]
 
 
-def leak_check(series, strategy, targets, warmup, samples=25, seed=0):
+def leak_check(series, strategy, targets, warmup, samples=25, seed=0, positions=None):
     """
     Freqtrade's lookahead-analysis idea, in this idiom: re-run the strategy at
     a sample of bars on a series TRUNCATED at that bar, where the future does
     not exist at all, and compare with the decision it gave in the full run.
     The cursor stops slicing into the future; this catches everything else —
     a strategy that keeps a reference to the full series, computes a feature
-    once over all bars, or carries state between calls.
+    once over all bars, or carries state between calls. The cursor is given
+    the position replay held at that bar, so a strategy that reads
+    `cursor.position` is checked fairly and one that keeps its own copy of
+    it is not.
 
     Returns {"checked": n, "differences": [bar indices]}. A clean strategy
     has none; run.py prints the count beside every backtest.
@@ -125,7 +134,8 @@ def leak_check(series, strategy, targets, warmup, samples=25, seed=0):
     for i in picks:
         cut = type(series)(series.symbol, series.timeframe, bars[:i + 1],
                            dict(series.provenance))
-        got = max(-1.0, min(1.0, float(strategy(Cursor(cut, i + 1)))))
+        pos = positions[i - warmup] if positions is not None else 0.0
+        got = max(-1.0, min(1.0, float(strategy(Cursor(cut, i + 1, position=pos)))))
         if abs(got - targets[i - warmup]) > 1e-12:
             diffs.append(i)
     return {"checked": len(picks), "differences": diffs}
@@ -141,7 +151,7 @@ def max_drawdown(equity):
 
 
 # Keys a ledger entry must not carry: per-bar series that would make it huge.
-LEDGER_EXCLUDE = ("equity", "equity_ts", "targets", "bar_returns", "fill_list")
+LEDGER_EXCLUDE = ("equity", "equity_ts", "targets", "positions", "bar_returns", "fill_list")
 
 
 def _stats(rets, bars_per_year):
@@ -206,7 +216,7 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0,
     per_bar_div = (1.0 + dividend_yield) ** (1.0 / bpy) - 1.0 if dividend_yield else 0.0
 
     cash, units, pos = 1.0, 0.0, 0.0
-    equity, equity_ts, targets, fills = [], [], [], []
+    equity, equity_ts, targets, fills, positions = [], [], [], [], []
     pending = None
 
     for i in range(warmup, len(bars)):
@@ -234,7 +244,8 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0,
         equity.append(cash + units * b.close)
         equity_ts.append(b.ts.isoformat())
         # 3. decide, seeing bars 0..i — this bar is closed, the next is not
-        cur = Cursor(series, i + 1)
+        cur = Cursor(series, i + 1, position=pos)
+        positions.append(pos)
         pending = max(-1.0, min(1.0, float(strategy(cur))))
         targets.append(pending)
 
@@ -282,7 +293,7 @@ def replay(series, strategy, cost_bps=0.0, warmup=1, name=None, cash_yield=0.0,
         "not_modelled": "order book, partial fills, intraday slippage, "
                         "borrow, dividends",
         "qc_verdict": qc["verdict"], "qc_unrun": qc["unrun"],
-        "equity": equity, "equity_ts": equity_ts, "targets": targets,
+        "equity": equity, "equity_ts": equity_ts, "targets": targets, "positions": positions,
         "bar_returns": rets, "fill_list": fills,
     }
 

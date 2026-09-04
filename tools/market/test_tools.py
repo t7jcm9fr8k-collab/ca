@@ -341,6 +341,34 @@ _peeker.warmup = 1
 _pk_r = replay.replay(_lk_series, _peeker, cost_bps=0.0, name="peeker")
 _pk = replay.leak_check(_lk_series, _peeker, _pk_r["targets"], _pk_r["warmup"])
 check("a strategy that reads past the cursor is caught", len(_pk["differences"]) > 0, str(_pk))
+
+
+def _stateful(cursor):
+    # flips on its own call count — a decision that depends on history the bars do not carry
+    _stateful.calls += 1
+    return 1.0 if _stateful.calls % 7 == 0 else 0.0
+
+
+_stateful.calls = 0
+_stateful.warmup = 1
+_st_r = replay.replay(_lk_series, _stateful, cost_bps=0.0, name="stateful")
+_st = replay.leak_check(_lk_series, _stateful, _st_r["targets"], _st_r["warmup"], positions=_st_r["positions"])
+check("a strategy that keeps state between calls is caught", len(_st["differences"]) > 0, str(_st))
+
+
+def _stay(cursor):
+    # goes long once the 10th bar has closed, then holds whatever it holds — via the cursor
+    return 1.0 if len(cursor) == 10 else float(cursor.position)
+
+
+_stay.warmup = 1
+_stay_r = replay.replay(_lk_series, _stay, cost_bps=0.0, name="stay")
+check("the cursor carries the held position into each decision",
+      _stay_r["positions"][:9] == [0.0] * 9 and all(p == 1.0 for p in _stay_r["positions"][11:]),
+      str(_stay_r["positions"][:14]))
+_stay_lk = replay.leak_check(_lk_series, _stay, _stay_r["targets"], _stay_r["warmup"], positions=_stay_r["positions"])
+check("a strategy that reads cursor.position passes the leak check", _stay_lk["differences"] == [], str(_stay_lk))
+check("the cursor's position defaults to flat", replay.Cursor(_lk_series, 5).position == 0.0)
 check("the leak check samples live bars only", _lk["checked"] <= len(s70.bars) - _lk_r["warmup"])
 
 # ---------------------------------------------------------------- strategies
@@ -376,6 +404,37 @@ check("rsi_dip declares its warm-up and name",
       _rd.warmup == 15 and _rd.__name__ == "rsi_dip_14_30_5")
 check("rsi_dip is built from a spec string", strategies.make("rsi_dip:14,30,5").__name__ == "rsi_dip_14_30_5")
 check("rsi_dip refuses a zero hold", _raises(ValueError, strategies.rsi_dip, 14, 30, 0))
+
+# vol_target: scale never above 1, scales down when realised vol is above the
+# target, holds still inside the band, nested spec parses, warm-up declared.
+_vt_calm = _series(_daily(60, closes=[100 * (1.0005 ** i) for i in range(60)]))
+_vt_wild = _series(_daily(60, closes=[100 * (1 + (0.04 if i % 2 else -0.035)) ** (i // 2 + 1) * (1 if i % 2 else 1) for i in range(60)]))
+_vt = strategies.vol_target("buy_and_hold", 0.10, 20)
+check("a calm series is held in full", _vt(replay.Cursor(_vt_calm, 60)) == 1.0)
+_vt2 = strategies.vol_target("buy_and_hold", 0.10, 20)
+_wild_t = _vt2(replay.Cursor(_vt_wild, 60))
+check("a wild series is scaled below 1", 0.0 < _wild_t < 0.5, str(_wild_t))
+check("the scale is never above 1", all(strategies.vol_target("buy_and_hold", 0.10, 20)(replay.Cursor(_vt_calm, k)) <= 1.0 for k in range(21, 61)))
+_vt3 = strategies.vol_target("buy_and_hold", 0.10, 20, band=0.10)
+_h1 = _vt3(replay.Cursor(_vt_wild, 40))                  # from flat: takes the scaled target
+_h2 = _vt3(replay.Cursor(_vt_wild, 41, position=_h1))    # next bar, holding it: inside the band
+_h3 = _vt3(replay.Cursor(_vt_wild, 41, position=0.9))    # holding far more: outside the band
+check("a change inside the band is not traded", _h1 == _h2 and _h1 > 0, f"{_h1} {_h2}")
+check("a change outside the band is traded", _h3 != 0.9 and abs(_h3 - _h1) < 0.01, str(_h3))
+_vt4 = strategies.make("vol_target[trend_or_dip:200,14,30,5]:0.10,20")
+check("the nested spec parses and names itself",
+      _vt4.__name__ == "vol_target_trend_or_dip_200_14_30_5_0.1_20", _vt4.__name__)
+check("vol_target declares the larger warm-up", strategies.make("vol_target[sma_cross:5,10]:0.10,20").warmup == 21)
+check("a target of one or more is refused", _raises(ValueError, strategies.vol_target, "buy_and_hold", 1.0, 20))
+_vt_r = replay.replay(_vt_wild, strategies.vol_target("buy_and_hold", 0.10, 20), cost_bps=0.0)
+_vt_lk = replay.leak_check(_vt_wild, strategies.vol_target("buy_and_hold", 0.10, 20), _vt_r["targets"], _vt_r["warmup"], positions=_vt_r["positions"])
+check("vol_target keeps no state of its own: the leak check passes", _vt_lk["differences"] == [], str(_vt_lk))
+_rde = strategies.rsi_dip_exit(14, 30, 50, 10)
+_rde_r = replay.replay(_rd_series, _rde, cost_bps=0.0)
+_rde_lk = replay.leak_check(_rd_series, _rde, _rde_r["targets"], _rde_r["warmup"], positions=_rde_r["positions"])
+check("rsi_dip_exit keeps no state of its own: the leak check passes", _rde_lk["differences"] == [], str(_rde_lk))
+check("rsi_dip_exit enters on the same bar rsi_dip does",
+      [k for k, t in enumerate(_rde_r["targets"]) if t > 0][0] == [k for k, t in enumerate(replay.replay(_rd_series, strategies.rsi_dip(14, 30, 5), cost_bps=0.0)["targets"]) if t > 0][0])
 
 # ---------------------------------------------------------------- ledger
 
