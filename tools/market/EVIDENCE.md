@@ -789,3 +789,47 @@ The cost assumption moves the answer by a third of a point a year and
 changes no ranking. The 431 fills of the targeted rule are what 5 bp was
 punishing; at realistic cost the band could be tightened, and is not.
 
+### I · The review of the day's code (no new evidence; defects found and fixed)
+
+Everything committed on 2026-09-04 was put in front of four independent
+finders (correctness, look-ahead and state, gate and order safety, test
+coverage) and the ten most severe findings each in front of three refuters
+told to default to "refuted". All ten survived. The ones that mattered for a
+loop that places orders, and what was done:
+
+- **An order the broker accepted but whose fill poll raised was never
+  recorded, so the next run would have sent it again.** The order is now
+  recorded the moment the broker accepts it, and the fill is a second
+  record; a failed poll leaves the first, and the next run sees it.
+- **The notional path re-bought on price drift.** Replay trades only when
+  the *target* changes; the loop compared the target with the marked-to-market
+  value, so a fixed target bought into a falling position. The loop now reads
+  the last target it sent from the ledger, trades only on a target change,
+  buys the difference in dollars and sells the same fraction of the shares
+  held. "Never adds to a position" is true again, and pinned.
+- **One order per symbol per bar date was keyed on the strategy**, so a
+  second run with a different rule could buy the same symbol twice. Now any
+  strategy counts.
+- **A daily bar dated today, seen before the close, is the open session.**
+  Both Yahoo and Alpaca hand it out. Before 21:05 UTC it is dropped and
+  yesterday's close decides, which is what every rule was measured on.
+- **No equity reading disabled the drawdown guard silently.** Now it trades
+  nothing and says why.
+- **A backtest that failed its leak check still passed the gate.** The gate
+  in both `run.py` and the loop now refuses it.
+- **The leak check reused the strategy object**, so a rule that memoised
+  something on its first call could carry a look-ahead into the check and
+  pass. The check now rebuilds the strategy per sample; a memoising strategy
+  is caught by test, and shown to slip past the old form.
+- Pins that were missing: the OR in `trend_or_dip`, a halt with positions
+  the rule would sell, the broker's position reaching a position-reading
+  strategy, and a fractional target rendering as more than "+0".
+
+Reported, not fixed: `watch.py --trader` evaluates position-reading rules
+from flat, so its table can differ from what the loop would do for
+`rsi_dip_exit` or `vol_target`; the leak check samples 25 bars with a fixed
+seed and can miss a leak that fires only on rare bars; the drawdown peak is
+never reset, so a withdrawal or a paper-account reset needs the STOP file
+removed and the ledger's `autopilot_run` history understood; `--dry-run`
+does not read broker positions and says "would buy" even when already long.
+
