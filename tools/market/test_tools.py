@@ -322,6 +322,27 @@ down = _series(_daily(70, closes=[100 - i * 0.5 for i in range(70)]))
 sc = replay.replay(down, strategies.sma_cross(5, 20), cost_bps=0)
 check("sma_cross stays flat in a monotone decline", sc["fills"] == 0 and sc["return"] == 0)
 
+# The leak check: a strategy that peeks past the cursor decides differently
+# once the future is physically removed. A clean one does not.
+_lk_series = s70
+_lk_r = replay.replay(_lk_series, strategies.sma_cross(5, 10), cost_bps=0.0)
+_lk = replay.leak_check(_lk_series, strategies.sma_cross(5, 10), _lk_r["targets"], _lk_r["warmup"])
+check("a clean strategy shows no differences when the future is removed",
+      _lk["checked"] > 0 and _lk["differences"] == [], str(_lk))
+
+
+def _peeker(cursor):
+    # reads the NEXT bar through the private list — the thing the cursor forbids
+    nxt = cursor._bars[len(cursor)] if len(cursor) < len(cursor._bars) else cursor[-1]
+    return 1.0 if nxt.close > cursor[-1].close else 0.0
+
+
+_peeker.warmup = 1
+_pk_r = replay.replay(_lk_series, _peeker, cost_bps=0.0, name="peeker")
+_pk = replay.leak_check(_lk_series, _peeker, _pk_r["targets"], _pk_r["warmup"])
+check("a strategy that reads past the cursor is caught", len(_pk["differences"]) > 0, str(_pk))
+check("the leak check samples live bars only", _lk["checked"] <= len(s70.bars) - _lk_r["warmup"])
+
 # ---------------------------------------------------------------- strategies
 
 print("\nstrategies — the contract")
@@ -333,6 +354,28 @@ check("buy_and_hold is registered", strategies.make("buy_and_hold") is strategie
 check("breakout names itself", strategies.make("breakout:20").__name__ == "breakout_20")
 check("a strategy short of history returns flat, not an error",
       strategies.make("sma_cross:10,30")(replay.Cursor(s70, 5)) == 0.0)
+
+# rsi_dip: the null test's survivor as a strategy. It must fire exactly when
+# the rule fires, hold for `hold` bars, merge overlaps, and declare its warm-up.
+_rd_series = _series(_daily(60, closes=[100 - 0.6 * i for i in range(25)]
+                                + [85 + 0.5 * i for i in range(35)]))   # a slide, then a climb
+_rd_bars = list(_rd_series.bars)
+_rd_closes = [b.close for b in _rd_bars]
+import features as _F
+_rd_rsi = _F.rsi_series(_rd_closes, 14)
+_rd_fire = [i for i in range(len(_rd_bars)) if _rd_rsi[i] is not None and _rd_rsi[i] < 30]
+check("the fixture actually drives RSI below 30", len(_rd_fire) >= 3, str(len(_rd_fire)))
+_rd = strategies.rsi_dip(14, 30, 5)
+_rd_pos = [_rd(replay.Cursor(_rd_series, k)) for k in range(1, len(_rd_bars) + 1)]
+_rd_want = [1.0 if any(i in _rd_fire for i in range(max(0, k - 5), k)) else 0.0
+            for k in range(1, len(_rd_bars) + 1)]
+check("rsi_dip is long exactly for five closed bars after each RSI<30 close",
+      _rd_pos == _rd_want, f"{sum(_rd_pos)} long bars vs {sum(_rd_want)} wanted, fires at {_rd_fire[:6]}")
+check("rsi_dip is flat before it has n+1 closes", all(p == 0.0 for p in _rd_pos[:14]))
+check("rsi_dip declares its warm-up and name",
+      _rd.warmup == 15 and _rd.__name__ == "rsi_dip_14_30_5")
+check("rsi_dip is built from a spec string", strategies.make("rsi_dip:14,30,5").__name__ == "rsi_dip_14_30_5")
+check("rsi_dip refuses a zero hold", _raises(ValueError, strategies.rsi_dip, 14, 30, 0))
 
 # ---------------------------------------------------------------- ledger
 
@@ -954,7 +997,7 @@ _pn, _ = nulltest.date_permutation_p(_pl, [10, 40, 70], 1, 1, 0.0, 200, random.R
 check("ordinary days give an ordinary p", _pn is not None and _pn > 0.2, str(_pn))
 check("no events gives no p", nulltest.date_permutation_p(_pl, [], 1, 1, 0.0, 50, random.Random(0)) == (None, None))
 _nt = nulltest.run(s70, 1, 5.0, 20)
-check("every pre-registered rule is reported", len(_nt["rules"]) == 8)
+check("every pre-registered rule is reported", len(_nt["rules"]) == 14)
 check("p is a probability or None", all(r["p"] is None or 0 <= r["p"] <= 1 for r in _nt["rules"].values()))
 check("the unconditional baseline is reported", "mean_bp" in _nt["unconditional"])
 check("the run says it searched nothing", _nt["pre_registered"] and _nt["parameters_searched"] == 0)
@@ -964,8 +1007,70 @@ check("every fired rule lists its events with dates and returns",
 check("the largest event and its share are reported for fired rules",
       all(("largest_event" in v) == (v["n"] > 0) for v in _nt["rules"].values()))
 check("the report says t first and warns about eight tries",
-      "t = mean against zero" in nulltest.render(_nt) and "eight tries" in nulltest.render(_nt))
+      "t = mean against zero" in nulltest.render(_nt) and "tries look like" in nulltest.render(_nt))
 check("events can be rendered", "event(s)" in nulltest.render_events(_nt, "doji") or "no events" in nulltest.render_events(_nt, "doji"))
+
+# ---------------------------------------------------------------- nulltest, round 2: ICT proxies and witnesses
+
+print("\nnulltest — ICT proxies and witnesses")
+
+
+def _mk(o, h, l, c, i):
+    return B.Bar(ts=dt.datetime(2026, 1, 1, tzinfo=B.UTC) + dt.timedelta(days=i),
+                 open=o, high=h, low=l, close=c, volume=1000)
+
+
+# Three-bar gap: bar 0 high 101, bar 2 low 103 → untraded zone [101, 103].
+_g = [_mk(100, 101, 99, 100.5, 0), _mk(101, 104, 100.5, 103.5, 1), _mk(103.5, 105, 103, 104.5, 2)]
+check("a bullish fair value gap is the zone between bar i-2's high and bar i's low",
+      F.fair_value_gap(_g, 2) == ("bull", 101, 103))
+check("no gap when the bars overlap", F.fair_value_gap(_g + [_mk(104, 105, 102, 103, 3)], 3) is None)
+_gb = [_mk(100, 101, 99, 99.5, 0), _mk(99, 99.5, 96, 96.5, 1), _mk(96, 97, 95, 95.5, 2)]
+check("a bearish gap mirrors", F.fair_value_gap(_gb, 2) == ("bear", 97, 99))
+
+# Order block: 15 calm bars, a down bar, then a displacement > 1 ATR closing above its high.
+_ob = [_mk(100, 102, 98, 100, i) for i in range(15)] + [_mk(100, 100.5, 98, 98.5, 15), _mk(98.5, 104.5, 98.4, 104.2, 16)]
+check("a bullish order block is the last down bar's open-to-low before a displacement",
+      F.order_block(_ob, 16) == ("bull", 98, 100), str(F.order_block(_ob, 16)))
+_small = _ob[:16] + [_mk(98.5, 101, 98.4, 100.8, 16)]
+check("a displacement under one ATR is not an order block", F.order_block(_small, 16) is None)
+
+# Sweep: 20 bars with lows at 90, then a bar that trades to 89 and closes at 92.
+_sw = [_mk(95, 100, 90, 95, i) for i in range(20)] + [_mk(94, 95, 89, 92, 20)]
+check("a failed run through the 20-bar low is a bullish sweep", F.liquidity_sweep(_sw, 20) == "bull")
+check("a close below the swept low is not a sweep",
+      F.liquidity_sweep(_sw[:20] + [_mk(94, 95, 88, 89, 20)], 20) is None)
+check("a failed run through the 20-bar high is a bearish sweep",
+      F.liquidity_sweep(_sw[:20] + [_mk(96, 101, 95, 98, 20)], 20) == "bear")
+
+# Break of structure: a swing high at bar 3 (confirmed at bar 5); bar 7 closes above it.
+_bs = [_mk(100, 101, 99, 100, 0), _mk(100, 102, 99, 101, 1), _mk(101, 103, 100, 102, 2),
+       _mk(102, 106, 101, 105, 3), _mk(105, 105.5, 103, 104, 4), _mk(104, 104.5, 102, 103, 5),
+       _mk(103, 105, 102, 104, 6), _mk(104, 108, 103, 107, 7), _mk(107, 109, 106, 108, 8)]
+_bos = F.structure_breaks(_bs)
+check("a close above the last confirmed swing high is a bullish break, once",
+      _bos[7] == "bull" and _bos[8] is None and all(x is None for x in _bos[:7]), str(_bos))
+# The swing high at 3 is not known until bar 5; a bar-4 close above it must not count.
+_early = _bs[:4] + [_mk(105, 107, 104, 106.5, 4)] + _bs[5:]
+check("a swing is not a level until it is confirmed", F.structure_breaks(_early)[4] is None)
+
+check("events closer than the gap are one witness",
+      nulltest.episodes([5, 6, 7, 30, 31, 60], gap=10) == [[5, 6, 7], [30, 31], [60]])
+check("events exactly a gap apart are separate witnesses",
+      nulltest.episodes([0, 10, 20], gap=10) == [[0], [10], [20]])
+_ict = nulltest.rules(_decl, which="ict")
+check("the ict set is the six registered rules and nothing else",
+      set(_ict) == set(nulltest.ICT) and all(k not in _ict for k in nulltest.CLASSIC))
+check("the full set is both", set(nulltest.rules(_decl, which="all")) == set(nulltest.CLASSIC) | set(nulltest.ICT))
+check("sweep_bear is a short rule", nulltest.rules(_decl, which="all")["sweep_bear"][0] == -1)
+_nt2 = nulltest.run(s70, 1, 5.0, 20, which="all")
+check("every rule reports its witnesses and their t",
+      all("episodes" in v and "t_ep" in v for v in _nt2["rules"].values()))
+check("witnesses never exceed events",
+      all(v["episodes"] <= v["n"] for v in _nt2["rules"].values()))
+check("the expected minimum p follows the number of rules",
+      _nt2["n_rules"] == 14 and abs(_nt2["expected_min_p"] - 1 / 15) < 1e-9)
+check("the render names the witnesses", "witnesses" in nulltest.render(_nt2) and "t_ep" in nulltest.render(_nt2))
 
 # ---------------------------------------------------------------- watch
 

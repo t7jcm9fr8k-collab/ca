@@ -102,6 +102,35 @@ class Cursor:
         return [b.close for b in w]
 
 
+def leak_check(series, strategy, targets, warmup, samples=25, seed=0):
+    """
+    Freqtrade's lookahead-analysis idea, in this idiom: re-run the strategy at
+    a sample of bars on a series TRUNCATED at that bar, where the future does
+    not exist at all, and compare with the decision it gave in the full run.
+    The cursor stops slicing into the future; this catches everything else —
+    a strategy that keeps a reference to the full series, computes a feature
+    once over all bars, or carries state between calls.
+
+    Returns {"checked": n, "differences": [bar indices]}. A clean strategy
+    has none; run.py prints the count beside every backtest.
+    """
+    import random
+    bars = list(series.bars)
+    live = list(range(warmup, len(bars)))
+    if not live:
+        return {"checked": 0, "differences": []}
+    rng = random.Random(seed)
+    picks = sorted(rng.sample(live, min(samples, len(live))))
+    diffs = []
+    for i in picks:
+        cut = type(series)(series.symbol, series.timeframe, bars[:i + 1],
+                           dict(series.provenance))
+        got = max(-1.0, min(1.0, float(strategy(Cursor(cut, i + 1)))))
+        if abs(got - targets[i - warmup]) > 1e-12:
+            diffs.append(i)
+    return {"checked": len(picks), "differences": diffs}
+
+
 def max_drawdown(equity):
     peak, worst = float("-inf"), 0.0
     for e in equity:

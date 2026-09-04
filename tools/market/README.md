@@ -14,7 +14,7 @@ out/              the ledger and its report (gitignored)
 |---|---|
 | `bars.py` | `Bar` and `Series` — five exact numbers per period, with provenance the series **refuses to exist without**. Loads CSV. |
 | `barqc.py` | nine integrity checks on a series, each with a number. Session count against the real NYSE calendar. |
-| `replay.py` | walks bars through a strategy **without letting it see the future** — enforced by shape, not by rule. |
+| `replay.py` (+ `leak_check`: every backtest re-runs the strategy at 25 sampled bars with the future physically removed and reports differences) | walks bars through a strategy **without letting it see the future** — enforced by shape, not by rule. |
 | `features.py` | EMA, VWAP, ATR, rejection-candle geometry, swing levels, volume profile (POC, value area), a labelled order-flow **proxy**. The chart, as numbers. |
 | `strategies.py` | reference strategies, deliberately dull, plus three discretionary "confluence" setups made mechanical so they can be measured. The contract, not an edge. |
 | `ledger.py` | append-only record of backtests, paper runs, live runs and gate bypasses; renders `out/ledger.html`. |
@@ -28,7 +28,8 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `test_tools.py` | 376 checks. `python3 test_tools.py` |
+| `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
+| `test_tools.py` | 404 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -220,6 +221,13 @@ python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-agg
 # 4 · the null exercises
 python3 nulltest.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --horizon 1 --events rsi_oversold fell_5pct_10bars
 python3 nulltest.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --horizon 5
+#     --set classic|ict|all (default all: 8 classic + 6 ICT proxies, pre-registered). The `epis`
+#     column counts WITNESSES — events within 10 bars are one episode — and t_ep is their t.
+#     On 21 years only rsi_oversold survived (30 witnesses, t_ep 5.2 at a 5-bar hold); as a
+#     strategy it is a premium, not an edge — see EVIDENCE.md "Fourth run".
+python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --events rsi_oversold
+python3 run.py --mode backtest --strategy rsi_dip:14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
+python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
 
 # every morning
 python3 watch.py --symbols SPY AAPL MSFT

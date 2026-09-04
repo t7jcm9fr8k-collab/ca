@@ -430,3 +430,98 @@ def describe(bars, ema_n=20, atr_n=14, profile_window=40):
         "value_area": (prof["va_low"], prof["va_high"]) if prof else None,
         "cvd_proxy": cvd_proxy(bars)[-1],
     }
+
+
+# ---------------------------------------------------------------- ICT / "smart money" proxies
+#
+# EVIDENCE.md #14 calls ICT unfalsifiable as taught: every concept has a
+# discretionary escape hatch. These are the concepts made computable with one
+# fixed definition each, so a rule built on them CAN fail. That is the whole
+# point of writing them down. Each reads bars 0..i only.
+
+def fair_value_gap(bars, i):
+    """
+    Three-bar imbalance. Bullish when bar i's low sits above bar i-2's high —
+    the middle bar moved so fast that nothing traded in between. Bearish is
+    the mirror. Returns ("bull", lo, hi), ("bear", lo, hi) or None, where
+    [lo, hi] is the untraded zone.
+    """
+    if i < 2:
+        return None
+    a, c = bars[i - 2], bars[i]
+    if c.low > a.high:
+        return ("bull", a.high, c.low)
+    if c.high < a.low:
+        return ("bear", c.high, a.low)
+    return None
+
+
+def order_block(bars, i, atr_n=14, atr_mult=1.0):
+    """
+    The last opposing bar before a displacement. Bullish: bar i-1 closed down,
+    bar i closed above bar i-1's high, and bar i's range is at least
+    `atr_mult` ATRs — the displacement has to be a real one or every two-bar
+    wiggle qualifies. Zone is bar i-1's open to low (ICT's own definition).
+    Returns ("bull", lo, hi), ("bear", lo, hi) or None.
+    """
+    if i < atr_n + 1:
+        return None
+    p, c = bars[i - 1], bars[i]
+    a = atr(bars[i - atr_n:i + 1], atr_n)
+    if not a or c.range < atr_mult * a:
+        return None
+    if p.close < p.open and c.close > p.high:
+        return ("bull", p.low, p.open)
+    if p.close > p.open and c.close < p.low:
+        return ("bear", p.open, p.high)
+    return None
+
+
+def liquidity_sweep(bars, i, lookback=20):
+    """
+    A stop run that failed. Bullish: bar i trades below the lowest low of the
+    previous `lookback` bars and CLOSES back above it — the sell stops under
+    the low were taken and the move did not hold. Bearish is the mirror.
+    Returns "bull", "bear" or None.
+    """
+    if i < lookback:
+        return None
+    prior_low = min(b.low for b in bars[i - lookback:i])
+    prior_high = max(b.high for b in bars[i - lookback:i])
+    if bars[i].low < prior_low and bars[i].close > prior_low:
+        return "bull"
+    if bars[i].high > prior_high and bars[i].close < prior_high:
+        return "bear"
+    return None
+
+
+def structure_breaks(bars, left=2, right=2):
+    """
+    Break of structure, per bar, using only swings CONFIRMED by that bar.
+
+    A swing high at j is known at bar j+right. Bar i is a bullish break when
+    its close exceeds the most recent confirmed swing high and the previous
+    bar's close did not; bearish mirrors on swing lows. Returns a list the
+    length of `bars` of "bull", "bear" or None.
+    """
+    bars = list(bars)
+    sw = swings(bars, left, right)
+    highs = sorted(sw["highs"])
+    lows = sorted(sw["lows"])
+    out = [None] * len(bars)
+    hi_k = lo_k = 0
+    last_hi = last_lo = None
+    for i in range(len(bars)):
+        while hi_k < len(highs) and highs[hi_k][0] + right <= i:
+            last_hi = highs[hi_k][1]
+            hi_k += 1
+        while lo_k < len(lows) and lows[lo_k][0] + right <= i:
+            last_lo = lows[lo_k][1]
+            lo_k += 1
+        if i == 0:
+            continue
+        if last_hi is not None and bars[i].close > last_hi and bars[i - 1].close <= last_hi:
+            out[i] = "bull"
+        elif last_lo is not None and bars[i].close < last_lo and bars[i - 1].close >= last_lo:
+            out[i] = "bear"
+    return out

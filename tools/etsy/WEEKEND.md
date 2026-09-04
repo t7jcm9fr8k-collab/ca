@@ -156,7 +156,13 @@ ledger does not have them. To record them on the Mac:
 python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.03
 python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 1
 python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --signals sma_cross:10,30 breakout:20 trend_filter:200 vwap_reclaim:20 --holdout-from 2024-01-01 --cost-bps 5 --count-ledger
+python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --events rsi_oversold
+python3 run.py --mode backtest --strategy rsi_dip:14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
+python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
 ```
+
+The last three are the fourth run (ICT proxies falsified; witnesses counted;
+the one survivor priced). Their reading is in `tools/market/EVIDENCE.md`.
 
 ---
 

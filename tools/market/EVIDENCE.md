@@ -577,3 +577,81 @@ Nothing else moved. A pipeline that finds nothing three times on the same
 instrument with three different windows is behaving as a correct pipeline
 should; the value of the runs is that the finding is now measured rather than
 quoted.
+
+## Fourth run — ICT made falsifiable, witnesses counted, and the one survivor priced (2026-09-04)
+
+The standing instruction was "drop ICT for now, but if we plateau try to
+incorporate it". Three runs found nothing, which is a plateau. So the four
+ICT concepts that can be given one fixed definition each were written down
+in `features.py` — a three-bar fair value gap, an order block (the last
+opposing bar before a one-ATR displacement), a liquidity sweep (a run
+through the 20-bar low that closes back above it), and a break of structure
+(a close above the last *confirmed* swing high) — and six rules built on
+them were pre-registered beside the eight classic ones. The retest rules
+were tightened once after the first run, because "price is somewhere near
+a recent gap" fired on 29% of all bars; that is ICT v2 and both versions
+count as trials.
+
+At the same time the null test learned to count **witnesses**: events
+closer than ten bars are one episode, and `t_ep` is the t of the episode
+means. It is the answer to the reviewers' "not independent; t is an upper
+bound" — now the number of independent witnesses is printed, and the money
+question is asked of them.
+
+**The ICT set is null in every reading.** On 21 years of daily SPY at a
+one-bar hold, all six rules are negative net; at a five-bar hold the two
+that are positive on n-weighted t (`fvg_bull_formed` +1.78, `fvg_bull_retest`
++1.05) are *negative* on their witnesses (t_ep −4.23 and −2.34): the gap
+rules make money inside long trending runs, where a hundred events are one
+witness, and lose in every isolated instance. `sweep_bull` at a five-bar hold
+has t_ep 2.22 across 94 witnesses — the stop-hunt reversal — but its null
+mean on volatility-matched days is +19 bp against its +17 bp, so it picks
+volatile days and nothing else. The break of structure, the continuation
+claim at the heart of the method, is negative at both holds. The 2020–26
+file agrees. Method #14 moves from "unfalsifiable" to "falsified, in the
+one form it could be tested".
+
+**One rule survived, and it is not an ICT rule.** `rsi_oversold` — buy at
+the open after RSI(14) closes below 30, hold five bars — on 21 years:
+
+| | events | witnesses | mean net | t | t_ep | hit | vol-matched null |
+|---|---|---|---|---|---|---|---|
+| hold 1 | 93 | 30 | +47.5 bp | 1.84 | 3.43 | 60% | −2.8 bp |
+| hold 5 | 93 | 30 | +157.6 bp | 3.61 | 5.18 | 69% | +16.8 bp |
+
+Read for witnesses it is the strongest thing in the whole project, so it was
+read adversarially: 2005–2015 alone t_ep 4.20, 2016–2026 alone 3.58; without
+2008–09 4.60, without 2020 5.61; 25 of the 30 episodes positive; the largest
+single event at a five-bar hold is a *loss* (2020-03-09, −1,579 bp), so no
+one day carries the mean. Its plain twin `fell_5pct_10bars` and the hammer
+after a decline lean the same way at a five-bar hold (t_ep 2.78 and 2.49) —
+four expressions of one bet, and this time the bet is one the literature
+already documents: the short-term reversal premium at volatility extremes,
+paid to whoever provides liquidity into a capitulation (Nagel 2012). The
+five losing episodes are 2007-07, 2008-06, 2008-10, 2016-01 and 2020-02.
+That is the premium's price: it fails when the crash keeps going.
+
+**Priced through the gate, it is a premium, not a strategy.** As
+`rsi_dip:14,30,5` in replay, 21 years, 5 bp, idle cash at 3%: +141% against
++736% for buy-and-hold, Sharpe 0.50 against 0.62, drawdown −26.6% against
+−56.5%, 68 fills, in the market 5% of the time. Idle cash alone returns +88%
+over the span, so the rule's own contribution is about +28% — roughly 1.2%
+a year from 5% exposure, which is a large return per day invested and a
+small one per year. On 2020–26 the same: +55% against +125%, Sharpe 1.24
+against 0.89, drawdown −4.0%, 14 fills. Combined with the trend filter as
+`trend_or_dip` — declared before it was run, one trial — 21 years gives
++579% against +683%, CAGR 9.7% (filter alone 8.8%, index ~10.4%), Sharpe
+0.71 (filter 0.78), drawdown −31.5% (filter −19.7%). The dip overlay adds
+about 0.9% a year to the filter and gives back a third of the filter's
+drawdown protection, because the days it buys are inside the drawdowns the
+filter exists to avoid.
+
+**What this changes.** Method #9 ("generic indicators — ✗") gets one
+footnote: RSI(14) < 30 on a broad index at a five-day hold is not a generic
+indicator but a stated proxy for the documented reversal premium, and it
+measures as such on 21 years with 30 witnesses. It does not change the base
+rate. It is an overlay worth about a point a year to a filter, in exchange
+for drawdown, and it is still not a reason to trade the index actively
+against holding it. Nothing in the ICT set survived contact with a
+definition.
+

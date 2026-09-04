@@ -22,6 +22,33 @@ THE RULES (pre-registered; v2 for pin_near_round, see below)
     doji                      body <= 10% of range — a VOLATILITY claim; its
                               direction test is included so you can see it is ~50%
 
+THE ICT SET (pre-registered 2026-09-04, v1; run because the classic set
+went to zero three times and the standing instruction was "if we plateau,
+try to incorporate it"). Each concept has ONE fixed definition in
+features.py so that it can fail:
+    fvg_bull_formed           a bullish three-bar fair value gap forms at bar i — the
+                              continuation claim, entered at the next open
+    fvg_bull_retest           the previous close sat above a bullish gap formed in the
+                              last 20 bars; bar i trades down into it and closes back
+                              above its top — the "gap as support" claim
+    ob_bull_retest            the same re-entry into a bullish order block (the last
+                              down bar before a >= 1-ATR displacement)
+    (ICT v1, run once on 2026-09-04, had no re-entry condition on the two
+    retest rules and fired on 29% of all bars. v2 adds it. Both runs count as
+    trials; v1's retest rows were nulls at t = -2.2 and -1.4.)
+    sweep_bull                bar i takes out the 20-bar low and closes back above it —
+                              the stop-hunt reversal claim
+    sweep_bear                the mirror, short
+    bos_bull                  bar i closes above the last confirmed swing high, the
+                              previous bar did not — the break-of-structure continuation claim
+
+WITNESSES
+    Events on consecutive or nearby days are one witness, not several: the
+    same crash fires RSI<30 for a week. Events closer than EPISODE_GAP bars
+    are grouped into one episode; `epis` is the number of episodes and `t_ep`
+    is the t of the episode means — the money question asked of independent
+    witnesses. Read t_ep before t.
+
     v1 of the round-number rule used 0.2% of PRICE, which on a $500 stock is
     ±$1 on a $10 grid — one price in five qualifies, so the rule was "bull
     rejection bar" wearing a hat. The 2026-09-02 SPY run used v1 and is not
@@ -82,19 +109,62 @@ VOL_WINDOW = 20
 VOL_DECILES = 10
 ROUND_TOL_OF_STEP = 0.025
 RULE_VERSION = 2
+ICT_VERSION = 2
+ZONE_LOOKBACK = 20
+EPISODE_GAP = 10
+CLASSIC = ("hammer_after_decline", "star_after_rise", "engulf_bull_after_decline",
+           "engulf_bear_after_rise", "pin_near_round", "rsi_oversold", "fell_5pct_10bars",
+           "doji")
+ICT = ("fvg_bull_formed", "fvg_bull_retest", "ob_bull_retest", "sweep_bull", "sweep_bear",
+       "bos_bull")
+SHORT = {"star_after_rise", "engulf_bear_after_rise", "sweep_bear"}
 
 
 def _ret(bars, i, k):
     return bars[i].close / bars[i - k].close - 1.0 if i >= k else None
 
 
-def rules(bars):
+def ict_rules(bars):
+    """{rule: [indices]} for the ICT set — each index i fires on bars 0..i only."""
+    n = len(bars)
+    out = {k: [] for k in ICT}
+    bos = F.structure_breaks(bars)
+    gaps, blocks = [], []                     # (formed_at, lo, hi), oldest first
+    for i in range(2, n):
+        b = bars[i]
+        gaps = [g for g in gaps if i - g[0] <= ZONE_LOOKBACK]
+        blocks = [o for o in blocks if i - o[0] <= ZONE_LOOKBACK]
+        # retests read zones formed BEFORE this bar. v2: the previous close
+        # must sit ABOVE the zone, so the bar re-enters it from above and
+        # closes back out. v1 had no re-entry condition and fired on 29% of
+        # all bars — "price is somewhere near a recent gap" is not a setup.
+        prev = bars[i - 1].close
+        if any(prev > hi and b.low <= hi and b.close > hi for _, lo, hi in gaps):
+            out["fvg_bull_retest"].append(i)
+        if any(prev > hi and b.low <= hi and b.close > hi for _, lo, hi in blocks):
+            out["ob_bull_retest"].append(i)
+        g = F.fair_value_gap(bars, i)
+        if g and g[0] == "bull":
+            out["fvg_bull_formed"].append(i)
+            gaps.append((i, g[1], g[2]))
+        o = F.order_block(bars, i)
+        if o and o[0] == "bull":
+            blocks.append((i, o[1], o[2]))
+        sw = F.liquidity_sweep(bars, i)
+        if sw == "bull":
+            out["sweep_bull"].append(i)
+        elif sw == "bear":
+            out["sweep_bear"].append(i)
+        if bos[i] == "bull":
+            out["bos_bull"].append(i)
+    return out
+
+
+def rules(bars, which="all"):
     """{rule: (side, [indices])} — each index i fires on bars 0..i only."""
     n = len(bars)
     rsi = F.rsi_series(bars, 14)
-    out = {k: [] for k in ("hammer_after_decline", "star_after_rise",
-                           "engulf_bull_after_decline", "engulf_bear_after_rise",
-                           "pin_near_round", "rsi_oversold", "fell_5pct_10bars", "doji")}
+    out = {k: [] for k in CLASSIC}
     for i in range(LOOKBACK, n):
         b = bars[i]
         r5 = _ret(bars, i, LOOKBACK)
@@ -120,8 +190,21 @@ def rules(bars):
             out["fell_5pct_10bars"].append(i)
         if F.doji(b):
             out["doji"].append(i)
-    sides = {"star_after_rise": -1, "engulf_bear_after_rise": -1}
-    return {k: (sides.get(k, 1), v) for k, v in out.items()}
+    if which in ("ict", "all"):
+        ict = ict_rules(bars)
+        out = ict if which == "ict" else {**out, **ict}
+    return {k: (-1 if k in SHORT else 1, v) for k, v in out.items()}
+
+
+def episodes(idx, gap=EPISODE_GAP):
+    """Group event indices closer than `gap` bars into episodes: [[i, i, ...], ...]."""
+    out = []
+    for i in sorted(idx):
+        if out and i - out[-1][-1] < gap:
+            out[-1].append(i)
+        else:
+            out.append([i])
+    return out
 
 
 def forward(bars, idx, side, h, cost):
@@ -203,14 +286,14 @@ def date_permutation_p(bars, idx, side, h, cost, shuffles, rng, vol_match=True):
     return hits / shuffles, sum(means) / len(means) * 1e4
 
 
-def run(series, h, cost_bps, shuffles, seed=0, vol_match=True):
+def run(series, h, cost_bps, shuffles, seed=0, vol_match=True, which="all"):
     qc = barqc.inspect(series)
     if qc["verdict"] == "blocked":
         sys.exit(f"REFUSED: barqc blocked {series.describe()}: {', '.join(qc['failed'])}")
     bars = list(series.bars)
     cost = cost_bps / 1e4
     rng = random.Random(seed)
-    real = rules(bars)
+    real = rules(bars, which)
     base = stats([bars[i + h].close / bars[i + 1].open - 1.0 - cost
                   for i in range(LOOKBACK, len(bars) - h)])
 
@@ -221,6 +304,10 @@ def run(series, h, cost_bps, shuffles, seed=0, vol_match=True):
         events = [{"date": bars[i].ts.strftime("%Y-%m-%d"), "ret_bp": r * 1e4}
                   for i, r in zip(used, rets)]
         s = {"side": "short" if side < 0 else "long", **stats(rets), "events": events}
+        by_i = dict(zip(used, rets))
+        ep_means = [sum(by_i[i] for i in ep) / len(ep) for ep in episodes(used)]
+        s["episodes"] = len(ep_means)
+        s["t_ep"] = stats(ep_means)["t"] if ep_means else 0.0
         if rets:
             total = sum(rets)
             big = max(events, key=lambda e: abs(e["ret_bp"]))
@@ -238,20 +325,23 @@ def run(series, h, cost_bps, shuffles, seed=0, vol_match=True):
             "horizon": h, "cost_bps": cost_bps, "shuffles": shuffles,
             "null": "vol-matched date permutation" if vol_match else "date permutation",
             "unconditional": base, "rules": res,
-            "rule_version": RULE_VERSION, "pre_registered": True, "parameters_searched": 0,
-            "expected_min_p_of_8": 1.0 / 9.0}
+            "rule_set": which, "rule_version": RULE_VERSION, "ict_version": ICT_VERSION,
+            "pre_registered": True, "parameters_searched": 0,
+            "episode_gap": EPISODE_GAP,
+            "expected_min_p": 1.0 / (len(res) + 1), "n_rules": len(res)}
 
 
 def render(r):
-    L = [f"\n{'='*92}", f"NULL TEST — {r['symbol']} {r['timeframe']} · {r['bars']} bars "
+    L = [f"\n{'='*104}", f"NULL TEST — {r['symbol']} {r['timeframe']} · {r['bars']} bars "
          f"{r['start']} → {r['end']} · hold {r['horizon']} bar(s) · {r['cost_bps']:g} bp · "
-         f"{r['shuffles']} draws · null: {r['null']} · rules v{r['rule_version']}", "=" * 92]
+         f"{r['shuffles']} draws · null: {r['null']} · rules {r['rule_set']} "
+         f"v{r['rule_version']}/ict v{r['ict_version']}", "=" * 104]
     u = r["unconditional"]
     L.append(f"\nunconditional {r['horizon']}-bar return, net: mean {u['mean_bp']:+.1f} bp, "
              f"hit {u['hit']:.1%}  (what ANY entry earns on these bars, open→close)\n")
-    L.append(f"{'rule':<27}{'side':<6}{'n':>5}{'mean bp':>9}{'sd bp':>8}{'hit':>7}{'t':>7}"
-             f"{'null bp':>9}{'p':>7}   largest event")
-    L.append("-" * 92)
+    L.append(f"{'rule':<27}{'side':<6}{'n':>5}{'epis':>5}{'mean bp':>9}{'sd bp':>8}{'hit':>7}"
+             f"{'t':>7}{'t_ep':>7}{'null bp':>9}{'p':>7}   largest event")
+    L.append("-" * 104)
     for k, s in r["rules"].items():
         if not s["n"]:
             L.append(f"{k:<27}{s['side']:<6}{0:>5}   (never fired)")
@@ -265,15 +355,18 @@ def render(r):
             bigtxt = f"{big['date']} {big['ret_bp']:+.0f} bp (total near zero or opposite sign)"
         else:
             bigtxt = ""
-        L.append(f"{k:<27}{s['side']:<6}{s['n']:>5}{s['mean_bp']:>9.1f}{s['sd_bp']:>8.0f}{s['hit']:>7.1%}"
-                 f"{s['t']:>7.2f}{(s['null_mean_bp'] if s['null_mean_bp'] is not None else float('nan')):>9.1f}{p:>7}   {bigtxt}")
-    L.append("-" * 92)
+        L.append(f"{k:<27}{s['side']:<6}{s['n']:>5}{s['episodes']:>5}{s['mean_bp']:>9.1f}"
+                 f"{s['sd_bp']:>8.0f}{s['hit']:>7.1%}{s['t']:>7.2f}{s['t_ep']:>7.2f}"
+                 f"{(s['null_mean_bp'] if s['null_mean_bp'] is not None else float('nan')):>9.1f}"
+                 f"{p:>7}   {bigtxt}")
+    L.append("-" * 104)
     L.append("t = mean against zero given THESE events' variance: the money question. "
-             "p = share of draws of n\nvolatility-matched days that did at least this well: "
-             f"the pattern question. With 8 rules the smallest\nnull p is expected near "
-             f"{r['expected_min_p_of_8']:.2f}; a single 0.05 is what eight tries look like. "
-             "Events on consecutive\ndays are not independent draws, so n overstates the evidence "
-             "and t is an upper bound.")
+             "epis = witnesses: events\ncloser than "
+             f"{r['episode_gap']} bars are one episode, and t_ep is the t of the episode means "
+             "— read it before t. p = share\nof draws of n volatility-matched days that did at "
+             f"least this well: the pattern question. With {r['n_rules']}\nrules the smallest null p "
+             f"is expected near {r['expected_min_p']:.2f}; a single 0.05 is what "
+             f"{r['n_rules']} tries look like.")
     return "\n".join(L)
 
 
@@ -298,6 +391,8 @@ def main():
     ap.add_argument("--horizon", type=int, default=1, help="bars held after entry")
     ap.add_argument("--cost-bps", type=float, default=5.0)
     ap.add_argument("--shuffles", type=int, default=1000)
+    ap.add_argument("--set", default="all", choices=["classic", "ict", "all"],
+                    help="which pre-registered rule set to run")
     ap.add_argument("--no-vol-match", action="store_true",
                     help="draw comparison days from all days, not volatility-matched ones")
     ap.add_argument("--events", nargs="*", default=[],
@@ -309,7 +404,7 @@ def main():
                        {"yes": True, "no": False}.get(a.adjusted))
     except (B.Unparseable, B.NoProvenance) as e:
         sys.exit(f"REFUSED: {e}")
-    r = run(s, a.horizon, a.cost_bps, a.shuffles, vol_match=not a.no_vol_match)
+    r = run(s, a.horizon, a.cost_bps, a.shuffles, vol_match=not a.no_vol_match, which=a.set)
     print(render(r))
     for k in a.events:
         print(render_events(r, k))

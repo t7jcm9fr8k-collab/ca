@@ -27,6 +27,8 @@ SPEC STRINGS (for run.py --strategy)
     ema_pullback:20,50,5     trend + pullback to the fast EMA + bull rejection candle
     vwap_reclaim:20          close above anchored VWAP and EMA
     value_area:40            close above the volume profile's value-area high
+    rsi_dip:14,30,5          long for 5 bars after RSI(14) < 30 — the null test's one survivor
+    trend_or_dip:200,14,30,5 the filter OR the dip — declared before it was run
 
 The last three are the discretionary "confluence" setups — candle + EMA +
 VWAP + level + volume — made mechanical so replay.py can measure them. On a
@@ -166,8 +168,58 @@ def trend_filter(n=200):
     return s
 
 
+def rsi_dip(n=14, level=30, hold=5):
+    """
+    Long for `hold` bars after any closed bar whose RSI(n) is below `level`;
+    flat otherwise. Overlapping signals merge into one holding.
+
+    This is the null test's `rsi_oversold` rule promoted to a strategy so
+    replay can price it: same RSI, same trigger, entry at the next open, the
+    same 5-bar hold. It is pre-registered here on 2026-09-04 after that rule
+    was the only one of fourteen to survive the vol-matched null on 21 years
+    of SPY with witnesses in both halves. What it buys is the short-term
+    reversal premium at volatility extremes — liquidity provision — so expect
+    its worst days to be the market's worst days. Run with --cash-yield: it
+    is out of the market ~90% of the time.
+    """
+    import features as F
+    n, level, hold = int(n), float(level), int(hold)
+    if n < 2 or hold < 1:
+        raise ValueError(f"need n >= 2 and hold >= 1, got {n}, {hold}")
+
+    def s(cursor):
+        if len(cursor) < n + 1:
+            return 0.0
+        r = F.rsi_series(cursor.closes(), n)
+        recent = r[-hold:]
+        return 1.0 if any(x is not None and x < level for x in recent) else 0.0
+    s.__name__ = f"rsi_dip_{n}_{level:g}_{hold}"
+    s.warmup = n + 1
+    return s
+
+
+def trend_or_dip(n=200, rsi_n=14, level=30, hold=5):
+    """
+    Long when the trend filter is long OR the dip rule is long. The two
+    pre-registered survivors of three runs, combined the one way that makes
+    sense: the filter holds through bull markets and steps aside in bear
+    markets, and the dip rule buys the five days after a capitulation, which
+    is exactly when the filter is out. Declared 2026-09-04 BEFORE it was run,
+    as one trial, after both parts had been measured alone.
+    """
+    tf, rd = trend_filter(n), rsi_dip(rsi_n, level, hold)
+
+    def s(cursor):
+        return max(tf(cursor), rd(cursor))
+    s.__name__ = f"trend_or_dip_{int(n)}_{int(rsi_n)}_{float(level):g}_{int(hold)}"
+    s.warmup = max(tf.warmup, rd.warmup)
+    return s
+
+
 REGISTRY = {
     "buy_and_hold": lambda: buy_and_hold,
+    "rsi_dip": rsi_dip,
+    "trend_or_dip": trend_or_dip,
     "sma_cross": sma_cross,
     "breakout": breakout,
     "trend_filter": trend_filter,

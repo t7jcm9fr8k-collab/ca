@@ -213,6 +213,15 @@ def main():
               f"vol {r['volatility']:.1%}, {r['years']:.1f} years"
               + (f", cash yield {a.cash_yield:.1%}" if a.cash_yield else "")
               + (f", dividend yield {a.dividend_yield:.1%} credited to both" if a.dividend_yield else ""))
+        lk = replay.leak_check(s, strat, r["targets"], r["warmup"])
+        r["leak_check"] = lk
+        if lk["differences"]:
+            print(f"LEAK: the strategy decided differently at {len(lk['differences'])} of "
+                  f"{lk['checked']} sampled bars when the future was removed "
+                  f"(bars {lk['differences'][:5]}). It is reading past the cursor.")
+        else:
+            print(f"leak check: {lk['checked']} bars re-run with the future removed, "
+                  f"0 differences")
         print(f"not modelled: {r['not_modelled']}")
         keep = {k: v for k, v in r.items() if k not in replay.LEDGER_EXCLUDE}
         ledger.record("backtest", **keep)
