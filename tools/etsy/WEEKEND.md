@@ -164,6 +164,14 @@ python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SP
 The last three are the fourth run (ICT proxies falsified; witnesses counted;
 the one survivor priced). Their reading is in `tools/market/EVIDENCE.md`.
 
+The unattended loop, when you want it (paper; keys in the shell; the gate
+needs a recorded backtest per symbol first — the README has the loop):
+
+```
+python3 autopilot.py --dry-run
+python3 autopilot.py --strategy trend_or_dip:200,14,30,5 --qty 1
+```
+
 The replication of the survivor on nine other ETFs is pre-registered and
 waits on their bars. One block, run from `tools/market`, then push:
 

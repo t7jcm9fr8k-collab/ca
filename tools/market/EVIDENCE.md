@@ -753,3 +753,39 @@ mode, writes STOP and trades nothing. It halts; it never liquidates. The
 open positions are then a decision, not a reflex, and the decision is
 Daniel's. Both are pinned by checks against a fake broker.
 
+### F · The neighbourhood of the dip rule (pre-registered grid, nothing chosen)
+
+Written down before it ran (`F-prereg.txt`): RSI level {25, 30, 35} × hold
+{3, 5, 7}, n = 14 fixed, 21 years, 5 bp, cash at 3%; reading fixed in
+advance — a real effect is smooth, every neighbour should carry the same
+sign, and the pre-registered (30, 5) should not be the best of nine by a
+wide margin; nothing is chosen from the table. Eight more trials counted.
+From `F-neighbourhood.txt`:
+
+| level \ hold | 3 | 5 | 7 |
+|---|---|---|---|
+| 25 | Sharpe 0.81 · CAGR 4.8% · DD −11% | 0.70 · 4.4% · −12% | 0.60 · 4.0% · −12% |
+| 30 | 0.55 · 4.4% · −20% | **0.50 · 4.2% · −27%** (pre-registered) | 0.48 · 4.3% · −30% |
+| 35 | 0.49 · 4.9% · −31% | 0.53 · 5.7% | 0.40 · 4.3% |
+
+All nine positive; CAGR 4.0–5.7% against 3% on cash; Sharpe 0.40–0.81. The
+pre-registered point is sixth of nine on Sharpe — not a lucky peak, which is
+the point of the exercise. The one pattern is that a deeper threshold (25)
+fires a quarter as often (26 fills), holds a third of the drawdown, and
+carries the best Sharpe: the premium is paid for the worst days, not for
+ordinary weak ones. That is consistent with the liquidity-provision reading
+and it is not a reason to change the rule; a shift to 25 after seeing this
+table would be exactly the selection the grid was pre-registered to
+forbid. If the ETF replication (§E, pending) comes back, it is run at
+(30, 5).
+
+### G · Cost sensitivity (descriptive)
+
+Five basis points a side is conservative for SPY, where the real round-trip
+for a small market order is nearer half a point to one. At 1 bp
+(`G-21y-*.txt`): trend_or_dip CAGR 10.0% against 9.7% at 5 bp, Sharpe 0.73
+against 0.71; its vol-targeted form 8.4% against 8.2%, 0.92 against 0.89.
+The cost assumption moves the answer by a third of a point a year and
+changes no ranking. The 431 fills of the targeted rule are what 5 bp was
+punishing; at realistic cost the band could be tightened, and is not.
+

@@ -243,6 +243,11 @@ python3 autopilot.py
 #     --max-drawdown 0.15: each run records equity; 15% under the recorded peak writes STOP and
 #     trades nothing (halts, never liquidates — that decision is yours).
 python3 autopilot.py --strategy "vol_target[trend_or_dip:200,14,30,5]:0.10,20" --notional 500
+#     WHICH ONE TO RUN (day run 2026-09-04, EVIDENCE.md "Day run"): an account that measures itself
+#     in dollars runs trend_or_dip:200,14,30,5 with --qty (21y: CAGR 9.7% vs ~10.4% index, drawdown
+#     -31% vs -57%, Sharpe 0.71 vs 0.61; beat the index outright on 2021-26). One that measures
+#     itself in worst-month runs the vol_target form with --notional (CAGR 8.2%, drawdown -13%,
+#     Sharpe 0.89, three times the fills). Paper first, for weeks. Neither is an income.
 #     Schedule on the Mac with cron; the keys come from the shell environment, never from a file:
 #       20 16 * * 1-5  cd /PATH/TO/ca/tools/market && python3 autopilot.py >> out/autopilot.log 2>&1
 #     (cron does not read your .zshrc: put the two export lines in ~/.zshenv, or run it from a
