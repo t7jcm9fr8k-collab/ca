@@ -26,7 +26,7 @@ out/              the ledger and its report (gitignored)
 | `combine.py` | "confluence" both ways — equal-weight average vs AND-gate — with the signal correlation matrix, an in-sample/holdout split, and the **Deflated Sharpe** after counting every trial. |
 | `nulltest.py` | the null exercises: hammer, engulfing, pin-near-round-number, RSI<30 and its plain twin, each against **volatility-matched comparison days** with real costs, events listed. (v1 used a block shuffle that kept the pattern→next-bar pair intact; its p-values were not p-values.) |
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
-| `watch.py` | the morning readout for a watchlist. Describes; predicts nothing. |
+| `watch.py` (+ `--trader`: what every registered strategy holds after the last close, per symbol, ranked by the rule firing; `universe.txt` is the pre-registered replication list) | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
 | `test_tools.py` | 404 checks. `python3 test_tools.py` |
@@ -228,6 +228,13 @@ python3 nulltest.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-ag
 python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --events rsi_oversold
 python3 run.py --mode backtest --strategy rsi_dip:14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
 python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03
+#     Does the trader watch the market or buy whatever? Neither. It buys only when a registered
+#     rule is long, on one named symbol, through the gate. This is the monitor that shows which
+#     symbols' rules are long today, ranked by the rule firing — not by a forecast:
+python3 watch.py --watchlist universe.txt --trader#     Replication of the one survivor on a universe fixed IN ADVANCE (universe.txt), with the
+#     reading rule written before the data. On the Mac, first:
+#       for each symbol in universe.txt: python3 fetch.py --source yahoo --symbol X --adjusted-close --out bars/X-1d.csv
+python3 nulltest.py --rule rsi_oversold --horizon 5 --csv bars/QQQ-1d.csv bars/IWM-1d.csv bars/DIA-1d.csv bars/EFA-1d.csv bars/EEM-1d.csv bars/XLF-1d.csv bars/XLE-1d.csv bars/TLT-1d.csv bars/GLD-1d.csv --symbol QQQ IWM DIA EFA EEM XLF XLE TLT GLD --source yahoo --adjusted yes
 
 # every morning
 python3 watch.py --symbols SPY AAPL MSFT

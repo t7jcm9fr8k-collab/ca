@@ -164,6 +164,16 @@ python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SP
 The last three are the fourth run (ICT proxies falsified; witnesses counted;
 the one survivor priced). Their reading is in `tools/market/EVIDENCE.md`.
 
+The replication of the survivor on nine other ETFs is pre-registered and
+waits on their bars. One block, run from `tools/market`, then push:
+
+```
+for X in QQQ IWM DIA EFA EEM XLF XLE TLT GLD; do python3 fetch.py --source yahoo --symbol $X --adjusted-close --out bars/$X-1d.csv; done
+git add -f bars/QQQ-1d.csv bars/IWM-1d.csv bars/DIA-1d.csv bars/EFA-1d.csv bars/EEM-1d.csv bars/XLF-1d.csv bars/XLE-1d.csv bars/TLT-1d.csv bars/GLD-1d.csv
+git commit -m "ETF daily bars for the RSI reversal replication"
+git push
+```
+
 ---
 
 ## Built this session and waiting for plates

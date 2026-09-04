@@ -1,0 +1,12 @@
+# The pre-registered replication universe for the RSI reversal rule (nulltest.py docstring).
+# Fetch on the Mac: for each, python3 fetch.py --source yahoo --symbol X --adjusted-close --out bars/X-1d.csv
+SPY
+QQQ
+IWM
+DIA
+EFA
+EEM
+XLF
+XLE
+TLT
+GLD

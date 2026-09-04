@@ -42,6 +42,17 @@ features.py so that it can fail:
     bos_bull                  bar i closes above the last confirmed swing high, the
                               previous bar did not — the break-of-structure continuation claim
 
+REPLICATION ACROSS SYMBOLS (pre-registered 2026-09-04, before any file existed)
+    `--csv` takes several files; with `--rule NAME` the output is one row per
+    symbol for that rule. The universe for the rsi_oversold replication is
+    fixed here, in advance: QQQ, IWM, DIA, EFA, EEM, XLF, XLE, TLT, GLD —
+    broad or sector ETFs with 15+ years of daily history, chosen because the
+    premium is documented on baskets and is contaminated by news on single
+    names. Hold 5, cost 5 bp, vol-matched null, no other parameter. The
+    reading planned in advance: it replicates if a majority of the nine show
+    t_ep > 2 with a positive mean; it does not if fewer than three do. Any
+    other outcome is "mixed" and is reported as such, not argued.
+
 WITNESSES
     Events on consecutive or nearby days are one witness, not several: the
     same crash fires RSI<30 for a week. Events closer than EPISODE_GAP bars
@@ -370,6 +381,43 @@ def render(r):
     return "\n".join(L)
 
 
+def verdict_across(rows):
+    """The pre-registered reading: replicates / does not / mixed."""
+    ok = [r for r in rows if r.get("status") == "ok" and r.get("n")]
+    hits = sum(1 for r in ok if r["t_ep"] > 2 and r["mean_bp"] > 0)
+    if not ok:
+        return "no symbol could be tested"
+    if hits > len(ok) / 2:
+        return f"REPLICATES: {hits} of {len(ok)} symbols show t_ep > 2 with a positive mean"
+    if hits < 3:
+        return f"DOES NOT REPLICATE: {hits} of {len(ok)} symbols show t_ep > 2 with a positive mean"
+    return f"MIXED: {hits} of {len(ok)} symbols show t_ep > 2 with a positive mean"
+
+
+def render_across(rows, rule, h, cost_bps):
+    L = [f"\n{'='*96}", f"{rule} ACROSS SYMBOLS · hold {h} bar(s) · {cost_bps:g} bp · "
+         f"vol-matched null · pre-registered universe", "=" * 96,
+         f"{'symbol':<7}{'span':<24}{'n':>5}{'epis':>5}{'mean bp':>9}{'sd bp':>8}{'hit':>7}"
+         f"{'t':>7}{'t_ep':>7}{'null bp':>9}{'p':>7}", "-" * 96]
+    for r in rows:
+        if r.get("status") != "ok":
+            L.append(f"{r['symbol']:<7}{r['status']}")
+        elif not r.get("n"):
+            L.append(f"{r['symbol']:<7}{r['start']} → {r['end']}   never fired")
+        else:
+            p = f"{r['p']:.3f}" if r.get("p") is not None else "  n/a"
+            nb = r["null_mean_bp"] if r.get("null_mean_bp") is not None else float("nan")
+            L.append(f"{r['symbol']:<7}{r['start']} → {r['end']:<11}{r['n']:>5}{r['episodes']:>5}"
+                     f"{r['mean_bp']:>9.1f}{r['sd_bp']:>8.0f}{r['hit']:>7.1%}{r['t']:>7.2f}"
+                     f"{r['t_ep']:>7.2f}{nb:>9.1f}{p:>7}")
+    L.append("-" * 96)
+    L.append(verdict_across(rows))
+    L.append("The reading rule was written before the data: a majority with t_ep > 2 and a "
+             "positive mean replicates;\nfewer than three does not; anything else is mixed "
+             "and is reported as mixed.")
+    return "\n".join(L)
+
+
 def render_events(r, rule):
     s = r["rules"].get(rule)
     if not s or not s.get("events"):
@@ -383,8 +431,11 @@ def render_events(r, rule):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--csv", required=True)
-    ap.add_argument("--symbol", required=True)
+    ap.add_argument("--csv", required=True, nargs="+",
+                    help="one file, or several for a cross-symbol table with --rule")
+    ap.add_argument("--symbol", nargs="+", required=True,
+                    help="one per --csv file")
+    ap.add_argument("--rule", help="with several --csv: the one rule to table across symbols")
     ap.add_argument("--timeframe", default="1d", choices=sorted(B.TIMEFRAMES))
     ap.add_argument("--source")
     ap.add_argument("--adjusted", choices=["yes", "no"])
@@ -399,8 +450,37 @@ def main():
                     help="rules whose event dates and returns to list, e.g. rsi_oversold")
     ap.add_argument("--no-record", action="store_true")
     a = ap.parse_args()
+    if len(a.csv) != len(a.symbol):
+        ap.error("give one --symbol per --csv file")
+    if len(a.csv) > 1:
+        if not a.rule:
+            ap.error("several --csv files need --rule NAME")
+        rows = []
+        for path, sym in zip(a.csv, a.symbol):
+            try:
+                s = B.load_csv(path, sym, a.timeframe, a.source,
+                               {"yes": True, "no": False}.get(a.adjusted))
+            except (B.Unparseable, B.NoProvenance) as e:
+                rows.append({"symbol": sym, "status": f"REFUSED: {e}"})
+                continue
+            qc = barqc.inspect(s)
+            if qc["verdict"] == "blocked":
+                rows.append({"symbol": sym, "status": f"BLOCKED: {', '.join(qc['failed'])}"})
+                continue
+            r = run(s, a.horizon, a.cost_bps, a.shuffles, vol_match=not a.no_vol_match,
+                    which=a.set)
+            if a.rule not in r["rules"]:
+                sys.exit(f"no rule named {a.rule!r}; rules are {', '.join(r['rules'])}")
+            rows.append({"symbol": sym, "status": "ok", "start": r["start"], "end": r["end"],
+                         **r["rules"][a.rule]})
+            if not a.no_record:
+                slim = {**r, "rules": {k: {kk: vv for kk, vv in v.items() if kk != "events"}
+                                       for k, v in r["rules"].items()}}
+                ledger.record("nulltest", **slim)
+        print(render_across(rows, a.rule, a.horizon, a.cost_bps))
+        return
     try:
-        s = B.load_csv(a.csv, a.symbol, a.timeframe, a.source,
+        s = B.load_csv(a.csv[0], a.symbol[0], a.timeframe, a.source,
                        {"yes": True, "no": False}.get(a.adjusted))
     except (B.Unparseable, B.NoProvenance) as e:
         sys.exit(f"REFUSED: {e}")

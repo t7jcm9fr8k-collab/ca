@@ -655,3 +655,14 @@ for drawdown, and it is still not a reason to trade the index actively
 against holding it. Nothing in the ICT set survived contact with a
 definition.
 
+**Pre-registered next test (2026-09-04, before any file existed).** The
+same rule, hold five, 5 bp, vol-matched null, on QQQ, IWM, DIA, EFA, EEM,
+XLF, XLE, TLT and GLD — broad and sector baskets with 15+ years of daily
+history, because the premium is documented on baskets and news contaminates
+single names. The reading is fixed now: it replicates if a majority of the
+nine show t_ep > 2 with a positive mean; it does not if fewer than three
+do; anything else is mixed and will be reported as mixed. `nulltest.py
+--rule rsi_oversold` with several `--csv` files prints the table and applies
+that rule. Until those bars arrive this stays an open question, and the
+plan does not spend the answer in advance.
+

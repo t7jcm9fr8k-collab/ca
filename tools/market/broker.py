@@ -94,6 +94,17 @@ def account(base, hdr):
             "paper": base == PAPER}
 
 
+def positions(base, hdr):
+    """{symbol: qty} of open positions. Empty dict means flat, not unknown."""
+    out = {}
+    for p in _call(base, "/v2/positions", hdr) or []:
+        try:
+            out[str(p.get("symbol", "")).upper()] = float(p.get("qty") or 0)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def place_order(base, hdr, symbol, side, qty, order_type="market", tif="day"):
     if side not in ("buy", "sell"):
         raise ValueError("side must be buy or sell")

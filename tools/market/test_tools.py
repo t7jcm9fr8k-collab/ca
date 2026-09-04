@@ -1088,6 +1088,37 @@ check("a blocked symbol gets its verdict, not readings", watch.readout("BAD", "1
 check("render says nothing predicts", "none predicts" in watch.render([_ro]))
 shutil.rmtree(_wroot, ignore_errors=True)
 
+# The trader table: what each strategy holds after the last close, on clean
+# bars only, with the dip hold's remaining bars counted from the last RSI<30.
+import watch as _W
+import tempfile as _tf2
+_wt = _tf2.mkdtemp(prefix="watch-")
+_wsl = _series(_daily(60, closes=[100 - 0.6 * i for i in range(25)] + [85 + 0.5 * i for i in range(35)]), symbol="DIPX")
+B.to_csv(_wsl, B.bars_path("DIPX", "1d", _wt))
+_wsig = _W.signals("DIPX", "1d", _wt, specs=("rsi_dip:14,30,5", "trend_filter:20"))
+check("the trader table reads clean bars", _wsig["status"] == "ok", str(_wsig))
+check("it reports a target per strategy",
+      set(_wsig["targets"]) == {"rsi_dip_14_30_5", "trend_filter_20"})
+_wrsi = _F.rsi_series([b.close for b in _wsl.bars], 14)
+_wlast = max(k for k in range(len(_wrsi)) if _wrsi[k] is not None and _wrsi[k] < 30)
+check("dip bars left counts from the last RSI<30 close",
+      _wsig["dip_left"] == max(0, 5 - (len(_wrsi) - 1 - _wlast)), str(_wsig["dip_left"]))
+check("the dip target agrees with the bars-left count",
+      (_wsig["targets"]["rsi_dip_14_30_5"] > 0) == (_wsig["dip_left"] > 0))
+check("a symbol with no bars is reported, not invented",
+      _W.signals("NOPE", "1d", _wt)["status"] == "no bars")
+_wr = _W.render_trader([_wsig, _W.signals("NOPE", "1d", _wt)])
+check("the trader render names the gate and the rule", "gate" in _wr and "not a forecast" in _wr)
+_shutil_w = __import__("shutil"); _shutil_w.rmtree(_wt)
+
+# Cross-symbol replication reading, fixed in advance.
+_rows = lambda ts: [{"symbol": f"S{i}", "status": "ok", "n": 10, "t_ep": t, "mean_bp": 5.0} for i, t in enumerate(ts)]
+check("a majority with t_ep > 2 replicates", nulltest.verdict_across(_rows([3, 3, 3, 3, 3, 1, 1, 1, 1])).startswith("REPLICATES"))
+check("fewer than three does not", nulltest.verdict_across(_rows([3, 3, 1, 1, 1, 1, 1, 1, 1])).startswith("DOES NOT"))
+check("in between is mixed", nulltest.verdict_across(_rows([3, 3, 3, 3, 1, 1, 1, 1, 1])).startswith("MIXED"))
+check("a positive t_ep with a negative mean does not count",
+      nulltest.verdict_across([{"symbol": "X", "status": "ok", "n": 5, "t_ep": 3, "mean_bp": -1}] * 9).startswith("DOES NOT"))
+
 # ---------------------------------------------------------------- aggregate
 
 print("\naggregate — minute bars to sessions")
