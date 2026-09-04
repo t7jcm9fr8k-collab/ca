@@ -105,14 +105,27 @@ def positions(base, hdr):
     return out
 
 
-def place_order(base, hdr, symbol, side, qty, order_type="market", tif="day"):
+def place_order(base, hdr, symbol, side, qty=None, notional=None, order_type="market",
+                tif="day"):
+    """
+    One of `qty` (shares) or `notional` (dollars, fractional shares) — never
+    both, never neither. Alpaca fills a notional market order in fractional
+    shares, which is what lets a rule hold 0.37 of an allocation.
+    """
     if side not in ("buy", "sell"):
         raise ValueError("side must be buy or sell")
-    if qty <= 0:
+    if (qty is None) == (notional is None):
+        raise ValueError("give exactly one of qty or notional")
+    if qty is not None and qty <= 0:
         raise ValueError("qty must be positive")
-    return _call(base, "/v2/orders", hdr, {
-        "symbol": symbol.upper(), "qty": str(qty), "side": side,
-        "type": order_type, "time_in_force": tif})
+    if notional is not None and notional <= 0:
+        raise ValueError("notional must be positive")
+    body = {"symbol": symbol.upper(), "side": side, "type": order_type, "time_in_force": tif}
+    if qty is not None:
+        body["qty"] = str(qty)
+    else:
+        body["notional"] = f"{float(notional):.2f}"
+    return _call(base, "/v2/orders", hdr, body)
 
 
 def get_order(base, hdr, order_id):

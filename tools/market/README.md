@@ -20,7 +20,7 @@ out/              the ledger and its report (gitignored)
 | `ledger.py` | append-only record of backtests, paper runs, live runs and gate bypasses; renders `out/ledger.html`. |
 | `run.py` | the gate. `signal → backtest → paper → live`, each refused without the record the last one made. |
 | `fetch.py` | Stooq (no key) or Alpaca. **Runs on the Mac.** NETWORK / PARSE / OK kept strictly apart. |
-| `broker.py` | Alpaca paper and live orders. **Runs on the Mac, by Daniel's hand.** No agent calls it. |
+| `broker.py` | Alpaca paper and live orders, by share count or by notional. **Runs on the Mac.** Called by `run.py` by hand and by `autopilot.py` on its schedule — since 2026-09-04, at Daniel's request; nothing else in this repo calls it. |
 | `tlsctx.py` | one verifying TLS context for every network call — OS keychain via `truststore` when present — and a diagnosis when verification fails. **Never disables verification**; a test pins it. |
 | `intraday.py` | **the one (c)-grade result**: first-30-min sign → last 30 min, exactly as published, with a permutation null and a 2021+ holdout. Needs minute bars. |
 | `combine.py` | "confluence" both ways — equal-weight average vs AND-gate — with the signal correlation matrix, an in-sample/holdout split, and the **Deflated Sharpe** after counting every trial. |
@@ -28,9 +28,9 @@ out/              the ledger and its report (gitignored)
 | `aggregate.py` | minute bars → one daily bar per New York session. Turns the free 2020-07+ minute feed into ~1,500 daily sessions that include the 2022 bear. Lists short sessions shortest-first so a hole shows before the half-days. |
 | `watch.py` (+ `--trader`: what every registered strategy holds after the last close, per symbol, ranked by the rule firing; `universe.txt` is the pre-registered replication list) | the morning readout for a watchlist. Describes; predicts nothing. |
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
-| `autopilot.py` | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions, order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it. `universe.txt` is its list. |
+| `autopilot.py` | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions (whole shares or `--notional` fractions of an allocation), order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it, and a 15% equity drawdown from the recorded peak writes one. `universe.txt` is its list. |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
-| `test_tools.py` | 429 checks. `python3 test_tools.py` |
+| `test_tools.py` | 456 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -238,6 +238,11 @@ python3 watch.py --watchlist universe.txt --trader
 #     positions, order through the same gate as run.py (no --force exists), record. Paper by default.
 python3 autopilot.py --dry-run
 python3 autopilot.py
+#     --notional 500 holds a fractional target (vol_target returns 0.37 → $185 of $500) in
+#     fractional shares, re-traded only past a 10% band; --qty holds whole shares long/flat.
+#     --max-drawdown 0.15: each run records equity; 15% under the recorded peak writes STOP and
+#     trades nothing (halts, never liquidates — that decision is yours).
+python3 autopilot.py --strategy "vol_target[trend_or_dip:200,14,30,5]:0.10,20" --notional 500
 #     Schedule on the Mac with cron; the keys come from the shell environment, never from a file:
 #       20 16 * * 1-5  cd /PATH/TO/ca/tools/market && python3 autopilot.py >> out/autopilot.log 2>&1
 #     (cron does not read your .zshrc: put the two export lines in ~/.zshenv, or run it from a

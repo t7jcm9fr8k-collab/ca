@@ -741,3 +741,15 @@ keeping: for a daily rule on this index, being out of the market overnight
 is where the return is not, so the after-close cadence of the autopilot,
 which holds through the night by construction, is the right one.
 
+### D · The loop, sized and fused (no new evidence; tooling)
+
+Two things a rule that returns 0.37 needs before it can be run unattended:
+a way to hold 0.37 of an allocation, and a way to stop. `autopilot.py
+--notional D` holds target × D in fractional shares, re-trades only past a
+10% band, and tells the rule the fraction it actually holds through the
+cursor. `--max-drawdown 0.15` records the account's equity every run and,
+when it sits more than 15% under the highest equity ever recorded for that
+mode, writes STOP and trades nothing. It halts; it never liquidates. The
+open positions are then a decision, not a reflex, and the decision is
+Daniel's. Both are pinned by checks against a fake broker.
+

@@ -33,9 +33,22 @@ WHAT ONE RUN DOES, PER SYMBOL IN THE UNIVERSE
     7. record the order in the ledger with autopilot=True, and write
        out/autopilot-<date>.txt
 
+SIZING
+    --qty N        whole shares per position; targets are read as long/flat.
+    --notional D   dollars per symbol; the rule's fractional target (a
+                   vol_target wrapper returns 0.37, say) is held as 0.37 × D
+                   in fractional shares, and only re-traded when the wanted
+                   value moves by more than 10% of D. The position the
+                   cursor sees is held value ÷ D.
+
 WHAT STOPS IT
     A file named STOP beside this script: the run exits before fetching.
     --max-positions (default 3): no new buys past that many open positions.
+    --max-drawdown (default 0.15): every run records the account's equity;
+      if it sits more than this far below the highest equity recorded for
+      this mode, the run writes STOP and trades nothing. It halts; it does
+      not liquidate — what to do with the open positions is a decision, not
+      a reflex, and it is Daniel's.
     One order per symbol per bar date: re-running the schedule is safe.
 
 THE FIRST THING IN THIS REPO THAT PLACES AN ORDER ON ITS OWN
@@ -118,6 +131,9 @@ def decide(series, strategy, now=None, position=0.0):
     return max(-1.0, min(1.0, float(strategy(cur)))), "ok"
 
 
+BAND = 0.10
+
+
 def reconcile(target, held, qty):
     """(side, qty) or (None, reason). Long-only. Never adds to a position."""
     if target is None:
@@ -127,6 +143,44 @@ def reconcile(target, held, qty):
     if target <= 0 and held > 0:
         return "sell", held
     return None, "aligned"
+
+
+def reconcile_notional(target, held_qty, last_close, notional, band=BAND):
+    """
+    Value-based: (side, {"qty": q} | {"notional": d}) or (None, reason).
+    Wanted value is target × notional. A gap under `band` × notional is not
+    traded. Flat wanted with anything held sells the whole quantity, so
+    nothing fractional is left behind.
+    """
+    if target is None:
+        return None, "no decision"
+    held_value = held_qty * last_close
+    wanted = max(0.0, min(1.0, target)) * notional
+    gap = wanted - held_value
+    if target <= 0 and held_qty > 0:
+        return "sell", {"qty": held_qty}
+    if abs(gap) < band * notional:
+        return None, "aligned"
+    if gap > 0:
+        return "buy", {"notional": round(gap, 2)}
+    return "sell", {"notional": round(-gap, 2)}
+
+
+def drawdown_halt(mode, equity, max_drawdown):
+    """
+    Record this run's equity; return a halt message if it is more than
+    max_drawdown below the highest equity ever recorded for this mode.
+    """
+    if equity is None:
+        return None
+    prior = [e.get("equity") for e in ledger.events("autopilot_run", mode=mode)
+             if isinstance(e.get("equity"), (int, float))]
+    peak = max(prior + [equity])
+    ledger.record("autopilot_run", mode=mode, equity=equity, peak=peak)
+    if peak > 0 and equity < peak * (1.0 - max_drawdown):
+        return (f"equity {equity:,.2f} is {1 - equity / peak:.1%} below the recorded peak "
+                f"{peak:,.2f}; limit {max_drawdown:.0%}")
+    return None
 
 
 def gate(mode, strategy_name, symbol, confirm_live):
@@ -150,7 +204,7 @@ def already_acted(mode, strategy_name, symbol, bar_date):
 
 def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
         confirm_live=False, dry_run=False, root=None, fetch_fn=refresh,
-        broker_api=None, now=None, out_dir=None):
+        broker_api=None, now=None, out_dir=None, notional=None, max_drawdown=0.15):
     """
     One pass over the universe. Returns the list of per-symbol records.
     `fetch_fn(symbol, root)` and `broker_api` are injectable for tests; the
@@ -179,6 +233,15 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             held = broker_api.positions(base, hdr)
         except Exception as e:
             return [{"symbol": "*", "action": f"broker unreachable — nothing run: {e}"}]
+        try:
+            equity = float(acct.get("equity")) if acct and acct.get("equity") is not None else None
+        except (TypeError, ValueError):
+            equity = None
+        halt = drawdown_halt(mode, equity, max_drawdown)
+        if halt:
+            with open(STOP_FILE, "w") as f:
+                f.write(f"drawdown halt {dt.datetime.now(B.UTC):%Y-%m-%d %H:%M} UTC: {halt}\n")
+            return [{"symbol": "*", "action": f"HALTED, STOP written — {halt}"}]
     open_positions = sum(1 for q in held.values() if q > 0)
 
     for sym in universe:
@@ -189,11 +252,19 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = "skipped: no bars"
             recs.append(rec)
             continue
-        target, why = decide(s, strat, now, position=1.0 if held.get(sym, 0.0) > 0 else 0.0)
+        held_qty = held.get(sym, 0.0)
+        if notional:
+            pos = max(0.0, min(1.0, held_qty * s.last.close / notional))
+        else:
+            pos = 1.0 if held_qty > 0 else 0.0
+        target, why = decide(s, strat, now, position=pos)
         rec["target"], rec["decision"] = target, why
         rec["bar_date"] = f"{s.last.ts:%Y-%m-%d}"
-        side, amount = reconcile(target, held.get(sym, 0.0), qty)
-        rec["held"] = held.get(sym, 0.0)
+        if notional:
+            side, amount = reconcile_notional(target, held_qty, s.last.close, notional)
+        else:
+            side, amount = reconcile(target, held_qty, qty)
+        rec["held"] = held_qty
         if side is None:
             rec["action"] = f"none: {amount}" if target is not None else f"none: {why}"
             recs.append(rec)
@@ -211,12 +282,14 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = f"none: already acted on {rec['bar_date']}"
             recs.append(rec)
             continue
+        order = amount if isinstance(amount, dict) else {"qty": amount}
+        desc = (f"{order['qty']:g} sh" if "qty" in order else f"${order['notional']:,.2f}")
         if dry_run:
-            rec["action"] = f"would {side} {amount:g} ({mode})"
+            rec["action"] = f"would {side} {desc} ({mode})"
             recs.append(rec)
             continue
         try:
-            o = broker_api.place_order(base, hdr, sym, side, amount)
+            o = broker_api.place_order(base, hdr, sym, side, **order)
             o = broker_api.wait_for_fill(base, hdr, o["id"])
         except Exception as e:
             rec["action"] = f"broker refused: {e}"
@@ -226,7 +299,7 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
         ledger.record(mode, strategy=strat.__name__, symbol=sym, signal=target,
                       endpoint=base, account=acct["account_number"], autopilot=True,
                       bar_date=rec["bar_date"], **summary)
-        rec["action"] = (f"{side} {amount:g}: {summary['status']}, filled "
+        rec["action"] = (f"{side} {desc}: {summary['status']}, filled "
                          f"{summary['filled_qty']:g}")
         if side == "buy":
             open_positions += 1
@@ -263,6 +336,9 @@ def main():
     ap.add_argument("--strategy", default=DEFAULT_STRATEGY)
     ap.add_argument("--mode", default="paper", choices=["paper", "live"])
     ap.add_argument("--qty", type=float, default=1.0, help="shares per new position")
+    ap.add_argument("--notional", type=float, help="dollars per symbol; fractional targets held as a share of it")
+    ap.add_argument("--max-drawdown", type=float, default=0.15,
+                    help="halt (write STOP) when equity is this far below the recorded peak")
     ap.add_argument("--max-positions", type=int, default=3)
     ap.add_argument("--confirm-live", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="decide and print; send nothing")
@@ -273,7 +349,8 @@ def main():
     universe = read_universe(a.universe)
     recs = run(universe, a.strategy, a.mode, a.qty, a.max_positions, a.confirm_live,
                a.dry_run, fetch_fn=lambda sym, root: refresh(sym, root, a.source),
-               out_dir=os.path.join(HERE, "out"))
+               out_dir=os.path.join(HERE, "out"), notional=a.notional,
+               max_drawdown=a.max_drawdown)
     print(render(recs, a.mode, strategies.make(a.strategy).__name__))
 
 

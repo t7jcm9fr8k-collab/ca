@@ -580,6 +580,12 @@ sm = broker.summarise({"id": "o1", "status": "accepted", "side": "buy", "qty": "
 check("an unfilled order summarises with filled_qty 0 and no price",
       sm["filled_qty"] == 0 and sm["filled_avg_price"] is None and sm["order_id"] == "o1")
 check("paper and live endpoints are different hosts", broker.PAPER != broker.LIVE and "paper" in broker.PAPER)
+check("a zero notional is refused before any request",
+      _raises(ValueError, broker.place_order, broker.PAPER, {}, "AAPL", "buy", None, 0))
+check("qty and notional together are refused",
+      _raises(ValueError, broker.place_order, broker.PAPER, {}, "AAPL", "buy", 1, 100))
+check("neither qty nor notional is refused",
+      _raises(ValueError, broker.place_order, broker.PAPER, {}, "AAPL", "buy"))
 
 # ---------------------------------------------------------------- the gate
 
@@ -1189,24 +1195,26 @@ class _FakeBroker:
     """Stands in for broker.py: records what it was asked to send, fills or not."""
     PAPER, LIVE = "paper://", "live://"
 
-    def __init__(self, held=None, fill=True):
-        self.held = dict(held or {})
-        self.fill = fill
-        self.orders = []
-
     def credentials(self):
         return {"k": "v"}
-
-    def account(self, base, hdr):
-        return {"account_number": "FAKE", "status": "ACTIVE", "equity": "1",
-                "buying_power": "1", "paper": base == self.PAPER}
 
     def positions(self, base, hdr):
         return dict(self.held)
 
-    def place_order(self, base, hdr, symbol, side, qty):
-        self.orders.append((base, symbol, side, qty))
-        return {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side, "qty": str(qty)}
+    def __init__(self, held=None, fill=True, equity="1000"):
+        self.held = dict(held or {})
+        self.fill = fill
+        self.orders = []
+        self.equity = equity
+
+    def account(self, base, hdr):
+        return {"account_number": "FAKE", "status": "ACTIVE", "equity": self.equity,
+                "buying_power": "1", "paper": base == self.PAPER}
+
+    def place_order(self, base, hdr, symbol, side, qty=None, notional=None):
+        self.orders.append((base, symbol, side, qty if qty is not None else notional))
+        return {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side,
+                "qty": str(qty if qty is not None else 0)}
 
     def wait_for_fill(self, base, hdr, oid):
         _, _, side, qty = self.orders[-1]
@@ -1248,7 +1256,7 @@ try:
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now, dry_run=True)
     check("dry run decides and sends nothing",
-          _r[0]["action"] == "would buy 2 (paper)" and _fb.orders == [], _r[0]["action"])
+          _r[0]["action"] == "would buy 2 sh (paper)" and _fb.orders == [], _r[0]["action"])
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
     check("long wanted and flat → one paper buy of qty",
@@ -1302,6 +1310,42 @@ try:
     check("autopilot has no --force", "--force" not in _ap_src.split("USAGE")[1])
     check("the report names the gate and the STOP file",
           "gate" in autopilot.render(_r, "paper", "x") and "STOP" in autopilot.render(_r, "paper", "x"))
+    # notional sizing: fractional targets are held as a share of the allocation
+    check("notional reconcile: long wanted and flat buys the whole allocation",
+          autopilot.reconcile_notional(1.0, 0.0, 100.0, 1000.0) == ("buy", {"notional": 1000.0}))
+    check("notional reconcile: a smaller target sells the difference",
+          autopilot.reconcile_notional(0.4, 10.0, 100.0, 1000.0) == ("sell", {"notional": 600.0}))
+    check("notional reconcile: a gap inside the band is not traded",
+          autopilot.reconcile_notional(0.45, 4.0, 100.0, 1000.0) == (None, "aligned"))
+    check("notional reconcile: flat wanted sells every share, never a notional remainder",
+          autopilot.reconcile_notional(0.0, 3.7, 100.0, 1000.0) == ("sell", {"qty": 3.7}))
+    ledger.record("backtest", strategy="trend_filter_25", symbol="DIPX")   # a rule not yet acted on today
+    _fb7 = _FakeBroker()
+    _r = autopilot.run(["DIPX"], "trend_filter:25", "paper", root=_ap_root, notional=500.0,
+                       fetch_fn=_ap_fetch, broker_api=_fb7, now=_ap_now)
+    check("a notional run sends a notional order", _fb7.orders == [("paper://", "DIPX", "buy", 500.0)], str(_fb7.orders))
+    # the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
+    autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP2")
+    _fb8 = _FakeBroker(equity="1000")
+    autopilot.run(["DIPX"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                  broker_api=_fb8, now=_ap_now)
+    _fb9 = _FakeBroker(equity="900")
+    _r9 = autopilot.run(["DIPX"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                        broker_api=_fb9, now=_ap_now)
+    check("a 10% drawdown from the recorded peak does not halt",
+          not os.path.exists(autopilot.STOP_FILE) and "HALTED" not in _r9[0]["action"], _r9[0]["action"])
+    _fb10 = _FakeBroker(equity="840")
+    _r10 = autopilot.run(["DIPX"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                         broker_api=_fb10, now=_ap_now)
+    check("a 16% drawdown from the recorded peak halts, writes STOP, trades nothing",
+          os.path.exists(autopilot.STOP_FILE) and "HALTED" in _r10[0]["action"] and _fb10.orders == [],
+          _r10[0]["action"])
+    _runs = ledger.events("autopilot_run", mode="paper")
+    check("the run records its equity and the peak each time",
+          [e["equity"] for e in _runs[-3:]] == [1000.0, 900.0, 840.0] and _runs[-1]["peak"] == 1000.0,
+          str([e["equity"] for e in _runs[-3:]]))
+    check("a halt never liquidates", "sell" not in str(_fb10.orders))
+    autopilot.STOP_FILE = _sf
 finally:
     ledger.LEDGER = _ap_ledger_real
     shutil.rmtree(_ap_sand)
