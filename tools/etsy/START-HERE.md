@@ -141,7 +141,7 @@ browser was launched from that directory. Renamed to `schedule.py` and `qc.py`.
 ```bash
 cd tools/etsy
 ./demo.sh                                   # the whole loop, refusal included
-python3 test_tools.py                       # 141 checks
+python3 test_tools.py                       # 163 checks
 python3 compose.py --list-recipes           # what is still BLOCKED on provenance
 python3 mockup.py --design X --version 1 --print out/X-onlight.png
 python3 qc.py     --design X --version 1

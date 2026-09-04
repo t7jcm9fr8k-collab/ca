@@ -324,6 +324,16 @@ check("the renderable design is not marked blocked",
       "| Kraken Chart | spread for the ranking boost |" in _md2)
 check("the calendar says how many cannot be rendered yet",
       "7 of 8 cannot be rendered yet" in _md2)
+# And a blocked design's provisional date must not put it into Pinterest's
+# rotation — main() passes only the renderable releases to posting_schedule.
+_live_or_ready = {d["id"] for d in cat["designs"] if d.get("status") == "live"} | _ready
+_slots2 = shirtcal.posting_schedule(cat["designs"], _dt.date(2026, 9, 5), _dt.date(2026, 11, 30),
+                                    [(d, x) for d, x in _rel2 if x["id"] in _ready])
+check("Pinterest never carries a blocked design",
+      all(x["design"]["id"] in _live_or_ready for x in _slots2 if x["platform"] == "Pinterest"),
+      str({x["design"]["id"] for x in _slots2 if x["platform"] == "Pinterest"} - _live_or_ready))
+check("the renderable design does reach Pinterest once released",
+      any(x["design"]["id"] == "kraken-chart" for x in _slots2 if x["platform"] == "Pinterest"))
 _shutil.rmtree(_cal_sand)
 
 slots = shirtcal.posting_schedule(cat["designs"], _dt.date(2026, 9, 5),
@@ -377,6 +387,80 @@ check("ics has one event per item",
       ics.count("BEGIN:VEVENT") == len([d for d in dates if d]) + len(slots))
 check("ics UIDs are unique",
       len(set(re.findall(r"^UID:(.+)$", ics, re.M))) == ics.count("BEGIN:VEVENT"))
+
+# ---------------------------------------------------------------- printables
+
+print("\nprintables")
+
+import printable
+
+_pa = Image.new("RGBA", (300, 360), (0, 0, 0, 0))
+ImageDraw.Draw(_pa).rectangle([50, 60, 250, 300], fill=(20, 20, 20, 255))
+_fit, _fi = printable.fit(_pa, (8, 10), dpi=30, margin_in=0.5, ground="#FFFFFF")
+check("the sheet is the size asked for, at the dpi asked for", _fit.size == (240, 300), str(_fit.size))
+check("the art is scaled to fit inside the margin",
+      _fi["art_px"][0] <= 240 - 30 and _fi["art_px"][1] <= 300 - 30, str(_fi))
+check("the art keeps its aspect ratio",
+      abs((_fi["art_px"][0] / _fi["art_px"][1]) - (200 / 240)) < 0.02, str(_fi["art_px"]))
+check("the art is centred",
+      abs(_fi["offset"][0] * 2 + _fi["art_px"][0] - 240) <= 1
+      and abs(_fi["offset"][1] * 2 + _fi["art_px"][1] - 300) <= 1, str(_fi))
+check("the margin holds no ink",
+      all(_fit.getpixel(p) == (255, 255, 255)
+          for p in [(5, 5), (234, 5), (5, 294), (120, 10), (10, 150)]))
+_big = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
+ImageDraw.Draw(_big).rectangle([10, 10, 50, 50], fill=(0, 0, 0, 255))
+_fb, _fbi = printable.fit(_big, (8, 10), dpi=30)
+check("small art is never enlarged", _fbi["scale"] == 1.0 and _fbi["art_px"] == (41, 41), str(_fbi))
+check("a blank print file is refused", _raises(ValueError, printable.fit, Image.new("RGBA", (10, 10)), (8, 10), 30))
+
+import tempfile as _tf
+_pd = _tf.mkdtemp(prefix="printable-")
+_recs = printable.export(_pa, "fixture", _pd, sizes=["8x10", "a3"], dpi=30,
+                         forbid=["PLANTED-SECRET"])
+check("every size asked for is written, as png and pdf",
+      [r["size"] for r in _recs] == ["8x10", "a3"]
+      and all(_os.path.exists(r["png"]) and _os.path.exists(r["pdf"]) for r in _recs))
+_rp = Image.open(_recs[0]["png"])
+check("the png carries only its dpi", sorted(_rp.info) == ["dpi"], str(sorted(_rp.info)))
+check("the png is plain RGB", _rp.mode == "RGB")
+_pdfb = open(_recs[0]["pdf"], "rb").read()
+check("the pdf is a pdf", _pdfb.startswith(b"%PDF"))
+check("the pdf names no author, creator, producer, title or date",
+      not any(k in _pdfb for k in printable.PDF_INFO_KEYS))
+import zlib as _zlib
+_s0 = _pdfb.index(b"stream\n", _pdfb.index(b"/Subtype /Image")) + 7
+_s1 = _pdfb.index(b"\nendstream", _s0)
+check("the pdf's image is the png's pixels, byte for byte",
+      _zlib.decompress(_pdfb[_s0:_s1]) == _rp.convert("RGB").tobytes())
+check("the pdf is one page holding one image at the sheet size",
+      _pdfb.count(b"/Type /Page ") == 1 and b"/Subtype /Image" in _pdfb
+      and b"/MediaBox [0 0 576.00 720.00]" in _pdfb and _pdfb.rstrip().endswith(b"%%EOF"))
+check("a clean file passes the audit", printable.audit(_recs[0]["png"], ["PLANTED-SECRET"]) == [])
+
+# The scrub: plant a string in a written file and make sure the audit sees it
+# and the export deletes it. The tEXt chunk is how a name usually travels.
+from PIL import PngImagePlugin as _PngInfo
+_leak = _os.path.join(_pd, "leak.png")
+_pi = _PngInfo.PngInfo()
+_pi.add_text("Author", "PLANTED-SECRET")
+Image.new("RGB", (8, 8)).save(_leak, "PNG", pnginfo=_pi)
+_lp = printable.audit(_leak, ["planted-secret"])
+check("planted metadata is reported", any("metadata" in x for x in _lp), str(_lp))
+check("a forbidden string is found case-insensitively", any("forbidden" in x for x in _lp), str(_lp))
+_real_audit = printable.audit
+def _tainted(path, forbid=()):
+    return _real_audit(path, forbid) + (["forbidden string present: 'X'"] if path.endswith("11x14.pdf") else [])
+printable.audit = _tainted
+_raised = _raises(RuntimeError, printable.export, _pa, "tainted", _pd, ["11x14"], 30)
+printable.audit = _real_audit
+check("an export that fails the scrub raises", _raised)
+check("and leaves nothing on disk",
+      not _os.path.exists(_os.path.join(_pd, "tainted-11x14.png"))
+      and not _os.path.exists(_os.path.join(_pd, "tainted-11x14.pdf")))
+check("an unknown size is refused",
+      _raises(ValueError, printable.export, _pa, "x", _pd, ["a4"], 30))
+_shutil.rmtree(_pd)
 
 # ---------------------------------------------------------------- rival
 

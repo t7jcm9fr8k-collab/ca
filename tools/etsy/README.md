@@ -23,7 +23,8 @@ out/              everything generated
 | `qc.py` | the QC gate — nine checks, each reporting a number |
 | `history.py` | append-only ledger + the change history you can look at |
 | `demo.sh` | the whole loop end to end, reproducibly |
-| `test_tools.py` | 141 checks. `python3 test_tools.py` |
+| `printable.py` | the November printables: four sizes at 300 DPI, never stretched or enlarged, PNG plus a hand-written PDF with no metadata at all, scrubbed against strings you pass with `--forbid`, gated on a recorded inspection. |
+| `test_tools.py` | 163 checks. `python3 test_tools.py` |
 
 ## The order
 

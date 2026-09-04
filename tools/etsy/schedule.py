@@ -417,7 +417,10 @@ def main():
 
     ready = renderable(designs)
     releases = release_schedule(designs, start, ready=ready)
-    slots = posting_schedule(designs, start, end, releases)
+    # A blocked design's release date is provisional, so it must not put the
+    # design into Pinterest's rotation: that slot would link to nothing.
+    slots = posting_schedule(designs, start, end,
+                             [(d, x) for d, x in releases if x.get("id") in ready])
 
     os.makedirs(a.out, exist_ok=True)
     md = os.path.join(a.out, "calendar.md")
