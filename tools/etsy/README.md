@@ -17,13 +17,13 @@ out/              everything generated
 | `render_plate.py` | one plate → print file. Lifts the paper ground, rebuilds tone for DTG, typesets a caption. |
 | `compose.py` | several plates → **one original composition**. Cut out, unified to a single ink palette, masked, composed. |
 | `listing.py` | title, 13 tags and description — with validators that fail loudly. |
-| `schedule.py` | the release calendar and the daily posting calendar. Markdown + `.ics`. |
+| `schedule.py` | the release calendar and the daily posting calendar. Markdown + `.ics`. Designs that can be rendered today go first; the rest are labelled BLOCKED, because `compose.py` will refuse them. |
 | `rival.py` | competitor counts over time. Runs on the Mac; needs network. |
 | `mockup.py` | print file → garment mockups at true physical scale. **Refuses v2 without an inspection of v1.** |
 | `qc.py` | the QC gate — nine checks, each reporting a number |
 | `history.py` | append-only ledger + the change history you can look at |
 | `demo.sh` | the whole loop end to end, reproducibly |
-| `test_tools.py` | 131 checks. `python3 test_tools.py` |
+| `test_tools.py` | 141 checks. `python3 test_tools.py` |
 
 ## The order
 

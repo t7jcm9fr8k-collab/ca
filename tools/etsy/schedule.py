@@ -31,6 +31,15 @@ WHAT IT AVOIDS
     The school wall: no slot between 09-13 and 09-29, where twelve graded
     deadlines fall, six of them on 09-20 alone.
 
+WHAT DECIDES THE RELEASE ORDER
+    Whether the design can be rendered. A recipe whose source plates are not on
+    disk, or whose provenance is blank, is refused by compose.py — so a calendar
+    that puts it first is telling you to list something that does not exist.
+    Renderable designs go first, seasonal ones ahead within each group, then by
+    id. Today (2026-09-04) that is the difference between the calendar saying
+    "Doré first" (alphabetical among the seasonals, no plates) and "Marigold
+    first" (the two designs whose plates arrive this weekend).
+
 USAGE
     python3 schedule.py --catalogue catalogue.json
     python3 schedule.py --start 2026-09-05 --end 2026-11-30 --ics
@@ -95,20 +104,57 @@ def in_blackout(d):
     return BLACKOUT[0] <= d <= BLACKOUT[1]
 
 
-def release_schedule(designs, start, cutoff=RELEASE_CUTOFF):
+def renderable(designs, recipes_dir=None, sources_dir=None):
+    """
+    The ids of the designs compose.py would render today: a recipe on disk,
+    every layer's source file present under sources_dir, and provenance
+    complete by compose.check_provenance — the same test compose.py applies
+    before it draws a pixel. Anything else is BLOCKED and cannot be listed,
+    whatever date the calendar might give it.
+    """
+    import compose  # lazy: pulls PIL, which the calendar itself never needs
+    recipes_dir = recipes_dir or os.path.join(HERE, "recipes")
+    sources_dir = sources_dir or os.path.join(HERE, "sources")
+    ready = set()
+    for d in designs:
+        did = d.get("id", "")
+        path = os.path.join(recipes_dir, f"{did}.json")
+        if not os.path.exists(path):
+            continue
+        try:
+            recipe = json.load(open(path))
+        except Exception:
+            continue
+        if compose.check_provenance(recipe):
+            continue
+        srcs = [l.get("source", "") for l in recipe.get("layers", [])]
+        if srcs and all(os.path.exists(os.path.join(sources_dir, x)) for x in srcs):
+            ready.add(did)
+    return ready
+
+
+def release_schedule(designs, start, cutoff=RELEASE_CUTOFF, ready=None):
     """
     Spread the unreleased designs over the usable days before the cutoff.
 
-    Seasonal designs are pulled earlier so they are ranking before their peak
-    rather than launching into it.
+    `ready` is the set of design ids that can be rendered today (see
+    renderable()). Those go first: a release date for a design with no plates
+    is a date nothing can happen on. None means "treat every design as
+    renderable", which is only right for a calendar drawn before any plate
+    was expected.
+
+    Within each group, seasonal designs are pulled earlier so they are ranking
+    before their peak rather than launching into it.
     """
     pending = [d for d in designs if d.get("status") != "live"]
     if not pending:
         return []
 
-    # Seasonal first — they have a date they must beat.
+    # Renderable first — the rest cannot be listed on any date. Then seasonal —
+    # they have a date they must beat. Then by id, so the order is stable.
     def key(d):
-        return (0 if d.get("seasonal_peak") else 1, d.get("id", ""))
+        blocked = 0 if ready is None or d.get("id") in ready else 1
+        return (blocked, 0 if d.get("seasonal_peak") else 1, d.get("id", ""))
     pending = sorted(pending, key=key)
 
     # Weekends first — that is when the work actually happens. But there are only
@@ -250,7 +296,7 @@ def tiktok_copy(design, angle):
     return cap, " ".join(tags)
 
 
-def to_markdown(releases, slots, tz):
+def to_markdown(releases, slots, tz, ready=None):
     L = []
     L.append("# Release and posting calendar\n")
     L.append(f"Times are local ({tz}). Nothing falls between "
@@ -263,9 +309,17 @@ def to_markdown(releases, slots, tz):
              "Standards.\n")
     L.append("| Date | Design | Why then |")
     L.append("|---|---|---|")
+    blocked = 0
     for date, d in releases:
         why = d.get("seasonal_note") or "spread for the ranking boost"
+        if ready is not None and d.get("id") not in ready:
+            why = "**BLOCKED — no plates / provenance blank**; " + why
+            blocked += 1
         L.append(f"| {date if date else '**no slot left**'} | {d.get('name')} | {why} |")
+    if blocked:
+        L.append(f"\n{blocked} of {len(releases)} cannot be rendered yet. compose.py "
+                 "refuses them; their dates hold only once the plates are in "
+                 "`sources/` with provenance filled (SOURCING.md).")
     L.append(f"\nAll live by **{RELEASE_CUTOFF}** — roughly six weeks of ranking "
              f"history before the December peak.\n")
 
@@ -361,12 +415,13 @@ def main():
     if end < start:
         sys.exit("--end is before --start")
 
-    releases = release_schedule(designs, start)
+    ready = renderable(designs)
+    releases = release_schedule(designs, start, ready=ready)
     slots = posting_schedule(designs, start, end, releases)
 
     os.makedirs(a.out, exist_ok=True)
     md = os.path.join(a.out, "calendar.md")
-    open(md, "w").write(to_markdown(releases, slots, a.tz))
+    open(md, "w").write(to_markdown(releases, slots, a.tz, ready=ready))
     print(f"wrote {md}")
 
     if a.ics:
@@ -375,8 +430,13 @@ def main():
         print(f"wrote {ics}")
 
     late = [(d, x) for d, x in releases if d is None or d > RELEASE_CUTOFF]
+    blocked = [x for _, x in releases if x.get("id") not in ready]
     print(f"\n{len(releases)} releases, {len(slots)} posting slots, "
           f"{(end - start).days + 1} days spanned")
+    if blocked:
+        print(f"⚠ {len(blocked)} of {len(releases)} cannot be rendered yet "
+              f"(plates missing or provenance blank): "
+              f"{', '.join(str(x.get('id')) for x in blocked)}", file=sys.stderr)
     if late:
         print(f"⚠ {len(late)} release(s) fall after the {RELEASE_CUTOFF} cutoff: "
               f"{', '.join(str(x.get('id')) for _, x in late)}", file=sys.stderr)

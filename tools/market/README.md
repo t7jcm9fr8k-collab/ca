@@ -70,14 +70,18 @@ said. Two ways on:
 
 - **Browser download.** Open `https://stooq.com/q/d/?s=spy.us`, click the CSV
   download, then `mv ~/Downloads/spy_us_d.csv bars/SPY-1d.csv`. `bars.py`
-  reads Stooq's format as is.
+  reads Stooq's format as is. Two things the file turned out to be: it starts
+  on **2005-02-25** for SPY, not 1993; and its prices are **dividend-adjusted**
+  (the basis guard measured a 2.3% median gap against the feed's last print,
+  shrinking from −6.25% in 2020 to 0 in 2025). So it is the right file for the
+  trend filter with **no `--dividend-yield`**, and the wrong file for trial 3.
 - **`--source yahoo`.** Keyless, official consolidated closes, back to 1993.
-  `python3 fetch.py --source yahoo --symbol SPY --out bars/SPY-1d.csv`.
-  Add `--adjusted-close` for the total-return series (then no
-  `--dividend-yield` is needed) — **but not for trial 3**: `--close-from`
-  needs raw closes, and `intraday.py` refuses a file whose closes sit more than
-  1% from the minute feed's own last print, which is what an adjusted series
-  looks like.
+  `python3 fetch.py --source yahoo --symbol SPY --out bars/SPY-1d-raw.csv`
+  gives the raw closes **trial 3 needs**. Add `--adjusted-close` for the
+  total-return series (then no `--dividend-yield` is needed) — but never for
+  `--close-from`: `intraday.py` refuses a file whose closes sit more than 1%
+  from the minute feed's own last print, which is what an adjusted series
+  looks like, and it refused Stooq's on exactly that test.
 
 ## Candles or the data?
 
@@ -181,14 +185,15 @@ Nothing in them is tuned to the data: every rule is fixed before it sees a bar.
 #     Both published variants were EXCLUDED on SPY 2020-07..2026-09 (see EVIDENCE.md).
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --cost-bps 2
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule open_to_1530
-#     trial 3, pre-registered 2026-09-02: same rule, exit at the OFFICIAL close (Stooq's daily
-#     closes are consolidated), which closes the IEX closing-auction caveat
-python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
+#     trial 3, pre-registered 2026-09-02: same rule, exit at the OFFICIAL close, which closes
+#     the IEX closing-auction caveat. Needs RAW closes: Stooq's are dividend-adjusted and were
+#     REFUSED by the basis guard (2.3% median gap). fetch.py --source yahoo, no --adjusted-close.
+python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d-raw.csv --close-source yahoo
 #     measure here, analyse anywhere: the minute file is 35 MB, the per-session measurement is
 #     100 KB. Export on the machine with the bars; run the rules, the null and trial 3 from the
 #     export on any machine — the numbers are identical to the last digit, pinned by test.
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --export-sessions bars/SPY-sessions.csv
-python3 intraday.py --sessions-from bars/SPY-sessions.csv --rule first30 --close-from bars/SPY-1d.csv --close-source stooq
+python3 intraday.py --sessions-from bars/SPY-sessions.csv --rule first30 --close-from bars/SPY-1d-raw.csv --close-source yahoo
 python3 intraday.py --synth 600 --effect 0.4 --no-record          # what "found" looks like, offline
 python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothing" looks like
 
@@ -198,12 +203,14 @@ python3 intraday.py --synth 600 --effect 0.0 --no-record          # what "nothin
 python3 aggregate.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --adjusted yes
 python3 barqc.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes
 python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --cash-yield 0.04
-#     (b) Stooq, back to 1993 — 2000 and 2008 are where a filter earns its keep. Stooq's prices
-#         are NOT dividend-adjusted, so credit a flat yield to held positions AND the reference,
-#         or buy-and-hold is understated by ~2% a year compounded over three decades.
-python3 fetch.py --source stooq --symbol SPY
+#     (b) Stooq daily, browser-downloaded (the fetch is behind a bot-check). SPY starts 2005-02-25
+#         there, so 2008, 2020 and 2022 are in and 2000 is not. The prices ARE dividend-adjusted
+#         (measured, see above), so no --dividend-yield: it would count the dividends twice.
+#         Run on 21 years: max drawdown -19.7% vs -56.5% buy-and-hold, CAGR 8.8% vs ~10.4%.
 python3 barqc.py --csv bars/SPY-1d.csv --symbol SPY --source stooq
-python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.03 --dividend-yield 0.018
+python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.03
+#         For a raw-price file (fetch.py --source yahoo without --adjusted-close) add
+#         --dividend-yield 0.018 so held positions AND the reference carry the dividends.
 
 # 3 · confluence done right, and the AND-gate beside it
 python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes \

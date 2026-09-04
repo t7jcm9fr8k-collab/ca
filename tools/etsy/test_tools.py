@@ -270,6 +270,62 @@ check("seasonal designs are released first",
       {r[1]["id"] for r in rel[:3]} >=
       {"marigold-calavera"}, str([r[1]["id"] for r in rel[:3]]))
 
+# A release date for a design with no plates is a date nothing can happen on:
+# compose.py refuses to render it. So the calendar puts renderable designs
+# first, whatever their id or season, and says plainly which ones are blocked.
+# Today every recipe is blocked, and by id the calendar read "Doré first" when
+# the two designs whose plates arrive this weekend are Marigold and Orchid.
+import json as _json
+import os as _os
+import shutil as _shutil
+import tempfile as _tempfile
+_cal_sand = _tempfile.mkdtemp()
+_rd, _sd = _os.path.join(_cal_sand, "recipes"), _os.path.join(_cal_sand, "sources")
+_os.makedirs(_rd)
+_os.makedirs(_sd)
+_prov = {"url": "https://example.org/file", "licence": "public domain",
+         "traced": "2026-09-05", "credit": "Example Library"}
+
+
+def _recipe(did, srcs, prov):
+    _json.dump({"id": did, "layers": [{"source": x, "provenance": dict(prov)}
+                                      for x in srcs]},
+               open(_os.path.join(_rd, f"{did}.json"), "w"))
+
+
+_recipe("kraken-chart", ["kraken.jpg"], _prov)                 # plate in, provenance filled
+_recipe("marigold-calavera", ["posada.jpg"], _prov)            # provenance filled, plate MISSING
+_recipe("dore-descent", ["dore.jpg"], {k: "" for k in _prov})  # plate in, provenance blank
+open(_os.path.join(_sd, "kraken.jpg"), "wb").write(b"x")
+open(_os.path.join(_sd, "dore.jpg"), "wb").write(b"x")
+_ready = shirtcal.renderable(cat["designs"], _rd, _sd)
+check("a design with its plate on disk and provenance filled is renderable",
+      _ready == {"kraken-chart"}, str(_ready))
+check("a filled recipe whose plate is not on disk is not renderable",
+      "marigold-calavera" not in _ready)
+check("a plate on disk with blank provenance is not renderable",
+      "dore-descent" not in _ready)
+check("a design with no recipe at all is not renderable",
+      "orchid-skull" not in _ready)
+_rel2 = shirtcal.release_schedule(cat["designs"], _dt.date(2026, 9, 5), ready=_ready)
+check("the renderable design releases first, ahead of the seasonals",
+      _rel2[0][1]["id"] == "kraken-chart", str([r[1]["id"] for r in _rel2[:3]]))
+check("seasonal-then-id order still holds among the blocked designs",
+      [r[1]["id"] for r in _rel2[1:4]] ==
+      ["dore-descent", "fungi-codex", "marigold-calavera"],
+      str([r[1]["id"] for r in _rel2[1:4]]))
+check("with no readiness given the old order is unchanged",
+      [r[1]["id"] for r in rel] ==
+      [r[1]["id"] for r in shirtcal.release_schedule(cat["designs"], _dt.date(2026, 9, 5))])
+_md2 = shirtcal.to_markdown(_rel2, [], "America/New_York", ready=_ready)
+check("the calendar marks every blocked design", _md2.count("BLOCKED") == 7,
+      str(_md2.count("BLOCKED")))
+check("the renderable design is not marked blocked",
+      "| Kraken Chart | spread for the ranking boost |" in _md2)
+check("the calendar says how many cannot be rendered yet",
+      "7 of 8 cannot be rendered yet" in _md2)
+_shutil.rmtree(_cal_sand)
+
 slots = shirtcal.posting_schedule(cat["designs"], _dt.date(2026, 9, 5),
                                   _dt.date(2026, 11, 30))
 days = [s["date"] for s in slots]

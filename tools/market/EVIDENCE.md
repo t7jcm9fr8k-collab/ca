@@ -498,7 +498,8 @@ open-to-close mean was +1.5 bp gross against ~8 bp/day close-to-close, so the
 null test's next-open-to-close hold is not comparable to the close-to-close
 pattern literature. The 669-bar daily sample has no bear market in it. The
 minute bars from 2020-07 do — the 2022 decline — and `aggregate.py` now turns
-them into daily sessions so the daily tools can see it.
+them into daily sessions so the daily tools can see it. Both that and a
+21-year daily file were run next; see the section below.
 
 ### Base rate, restated
 
@@ -507,3 +508,72 @@ on six years of the exact instrument and bar size it was published on; the
 patterns and indicators behave as the literature says; the trend filter cuts
 drawdown at the cost of return. This is what a correct pipeline was expected
 to find, and it found it on the first real run.
+
+## Second and third runs — 2022 in, then 2008 in (2026-09-04)
+
+Two more data sets, same pre-registered rules, same tools after the reviewers'
+fixes. The second is the minute feed aggregated to 1,532 daily sessions
+(2020-07 → 2026-09, the 2022 bear inside). The third is Stooq's daily SPY —
+which turned out to start on **2005-02-25**, not 1993: 5,413 sessions, 2008,
+2020 and 2022 inside, 2000–02 not. Nothing in either run changes a verdict.
+
+**Intraday momentum, trial 2 (open → 15:30 as the predictor): excluded
+again.** Gross −0.22 ± 0.67 bp, 95% CI [−1.52, +1.09], permutation p = 0.63.
+The only positive year gross was 2022 (+4.1 ± 2.4 bp), one of seven and
+post-hoc. **Trial 3 (exit at the official close, to close the IEX
+closing-auction caveat) was refused by the tool** before it produced a number:
+the median gap between Stooq's close and the feed's last print was 2.30%, and
+by year it runs from −6.25% in 2020 to −0.00% in 2025 — the signature of a
+dividend-adjusted (total-return) series. Joining it would have manufactured a
+last-half-hour return out of reinvested dividends. Trial 3 needs the price the
+tape printed; it waits on an unadjusted daily file.
+
+**Trend filter (200-day), 2005 → 2026, cost 5 bp, idle cash at 3%, dividends
+left in the prices:** +469% against +683% for buy-and-hold; CAGR 8.8% against
+about 10.4%; Sharpe 0.78 against 0.61 on 11.6% vol against 19.2%; **maximum
+drawdown −19.7% against −56.5%**; 121 fills in 21 years, about six a year,
+79% of the time invested. The year-by-year drawdowns are the whole story: 2008
+−8.4% against −51.8%, 2009 −11.6% against −56.5%, 2020 −19.0% against −33.7%,
+2022 −12.0% against −24.5%. That is Faber's and Zakamulin's result to the
+digit — the filter buys insurance against the deep drawdowns and pays for it in
+return, and the payment shows up as whipsaw in 2010–12 and 2015–16. Three
+major episodes carry the drawdown number, and 3% on idle cash is generous for
+2009–2021. On the 5.3-year aggregated file the same rule gave +63% against
++87%, drawdown −20% against about −25%, Sharpe 0.88 on 11.2% vol, 33 fills.
+Method #4 stays (b): risk management, not alpha.
+
+**Null test, 21 years, 1,000 volatility-matched draws:** seven of eight rules
+null. The one that is not is `rsi_oversold` — 93 events, +47.5 bp net per
+event, standard deviation 249 bp, hit rate 60%, **t = 1.84**. Read it before
+believing it: the largest single event (2025-04-08, +1,113 bp) is 25% of the
+total; the 93 events fall in about fifteen episodes (2008 January, July and
+October; February–March 2009; August 2011; December 2018; March 2020; runs of
+consecutive days through 2022; April 2025), so the effective sample is far
+smaller than 93 and t is an upper bound; the rule's plain-language twin
+`fell_5pct_10bars` sits at t = 0.82; and `doji` — the pattern with no
+direction — comes in at t = −2.73 on 562 events, which is the same size of
+"effect" with the opposite sign and no story. One-sided p ≈ 0.034 alone, ≈
+0.24 after eight rules. What shows through is the documented reversal premium
+at volatility extremes (Nagel 2012), which is liquidity provision paid for by
+sitting through days like October 2008 — visible in a 21-year mean and not a
+trade a retail account should be running. On the 5.3-year file the same test
+found three p < 0.05 with 2025-04-08 alone supplying 86% and 55% of the two
+dip-rule totals, and the short-side mirror `engulf_bear_after_rise` losing at
+t = −2.5.
+
+**Combine, 2021-05 → 2026-09, holdout from 2024-01-01:** buy-and-hold 16.7%
+in-sample, 61.2% in the holdout, and every line trailed it in both. The best
+in-sample line, `breakout_20` at a per-bar Sharpe of 0.40, went to **−0.53**
+in the holdout; the AND-gate lost 6.3% in the holdout on 143 fills; the four
+signals agreed 22% of the time. Deflated Sharpe 0.61 — the best of the set is
+about what the best of eight nothings looks like. This holdout has now been
+read for these four signals and cannot be used to select among them.
+
+**What the third run adds to the base rate.** The trend filter's drawdown
+protection survives the one test that matters for it — 2008 — and is the only
+result in three runs that is worth keeping, as risk control. The reversal
+premium is real, small, concentrated in a handful of days, and not a rule.
+Nothing else moved. A pipeline that finds nothing three times on the same
+instrument with three different windows is behaving as a correct pipeline
+should; the value of the runs is that the finding is now measured rather than
+quoted.
