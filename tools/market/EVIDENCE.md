@@ -858,24 +858,60 @@ The tool's verdict, verbatim:
 | TLT | 54 | 13 | +27.4 | 0.89 | 2.83 | 63% | −19.9 |
 | GLD | 37 | 9 | +107.2 | 3.12 | 3.24 | 70% | +18.7 |
 
-**How much this is worth, said plainly.** It is the first pre-registered
-out-of-sample test in this project that came back positive, and it came
-back positive on every line. Three things keep it from being more than it
-is. Six years is not fifteen: the window holds the 2022 bear and April 2025
-but not 2008 or March 2020. The nine symbols are not nine witnesses: the
-seven equity baskets fall on the same days, so their "9 of 9" is nearer
-three independent votes — equities, bonds, gold — and the two that are
-genuinely independent of SPY are the ones to weigh: TLT's mean is small
-(+27 bp against a *negative* matched baseline) and its evidence is in the
-witnesses (t_ep 2.83, 13 episodes), while GLD is clean on every column.
-And the vol-matched baseline is itself positive on eight of nine lines,
-which says the period was kind to buying volatile days in general; the
-rule's mean sits three to ten times above that baseline everywhere except
-TLT. The reading rule was fixed in advance and it says REPLICATES; the
-honest gloss is "replicates on a short window, on roughly three independent
-witnesses, with the two non-equity lines carrying the weight". The
-fifteen-year version stays owed and stays pre-registered: the same
-command on Stooq's browser files or Yahoo when it answers. Nothing here
-changes the money reading — a premium worth about a point a year over cash
-per line, now seen on nine lines instead of one.
+**How much this is worth, said plainly — as amended by three refuters.**
+Every deterministic column above (n, witnesses, mean, t, t_ep, hit) was
+reproduced independently from the raw files by all three, one of them with
+their own RSI and their own forward returns; the Monte-Carlo columns (null
+bp, p) wobble by a few basis points between runs even at the fixed seed
+and should be read as approximate. No implementation error was found. Then
+the reading was corrected:
+
+- **This is not out-of-sample in time for the equity lines.** 2020–2026 sits
+  inside the 21-year SPY sample on which the rule was found, and SPY on this
+  same window has seven episodes, seven of seven positive, t_ep 2.99, which
+  coincide with 71–100% of the QQQ, DIA, IWM, XLF and EFA episodes. So the
+  seven equity baskets re-measure the discovery's own days on instruments
+  correlated ~0.9 with it, and the pre-registered majority rule was close to
+  guaranteed to say REPLICATES once SPY had. The genuinely new information
+  is across instruments: **TLT and GLD**, and partly EEM and XLE.
+- **Of those two, GLD is the one clean witness** (nine episodes, t_ep 3.24,
+  exact one-sided p ≈ 0.006, largest episode 26% of its total). TLT's money
+  reading is nil: +27 bp event-weighted, t 0.89, and 73% of its total is
+  one episode in October 2022; its t_ep exceeds its t only because equal
+  episode weighting shrinks three long losing runs from the 2021–23 bond
+  bear. The honest gloss is "one new clean independent witness, one
+  witnesses-only".
+- **"Three to ten times above the baseline" was wrong.** The ratios run
+  from 2.5× on XLE to 24× on EEM, with QQQ, IWM and DIA at 10–13×. XLE does
+  not beat its volatility-matched baseline at p < 0.05 under either null: it
+  picks volatile days and little else.
+- **"About a point a year" is the 21-year SPY figure, not this window's.**
+  On these six years the realised sum per line, one trade per episode, is
+  2.3–5.1 points a year — inflated because the 2022 bear and April 2025
+  both sit inside six years. The window overstates the long-run rate; it
+  does not confirm "about a point".
+
+What the refuters added in the rule's favour: at 10 bp round-trip every
+t_ep stays above 2 (XLE lowest at 2.24), at 20 bp the minimum is 2.16;
+dropping each symbol's largest-magnitude episode leaves eight of nine
+above 2 (XLE 1.95); the single largest trade is 12–26% of any line's total,
+so no line rests on one day; the dividend adjustment is genuinely present
+(ex-dividend days do not trip the rule); the IEX feed moves SPY's answer
+by about 2 bp against a consolidated file; and SPY's own t_ep on this
+window (3.0) is *lower* than on 2005–2020 (4.3), so the post-2020 window is
+the weaker one, not the kinder one.
+
+Two conventions to state, because the document had not: `nulltest.py`
+charges its 5 bp **once per round trip**, while `replay.py` charges its
+cost **per fill** (so a 5 bp replay is 10 bp round trip); and the nine
+files are Alpaca's IEX feed, so "open" and "close" are IEX's first and last
+regular-session prints, not the auction prices — the same caveat the
+intraday section carries for SPY, and immaterial here against means of
+100–335 bp.
+
+The verdict the reading rule prints stands as printed, and this section
+now says what it is worth: a replication on a short window that adds one
+clean independent witness (gold) and one weak one (bonds) to a rule found
+on SPY; the fifteen-year version stays owed and stays pre-registered.
+Nothing here changes the money reading.
 
