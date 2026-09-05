@@ -1393,6 +1393,9 @@ try:
     autopilot.STOP_FILE = _sf
     _ap_src = open(os.path.join(os.path.dirname(autopilot.__file__), "autopilot.py")).read()
     check("autopilot has no --force", "--force" not in _ap_src.split("USAGE")[1])
+    check("the loop's own bars folder is not the research folder",
+          autopilot.LIVE_ROOT != os.path.join(os.path.dirname(autopilot.__file__), "bars")
+          and autopilot.LIVE_ROOT.endswith(os.path.join("bars", "live")))
     check("the report names the gate and the STOP file",
           "gate" in autopilot.render(_r, "paper", "x") and "STOP" in autopilot.render(_r, "paper", "x"))
     check("the report shows a fractional target to two places",

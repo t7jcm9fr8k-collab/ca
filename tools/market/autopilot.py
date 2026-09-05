@@ -20,7 +20,8 @@ WHAT "MONITORING THE MARKET" MEANS HERE
     open, which is exactly the fill replay.py assumes.
 
 WHAT ONE RUN DOES, PER SYMBOL IN THE UNIVERSE
-    1. fetch fresh daily bars and write them to bars/
+    1. fetch fresh daily bars and write them to bars/live/ (never over the
+       research files in bars/)
     2. barqc: BLOCKED or stale bars → skip, say why, touch nothing
     3. the strategy's target after the last close, through the cursor
     4. the broker's current position
@@ -92,6 +93,7 @@ import strategies
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STOP_FILE = os.path.join(HERE, "STOP")
+LIVE_ROOT = os.path.join(HERE, "bars", "live")
 DEFAULT_STRATEGY = "trend_or_dip:200,14,30,5"
 
 
@@ -274,7 +276,9 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
     if mode not in ("paper", "live"):
         raise ValueError("mode must be paper or live")
     strat = strategies.make(strategy_spec)
-    root = root or os.path.join(HERE, "bars")
+    # Its own folder: the research files in bars/ (21 years of Stooq SPY, the
+    # replication set) must never be overwritten by a 600-day live fetch.
+    root = root or LIVE_ROOT
     os.makedirs(root, exist_ok=True)
     recs = []
 
