@@ -833,3 +833,49 @@ never reset, so a withdrawal or a paper-account reset needs the STOP file
 removed and the ledger's `autopilot_run` history understood; `--dry-run`
 does not read broker positions and says "would buy" even when already long.
 
+### E · The replication on nine other ETFs — six-year version (`E-replication.txt`, `E-barqc.txt`)
+
+Yahoo rate-limited the fetch, so the bars came from Alpaca and start on
+2020-07-27, not the fifteen years the pre-registration asked for. The
+universe, the rule, the hold, the cost, the null and the reading rule are
+exactly as written before any file existed; only the span is shorter, and
+this section is labelled accordingly. All nine files passed barqc (1,536
+bars each, one missing session — the 2025-01-09 Carter closure).
+
+The tool's verdict, verbatim:
+
+> REPLICATES: 9 of 9 symbols show t_ep > 2 with a positive mean
+
+| symbol | events | witnesses | mean net | t | t_ep | hit | vol-matched null |
+|---|---|---|---|---|---|---|---|
+| QQQ | 16 | 7 | +334.8 bp | 3.81 | 2.59 | 81% | +29.1 |
+| IWM | 34 | 10 | +102.1 | 1.86 | 2.55 | 65% | +8.1 |
+| DIA | 26 | 11 | +209.7 | 3.84 | 4.54 | 81% | +20.2 |
+| EFA | 25 | 11 | +233.5 | 4.01 | 2.59 | 80% | +46.3 |
+| EEM | 27 | 9 | +231.6 | 3.35 | 3.83 | 74% | +9.6 |
+| XLF | 25 | 11 | +163.1 | 2.23 | 3.17 | 60% | +51.3 |
+| XLE | 24 | 7 | +171.9 | 2.22 | 2.28 | 67% | +67.4 |
+| TLT | 54 | 13 | +27.4 | 0.89 | 2.83 | 63% | −19.9 |
+| GLD | 37 | 9 | +107.2 | 3.12 | 3.24 | 70% | +18.7 |
+
+**How much this is worth, said plainly.** It is the first pre-registered
+out-of-sample test in this project that came back positive, and it came
+back positive on every line. Three things keep it from being more than it
+is. Six years is not fifteen: the window holds the 2022 bear and April 2025
+but not 2008 or March 2020. The nine symbols are not nine witnesses: the
+seven equity baskets fall on the same days, so their "9 of 9" is nearer
+three independent votes — equities, bonds, gold — and the two that are
+genuinely independent of SPY are the ones to weigh: TLT's mean is small
+(+27 bp against a *negative* matched baseline) and its evidence is in the
+witnesses (t_ep 2.83, 13 episodes), while GLD is clean on every column.
+And the vol-matched baseline is itself positive on eight of nine lines,
+which says the period was kind to buying volatile days in general; the
+rule's mean sits three to ten times above that baseline everywhere except
+TLT. The reading rule was fixed in advance and it says REPLICATES; the
+honest gloss is "replicates on a short window, on roughly three independent
+witnesses, with the two non-equity lines carrying the weight". The
+fifteen-year version stays owed and stays pre-registered: the same
+command on Stooq's browser files or Yahoo when it answers. Nothing here
+changes the money reading — a premium worth about a point a year over cash
+per line, now seen on nine lines instead of one.
+
