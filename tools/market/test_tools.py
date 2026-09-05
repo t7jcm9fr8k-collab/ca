@@ -1455,6 +1455,25 @@ try:
           _t_early == _t_trunc, f"{_t_early} vs {_t_trunc}")
     check("after 21:05 UTC the same-day bar is a closed bar", _t_late == _t_full)
 
+    # --- refresh() asks Alpaca for a bounded, adjusted window, never "today only"
+    import fetch as _fetch_mod
+    _seen = {}
+
+    def _fake_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split", **kw):
+        _seen.update(symbol=symbol, timeframe=timeframe, start=start, adjustment=adjustment)
+        raise RuntimeError("stop here")
+
+    _real_alpaca = _fetch_mod.fetch_alpaca
+    _fetch_mod.fetch_alpaca = _fake_alpaca
+    try:
+        autopilot.refresh("DIPX", _ap_root, source="alpaca")
+    finally:
+        _fetch_mod.fetch_alpaca = _real_alpaca
+    _since = dt.date.fromisoformat(_seen["start"])
+    check("alpaca refresh asks for ~600 days of adjusted daily bars",
+          _seen["timeframe"] == "1d" and _seen["adjustment"] == "all"
+          and 590 <= (dt.datetime.now(B.UTC).date() - _since).days <= 610, str(_seen))
+
     # --- review fix 5: no equity reading → nothing traded
     _fbe = _FakeBroker(equity="n/a")
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,

@@ -30,7 +30,7 @@ out/              the ledger and its report (gitignored)
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
 | `autopilot.py` (reviewed 2026-09-04 by four finders and three refuters per finding; the six confirmed defects are fixed and pinned — see EVIDENCE.md "Day run" §I) | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions (whole shares or `--notional` fractions of an allocation), order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it, and a 15% equity drawdown from the recorded peak writes one. `universe.txt` is its list. |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
-| `test_tools.py` | 479 checks. `python3 test_tools.py` |
+| `test_tools.py` | 480 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 

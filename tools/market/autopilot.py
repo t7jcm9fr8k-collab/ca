@@ -111,7 +111,11 @@ def refresh(symbol, root, source="yahoo"):
         if source == "yahoo":
             s = fetch.fetch_yahoo(symbol, adjusted_close=True)
         elif source == "alpaca":
-            s = fetch.fetch_alpaca(symbol, "1d")
+            # Without a start Alpaca hands back only the current day; with one
+            # too early the IEX daily history is full of holes and barqc blocks
+            # it. 600 calendar days covers the 200-bar warm-up twice over.
+            since = (dt.datetime.now(B.UTC) - dt.timedelta(days=600)).strftime("%Y-%m-%d")
+            s = fetch.fetch_alpaca(symbol, "1d", start=since, adjustment="all")
         else:
             return None, f"unknown source {source}"
     except Exception as e:                       # NETWORK / PARSE: no bars means no bars
@@ -412,7 +416,8 @@ def main():
     ap.add_argument("--max-positions", type=int, default=3)
     ap.add_argument("--confirm-live", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="decide and print; send nothing")
-    ap.add_argument("--source", default="yahoo", choices=["yahoo", "alpaca"])
+    ap.add_argument("--source", default="alpaca", choices=["yahoo", "alpaca"],
+                    help="alpaca (keys in the shell; 600 days, adjustment all) or yahoo (keyless, rate-limited)")
     a = ap.parse_args()
     if a.mode == "live" and not a.confirm_live:
         sys.exit("REFUSING --mode live without --confirm-live. Real money. Say so explicitly.")
