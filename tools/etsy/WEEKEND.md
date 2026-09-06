@@ -172,13 +172,16 @@ python3 autopilot.py --dry-run
 python3 autopilot.py --strategy trend_or_dip:200,14,30,5 --qty 1
 ```
 
-The replication of the survivor on nine other ETFs is pre-registered and
-waits on their bars. One block, run from `tools/market`, then push:
+The replication of the survivor on the other ETFs is done twice: on six
+years of Alpaca bars (nine of nine) and on 21 years of Stooq browser files
+(eight of eight; `tools/market/EVIDENCE.md` §E and §E-15 say what each is
+worth). EEM's long file is the one still owed. In the browser open
+`https://stooq.com/q/d/l/?s=eem.us&i=d`, then from `tools/market`:
 
 ```
-for X in QQQ IWM DIA EFA EEM XLF XLE TLT GLD; do python3 fetch.py --source yahoo --symbol $X --adjusted-close --out bars/$X-1d.csv; done
-git add -f bars/QQQ-1d.csv bars/IWM-1d.csv bars/DIA-1d.csv bars/EFA-1d.csv bars/EEM-1d.csv bars/XLF-1d.csv bars/XLE-1d.csv bars/TLT-1d.csv bars/GLD-1d.csv
-git commit -m "ETF daily bars for the RSI reversal replication"
+mv ~/Downloads/eem_us_d.csv bars/EEM-1d-long.csv
+git add -f bars/EEM-1d-long.csv
+git commit -m "EEM long bars"
 git push
 ```
 

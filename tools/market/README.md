@@ -274,6 +274,9 @@ python3 autopilot.py --strategy "vol_target[trend_or_dip:200,14,30,5]:0.10,20" -
 #     reading rule written before the data. On the Mac, first:
 #       for each symbol in universe.txt: python3 fetch.py --source yahoo --symbol X --adjusted-close --out bars/X-1d.csv
 python3 nulltest.py --rule rsi_oversold --horizon 5 --csv bars/QQQ-1d.csv bars/IWM-1d.csv bars/DIA-1d.csv bars/EFA-1d.csv bars/EEM-1d.csv bars/XLF-1d.csv bars/XLE-1d.csv bars/TLT-1d.csv bars/GLD-1d.csv --symbol QQQ IWM DIA EFA EEM XLF XLE TLT GLD --source yahoo --adjusted yes
+#     Done twice: six-year Alpaca files (EVIDENCE §E, REPLICATES 9 of 9) and the 21-year Stooq
+#     browser files bars/<SYM>-1d-long.csv (EVIDENCE §E-15, REPLICATES 8 of 8, EEM still owed):
+python3 nulltest.py --rule rsi_oversold --horizon 5 --csv bars/DIA-1d-long.csv bars/EFA-1d-long.csv bars/GLD-1d-long.csv bars/IWM-1d-long.csv bars/QQQ-1d-long.csv bars/TLT-1d-long.csv bars/XLE-1d-long.csv bars/XLF-1d-long.csv --symbol DIA EFA GLD IWM QQQ TLT XLE XLF --source stooq --adjusted yes
 
 # every morning
 python3 watch.py --symbols SPY AAPL MSFT
