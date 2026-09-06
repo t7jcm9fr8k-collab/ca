@@ -77,6 +77,11 @@ said. Two ways on:
   (the basis guard measured a 2.3% median gap against the feed's last print,
   shrinking from −6.25% in 2020 to 0 in 2025). So it is the right file for the
   trend filter with **no `--dividend-yield`**, and the wrong file for trial 3.
+  That is SPY's file. The eight `-1d-long.csv` ETF files from the same site
+  measured otherwise against Alpaca's total-return files (EVIDENCE §E-15):
+  DIA, EFA, IWM and XLF unadjusted for dividends over 2020–26, TLT, XLE and
+  QQQ nearly adjusted, GLD identical. `--adjusted` records what you tell it;
+  nothing in the pipeline measures it.
 - **`--source yahoo`.** Keyless, official consolidated closes, back to 1993 —
   but Yahoo rate-limits anonymous clients (HTTP 429 on 2026-09-04). `fetch.py`
   now waits 2, 5 and 12 seconds and retries three times before calling it

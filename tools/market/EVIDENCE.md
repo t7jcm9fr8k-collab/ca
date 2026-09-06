@@ -915,3 +915,184 @@ clean independent witness (gold) and one weak one (bonds) to a rule found
 on SPY; the fifteen-year version stays owed and stays pre-registered.
 Nothing here changes the money reading.
 
+
+### E-15 · The replication on the long files — 21-year version, eight of nine (`E15-replication.txt`, `E15-barqc.txt`, `E15-derived.txt`, `E15-refute-local.txt`, `E15-refuters.txt`)
+
+The files the pre-registration asked for arrived on 2026-09-06 (`cfefd2a`):
+Stooq browser downloads for DIA, EFA, GLD, IWM, QQQ, TLT, XLE and XLF,
+2005-02-25 → 2026-09-04 (QQQ from 1999-03-10), from the same site and with
+the same start as the SPY file the rule was found on — that file ends
+2026-09-02, two sessions earlier (5,413 bars against 5,415), and, measured
+below, is not on the same adjustment basis. EEM was not among them, so this
+is eight of the nine pre-registered symbols; EEM is added when it lands and
+the verdict re-printed. All eight passed barqc. Seven files carry 5,415 bars
+and the same six missing sessions — five of them the unscheduled closures
+barqc's calendar deliberately omits (2007-01-02 Ford, 2012-10-29/30 Sandy,
+2018-12-05 Bush, 2025-01-09 Carter) and one, 2011-02-17, an ordinary
+Thursday that the SPY file also lacks while QQQ's own file carries a bar for
+it (close 51.74, 43.6 M shares): a hole in those downloads, not a closure.
+QQQ has 6,915 bars and eleven missing — the four 9/11 days, 2004-06-11
+(Reagan), the same five closures, and 1999-11-16, a second hole. Universe,
+rule (RSI(14) < 30), hold (five bars, open[i+1] → close[i+5]), cost (5 bp
+once), null (vol-matched date permutation) and reading rule are exactly as
+written on 2026-09-04, before any file existed.
+
+The tool's verdict, verbatim:
+
+> REPLICATES: 8 of 8 symbols show t_ep > 2 with a positive mean
+
+| symbol | span | events | episodes | mean net | sd | hit | t | t_ep | vol-matched null | p |
+|---|---|---|---|---|---|---|---|---|---|---|
+| DIA | 2005-02-25 → 2026-09-04 | 104 | 34 | +121.0 bp | 428 | 69.2% | 2.88 | 5.23 | +13.9 | 0.000 |
+| EFA | 2005-02-25 → 2026-09-04 | 152 | 44 | +50.6 | 431 | 58.6% | 1.45 | 4.05 | +12.7 | 0.055 |
+| GLD | 2005-02-25 → 2026-09-04 | 186 | 34 | +46.8 | 236 | 54.3% | 2.71 | 3.72 | +12.9 | 0.024 |
+| IWM | 2005-02-25 → 2026-09-04 | 131 | 37 | +78.8 | 599 | 60.3% | 1.51 | 3.82 | +15.9 | 0.018 |
+| QQQ | 1999-03-10 → 2026-09-04 | 107 | 37 | +177.4 | 525 | 63.6% | 3.49 | 4.62 | +12.1 | 0.001 |
+| TLT | 2005-02-25 → 2026-09-04 | 122 | 32 | +15.1 | 181 | 56.6% | 0.92 | 4.36 | −0.3 | 0.173 |
+| XLE | 2005-02-25 → 2026-09-04 | 137 | 31 | +1.3 | 771 | 63.5% | 0.02 | 3.19 | +19.1 | 0.690 |
+| XLF | 2005-02-25 → 2026-09-04 | 112 | 35 | +106.6 | 751 | 54.5% | 1.50 | 2.43 | +2.5 | 0.003 |
+
+For the row it replicates: SPY on the same site, 2005-02-25 → 2026-09-02,
+hold 5, is 93 events, 30 episodes, +157.6 bp, t 3.61, t_ep 5.18 (Fourth
+run, above; re-derived from the file today). Every deterministic column of
+the table was reproduced twice more: in the same session with the six-year
+refuters' script (`E15-refute-local.txt`), and by a refuter with their own
+Wilder RSI, own event detection, own forward returns, own episodes and own
+null, importing nothing from the pipeline — zero discrepancies to any
+printed digit. The Monte-Carlo columns move by 1–3 bp between seeds, and
+EFA's p by more (0.037–0.060 across five seeds of the tool's own null), so
+the p column is approximate exactly where it is close to the line.
+
+**What it is worth, as amended by three refuters (reproduction, statistics,
+data; 64 checks: 46 confirmed, 13 refuted, 5 not checkable; every number
+below is in `E15-refuters.txt` or `E15-refute-local.txt`).**
+
+- **The pre-registered verdict stands as printed, and it survives the
+  checks that can be run on it.** Every mean is positive and every t_ep is
+  above 2 (2.43 on XLF to 5.23 on DIA). Dropping any single episode from
+  any line leaves every t_ep above 2 (lowest XLF 2.23, XLE 2.94). At 10 bp
+  round trip the lowest t_ep is XLF's 2.39, at 20 bp 2.31 — but XLE's mean
+  turns negative at 10 bp (−3.7 bp) and 20 bp (−13.7), so under the reading
+  rule's positive-mean clause the count is 7 of 8 at either cost, still a
+  majority. Under a vol-matched null that keeps each line's real episode
+  shapes and re-places them at random starts of the same volatility decile
+  (400 draws), t_ep > 2 is roughly a 5% test per line (P between 0.010 on
+  TLT and 0.065 on QQQ), and P(t_ep ≥ observed) is 0.010 or less on every
+  line (XLE 0.003, GLD 0.003, XLF 0.010, the rest 0.000). A majority of
+  eight lines above 2 by chance is ~0 if the lines were independent; five
+  of them are not (below), so the true joint rate is higher than that and
+  was not computed. This is the fifteen-year version the six-year section
+  said was owed, and it is longer than fifteen: 21.5 years on seven lines,
+  27.5 on QQQ — of which 1999–2004 supplies 30 of QQQ's 107 events, 9 of
+  its 37 episodes and 43% of its net sum; on 2005-02-25 onward alone QQQ is
+  77 events, 28 episodes, +140.4 bp, t 2.76, t_ep 4.21, so it stands on the
+  common span too.
+- **Count the witnesses the way a trader is paid, and it is three lines,
+  not eight — and one of the three is a witness rather than a trade.** The
+  reading rule weights episodes equally; a trader who takes every signal
+  earns the event mean. On the event-weighted t only three of eight lines
+  clear 2 (QQQ 3.49, DIA 2.88, GLD 2.71), and five or six of eight beat
+  their own vol-matched null at p < 0.05 — DIA, QQQ, XLF, IWM, GLD at the
+  recorded seed, EFA on the boundary (0.055 recorded; under 0.05 on four of
+  five seeds). XLE is the clearest case of the gap: +1.3 bp per event, t
+  0.02, p 0.69 — its net sum over 21 years is +175 bp in total — yet t_ep
+  3.19. Its 24 positive episodes average 3.5 events, its seven losing ones
+  7.7, and one of them does almost all the damage: 2020-02-24 → 03-23,
+  twenty consecutive fires at −759 bp each, −15,189 bp in total, 78% of
+  everything XLE ever lost on this rule. Without that one episode XLE is
+  +131 bp per event, t 3.48. The other long losing runs are 2014-09-25 →
+  10-16 (13 events, −2,037 bp), 2016-01 (5, −1,056) and 2020-01-24 → 02-04
+  (8, −949); XLE's three 2008 episodes are all positive (+919, +340, +210
+  bp). Against the episode-preserving null its t_ep is still unusual
+  (P ≈ 0.003), so the witnesses are real; the trader who took every signal
+  simply gave the whole premium back in three weeks of March 2020. TLT is
+  the same story in miniature (+15.1 bp, t 0.92, p 0.17, t_ep 4.36; at 20 bp
+  its mean is +0.1 bp and its t_ep still 3.68): 23 positive episodes
+  averaging 1.7 events against nine losing runs averaging 9.3 (2006-04,
+  2007-06, 2016-11, 2021-02, 2022-04, 2023-09 among them), and 60% of its
+  21-year total is the one episode of 2022-10-19 — the six-year refuters'
+  reading, with October 2022's share down from 73% to 60%. So: DIA and QQQ
+  clean; GLD clean by t and t_ep but not by construction (next bullet); IWM,
+  XLF and EFA positive and significant against the null but noisy per
+  event; TLT and XLE witnesses only, nil in money terms.
+- **Gold is the independent witness for the second time, now on 21 years,
+  and it is a witness, not a trade.** 186 events in 34 episodes, +46.8 bp,
+  t 2.71, t_ep 3.72, p 0.024, and only 6 of its 34 episodes have any signal
+  within ten bars of an SPY signal (18%; TLT 19%). But the first fire of
+  each GLD episode averages −2.0 bp (t −0.04, 16 of 34 positive); the
+  premium sits in the later fires of long runs (26 events from 2016-11-11,
+  14 from 2015-07-17), so a version that cannot re-enter while it holds
+  earns 0.7 points a year at t 0.8, and a first-fire-only version nothing.
+- **Three lines lean on one episode; two of the clean lines' largest
+  episodes are losses.** XLF's net sum is 53% one episode, the two signals
+  of 2009-03-05 (+6,388 bp between them, the financials' bottom); TLT's is
+  60% the four signals of 2022-10-19; IWM's largest episode is a *loss*,
+  the 17 signals from 2020-02-25 (−5,907 bp, 57% of the net sum in
+  magnitude), with its three largest gains all in 2008-10 → 2009-03. DIA's
+  largest-magnitude episode is also a loss (2020-02-25, eight signals,
+  −2,291 bp, 18% of the total in magnitude); SPY's largest is 14%
+  (2025-04-04), QQQ's 15% (2001-04-03, dot-com), GLD's 31% (three signals
+  from 2008-09-09).
+- **Half to three-quarters of the equity witnesses are SPY's own days; the
+  rest are not, and they read positive on their own.** Measured on
+  2005–2026, an episode counting as SPY's if any of its signals sits within
+  ten bars of an SPY RSI < 30 signal: DIA 71%, IWM 73%, QQQ 75% of its 28
+  common-span episodes (57% of all 37), XLF 57%, EFA 52%, XLE 48%, TLT 19%,
+  GLD 18% — against 71–100% on the six-year window. The non-overlapping
+  episodes alone give t_ep 3.84 on DIA's ten, 5.50 on EFA's twenty-one, 2.51
+  on IWM's ten, 2.03 on QQQ's seven, 1.64 on XLF's fifteen. So the six-year
+  reading — "the discovery's own days re-measured on correlated
+  instruments" — does not transfer unchanged: the long window carries
+  witnesses SPY does not have. 2025-04-04 is nonetheless a top-three
+  positive episode on SPY, DIA, EFA, QQQ and XLF at once.
+- **The adjustment basis was declared, not measured, and the files do not
+  all deserve it.** The run was stamped `--adjusted yes`, and barqc records
+  what it is told. Measured against the Alpaca total-return files on the
+  overlap 2020-07-27 → 2026-09-04: GLD's closes agree to four decimals;
+  DIA's Stooq closes sit 10.7% above Alpaca's in July 2020, EFA's 14.3%,
+  XLF's 6.6%, IWM's 4.8%, TLT's 2.3%, XLE's 1.4%, QQQ's 0.8%, all converging
+  to parity by 2026-09-04 in steps on ex-dividend dates. So DIA, EFA, IWM
+  and XLF are unadjusted for dividends over at least 2020–26, TLT, XLE and
+  QQQ are adjusted except for the most recent ones, and the SPY file the
+  rule was found on behaves the other way (6.3% *below* the raw minute-feed
+  closes in 2020: total return). Before 2020 nothing can be checked. Where
+  it can, the effect is small: DIA on 2020–26 with Alpaca's dividend factor
+  transplanted goes from 29 events / t_ep 4.86 to 25 / 4.53. An ex-dividend
+  drop can trip RSI on an unadjusted file a little more often, and the
+  forward return then omits the dividend; both are stated, neither moves a
+  verdict. The README's "Stooq is dividend-adjusted" is a statement about
+  the SPY file, and it now says so.
+- **Longer window, smaller means, larger t_ep — with a basis caveat.**
+  Against the six-year table every mean fell (QQQ +334.8 → +177.4 bp, DIA
+  +209.7 → +121.0, EFA +233.5 → +50.6, TLT +27.4 → +15.1, XLE +171.9 →
+  +1.3) while seven of eight t_ep rose (XLF the exception, 3.17 → 2.43).
+  That is what the six-year section predicted: the short window overstated
+  the rate because 2022 and April 2025 sat inside it. The two tables also
+  differ in tape and adjustment (Alpaca IEX total-return there, consolidated
+  and largely unadjusted here): on the identical 2020–26 window the long
+  DIA file fires 29 times against the Alpaca file's 26.
+- **The money, by the same arithmetic as before, and by the arithmetic a
+  strategy actually gets.** Events × mean, one trade per event, summed over
+  the span (`E15-derived.txt`): 0.1 point a year on XLE, 0.9 on TLT, 3.6 on
+  EFA, 4.0 on GLD, 4.8 on IWM, 5.6 on XLF, 5.9 on DIA, 6.9 on QQQ, at 3.9
+  (QQQ) to 8.6 (GLD) events a year. Those sums double-count: an oversold
+  day is usually followed by another, so consecutive events hold
+  overlapping five-day windows. Collapsed the way `rsi_dip` trades — long
+  from the first fire until five bars after the last — the same years sum
+  to 1.7 points a year on DIA, 1.0 on EFA, 1.5 on GLD, 2.6 on IWM, 3.1 on
+  QQQ, 0.5 on TLT, −0.4 on XLE, 3.5 on XLF and 1.7 on SPY (34 round trips,
+  the replay's 68 fills), so events × mean overstates the tradeable sum by
+  1.6× to 4×, and only QQQ clears t 2 on those trades (2.15). That is
+  consistent with the SPY replay in the Fourth run, whose +141% is +88% of
+  idle cash at 3% and about +28% from the rule. Read the per-year figures
+  as an upper bound on a premium, not as a return.
+
+Nothing here changes the money reading: a documented reversal-at-extremes
+premium on baskets, now visible on 21 years of eight more instruments,
+strongest where it was found (US equity baskets), independent on gold —
+where it is a witness rather than a trade — and worth one to three and a
+half points a year collapsed into trades, before slippage, on lines that
+each carry one or two episodes doing most of the work. "REPLICATES" is a
+statement about witnesses, which is what the reading rule was written to
+count; it is not a statement about a trade. No new rule was built from it.
+EEM is the one open item.
