@@ -1,0 +1,8 @@
+# Step 0 probe, 2026-09-06T23:07:36Z
+429  https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=Posada%20calavera&srnamespace=6&srlimit=3
+200  https://collectionapi.metmuseum.org/public/collection/v1/search?q=Posada
+403  https://www.biodiversitylibrary.org/
+200  https://api.wellcomecollection.org/catalogue/v2/images?query=Vesalius
+200  https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=5d&interval=1d
+200  https://api.nasdaq.com/api/quote/SPY/historical?assetclass=etf&fromdate=2020-07-01&limit=9999&todate=2026-09-06
+000  https://stooq.com/q/d/l/?s=eem.us&i=d
