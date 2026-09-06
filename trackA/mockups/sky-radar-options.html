@@ -1,0 +1,291 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Sky treatments + Diagnostics radar</title>
+<style>
+:root{--void:#050A14;--panel:#0D1526;--panelHi:#18263F;--primary:#5FDDFF;--structure:#3A5A82;
+--alert:#FF8A55;--earned:#FFCF57;--logged:#97F04A;--missed:#F2DC45;--irregular:#FF3B30;
+--text:#ECF3FC;--muted:#9AB2D0;--faint:#4A5F7A;--cut:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:34px 26px 70px}
+.wrap{max-width:1180px;margin:0 auto}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--primary);margin-bottom:10px}
+h1{font-size:27px;font-weight:300;margin-bottom:12px}
+.lede{font-size:14.5px;line-height:1.6;color:var(--muted);max-width:790px}
+.lede b{color:var(--text);font-weight:600}
+h2{font-size:11.5px;font-weight:600;letter-spacing:.16em;margin:44px 0 6px;border-top:1px solid var(--panelHi);padding-top:20px;color:var(--primary)}
+.sub{font-size:12.5px;color:var(--muted);margin-bottom:16px;max-width:860px;line-height:1.6}
+.sub b{color:var(--text)} .sub .x{color:var(--alert)} .sub .k{color:var(--logged)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sky{position:relative;height:250px;overflow:hidden;border:1px solid var(--structure);
+clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut))}
+.sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.tag{position:absolute;left:12px;top:11px;font-size:9.5px;letter-spacing:.14em;color:var(--primary);z-index:3;
+font-family:ui-monospace,Menlo,monospace;background:rgba(5,10,20,.6);padding:3px 7px}
+.cost{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:9px}
+.cost b{color:var(--text)} .cost .x{color:var(--alert)} .cost .k{color:var(--logged)}
+.pnl{background:var(--panel);border:1px solid var(--structure);padding:14px;
+clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut))}
+.ttl{font-size:11.5px;font-weight:600;letter-spacing:.15em;margin-bottom:11px;display:block}
+.mono{font-family:ui-monospace,Menlo,monospace}
+button{font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;background:var(--panelHi);
+color:var(--primary);border:1px solid var(--structure);padding:8px 13px;cursor:pointer}
+button:hover{color:var(--text);border-color:var(--primary)}
+.rows{margin-top:12px}
+.rw{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(58,90,130,.3);
+font-size:11.5px;transition:background .18s,color .18s}
+.rw.hit{background:rgba(95,221,255,.14)}
+.rw .n{flex:1} .rw .v{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted)}
+.chip{font-size:8px;letter-spacing:.1em;padding:2px 6px;border:1px solid currentColor;font-family:ui-monospace,Menlo,monospace}
+.on{color:var(--logged)} .off{color:var(--alert)}
+.foot{margin-top:44px;border-top:1px solid var(--panelHi);padding-top:20px;font-size:13px;line-height:1.65;color:var(--muted)}
+.foot b{color:var(--text)}
+.tilt{perspective:760px}
+.dial{transform-style:preserve-3d}
+</style></head><body><div class="wrap">
+
+<div class="eyebrow">HUD · SKY + RADAR</div>
+<h1>Four sky treatments, three radars</h1>
+<p class="lede">
+All four skies below carry the <b>same 600-star field drifting on the 25° axis</b> that is now in the app,
+so the only variable is what sits behind it. The radars are live — <b>watch the motion, not the still.</b>
+</p>
+
+<!-- ═══════ SKY ═══════ -->
+<h2>1 · GALAXIES AND CLUSTERS</h2>
+<p class="sub">Every one of these rasterises <b>once at launch</b> and is then slid by the GPU, exactly like the
+existing star layers — so the cost difference between them is a few milliseconds at startup and
+<b class="k">nothing at all while running</b>. Pick on how it looks, not what it costs.</p>
+
+<div class="grid2">
+  <div>
+    <div class="sky"><span class="tag">A · PROCEDURAL SPIRAL</span><canvas id="skyA"></canvas></div>
+    <p class="cost"><b>Two logarithmic arms, ~1,400 points, bright core falling off to nothing.</b>
+    Reads as an object with structure — the only option that actually looks like a galaxy at this size.
+    <span class="x">And the only one that can look wrong:</span> a spiral is a shape people recognise, so a
+    bad one is noticeable in a way a soft blob never is.</p>
+  </div>
+  <div>
+    <div class="sky"><span class="tag">B · SPRITE BLOB</span><canvas id="skyB"></canvas></div>
+    <p class="cost"><b>Rotated elliptical gradients with a scatter of stars over the top.</b>
+    Suggests a distant galaxy without claiming to be one. Safe, fast, and honestly a little generic —
+    it is what most sci-fi backgrounds actually use.</p>
+  </div>
+  <div>
+    <div class="sky"><span class="tag">C · NEBULA BLOOM</span><canvas id="skyC"></canvas></div>
+    <p class="cost"><b>Large irregular patches under the stars, in the layer your nebula already occupies.</b>
+    Cheapest to add — it is a change to a function that exists rather than a new one.
+    <span class="x">"High def" is the one thing it will not be</span>; it adds mood, not objects.</p>
+  </div>
+  <div>
+    <div class="sky"><span class="tag">D · DENSE CLUSTERS</span><canvas id="skyD"></canvas></div>
+    <p class="cost"><b>Three knots of 60–90 stars with a gaussian falloff, brighter and smaller than the field.</b>
+    Needs <b class="k">no new drawing code at all</b> — same dots, different distribution. Reads as depth
+    rather than as scenery, which suits an instrument better than a poster does.</p>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:16px"><b>They combine.</b> D costs nothing and makes A or B look further away;
+C under either adds the colour. If you want one answer: <b class="k">A plus D</b> — one spiral off-centre,
+three clusters elsewhere, nebula unchanged.</p>
+
+<!-- ═══════ RADAR ═══════ -->
+<h2>2 · DIAGNOSTICS RADAR</h2>
+<p class="sub">All three drive the same seven checks. The difference is <b>when they move and what the motion
+claims</b> — which matters more than it sounds, because a dial that spins while nothing is happening is an
+instrument that lies.</p>
+
+<div class="grid2">
+  <div class="pnl">
+    <span class="ttl" style="color:var(--primary)">A · CONTINUOUS · ROWS LIGHT ON BEARING</span>
+    <div class="tilt" style="display:flex;justify-content:center;padding:6px 0 2px">
+      <svg class="dial" id="radarA" width="200" height="200" viewBox="0 0 200 200"
+           style="transform:rotateX(52deg) rotateZ(0deg)"></svg>
+    </div>
+    <div class="rows" id="rowsA"></div>
+    <p class="cost"><b>The arm never stops.</b> Each check brightens as the beam crosses its bearing, so the
+    panel feels swept rather than listed. <span class="x">This is the one place a repeating animation earns
+    it — a radar that stops is not a radar</span> — but it is also a display link kept alive for as long as
+    the tab is open. The 3D read is a 52° tilt on the dial only; the rows stay flat and legible.</p>
+  </div>
+
+  <div class="pnl">
+    <span class="ttl" style="color:var(--logged)">B · SWEEP ONLY WHILE CHECKING</span>
+    <div class="tilt" style="display:flex;justify-content:center;padding:6px 0 2px">
+      <svg class="dial" id="radarB" width="200" height="200" viewBox="0 0 200 200"
+           style="transform:rotateX(52deg)"></svg>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:4px"><button onclick="runB()">RUN CHECK</button>
+      <span class="mono" id="statB" style="font-size:10px;color:var(--faint);align-self:center">IDLE</span></div>
+    <div class="rows" id="rowsB"></div>
+    <p class="cost"><b>Turns twice, resolves each row as it passes, then rests.</b>
+    <span class="k">Motion means work is happening</span> — which is true here, since diagnostics genuinely
+    re-check on launch and on returning to the front. Costs nothing at idle. Less cinematic, and it is the
+    version that matches how the rest of this app already behaves.</p>
+  </div>
+</div>
+
+<div class="pnl" style="margin-top:14px">
+  <span class="ttl" style="color:var(--earned)">C · LINE SWEEP ONLY — no dial</span>
+  <div id="sweepC" style="position:relative;overflow:hidden;padding:2px 0">
+    <div class="rows" id="rowsC"></div>
+    <div id="barC" style="position:absolute;top:0;bottom:0;width:110px;pointer-events:none;
+      background:linear-gradient(90deg,transparent,rgba(95,221,255,.16),transparent);left:-120px"></div>
+  </div>
+  <p class="cost"><b>The pass already built, moved onto Diagnostics and timed to the refresh.</b>
+  No new drawing, no dial, no 3D. It is the smallest possible answer and it does read as "something just
+  checked" — but it says nothing about <i>what</i> is being checked, where the two dials do.</p>
+</div>
+
+<p class="foot">
+<b>The read.</b> <b style="color:var(--text)">B</b> — sweep only while checking. It is the only one of the three
+whose motion is true, and this app has spent a lot of effort on not showing progress it cannot back up: the
+evidence gate, the unset K, the hold rate it refuses to fake. A radar that spins on an idle machine is the
+same category of lie, just a prettier one. <b style="color:var(--text)">A is the better-looking option</b> and
+there is no hard argument against it — but it should be a choice made knowing the dial is decoration.
+</p>
+</div>
+
+<script>
+// ── shared 600-star field on the 25° axis ────────────────────────────
+function rng(seed){let s=seed>>>0;return()=>((s=(s*16807)%2147483647)/2147483647)}
+function stars(ctx,w,h,n,seed){
+  const r=rng(seed);
+  for(let i=0;i<n;i++){
+    const x=r()*w,y=r()*h,rad=.35+r()*1.5,o=.28+r()*.62,t=r();
+    ctx.beginPath();ctx.arc(x,y,rad,0,6.2832);
+    ctx.fillStyle=t>.93?`rgba(95,221,255,${o})`:t>.87?`rgba(255,217,192,${o})`:`rgba(255,255,255,${o})`;
+    ctx.fill();
+  }
+}
+function base(id){
+  const c=document.getElementById(id),d=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*d;c.height=c.offsetHeight*d;
+  const x=c.getContext('2d');x.scale(d,d);
+  const w=c.offsetWidth,h=c.offsetHeight;
+  x.fillStyle='#050A14';x.fillRect(0,0,w,h);
+  return {x,w,h};
+}
+function spiral(x,cx,cy,scale,rot,hue){
+  for(let arm=0;arm<2;arm++){
+    for(let i=0;i<700;i++){
+      const t=i/700*3.4, r=scale*Math.exp(.26*t);
+      const a=t+arm*Math.PI+rot;
+      const jx=(Math.random()-.5)*r*.30, jy=(Math.random()-.5)*r*.30;
+      const px=cx+Math.cos(a)*r+jx, py=cy+Math.sin(a)*r*.42+jy;
+      const o=Math.max(0,.55-t*.13);
+      x.beginPath();x.arc(px,py,.55+Math.random()*.7,0,6.2832);
+      x.fillStyle=`rgba(${hue},${o})`;x.fill();
+    }
+  }
+  const g=x.createRadialGradient(cx,cy,0,cx,cy,scale*3.1);
+  g.addColorStop(0,`rgba(${hue},.55)`);g.addColorStop(.45,`rgba(${hue},.13)`);g.addColorStop(1,`rgba(${hue},0)`);
+  x.fillStyle=g;x.beginPath();x.ellipse(cx,cy,scale*3.1,scale*1.5,rot,0,6.2832);x.fill();
+}
+// A
+(()=>{const{x,w,h}=base('skyA');
+  spiral(x,w*.72,h*.34,15,-.42,'190,205,255');
+  spiral(x,w*.22,h*.72,8,.9,'160,200,255');
+  stars(x,w,h,600,12345);})();
+// B
+(()=>{const{x,w,h}=base('skyB');
+  [[w*.7,h*.3,72,-.5,'150,180,255'],[w*.24,h*.68,52,.7,'190,160,255'],[w*.46,h*.2,34,.2,'120,220,255']]
+   .forEach(([cx,cy,r,rot,c])=>{
+    x.save();x.translate(cx,cy);x.rotate(rot);
+    const g=x.createRadialGradient(0,0,0,0,0,r);
+    g.addColorStop(0,`rgba(${c},.42)`);g.addColorStop(.4,`rgba(${c},.12)`);g.addColorStop(1,`rgba(${c},0)`);
+    x.fillStyle=g;x.beginPath();x.ellipse(0,0,r,r*.44,0,0,6.2832);x.fill();x.restore();});
+  stars(x,w,h,600,999);})();
+// C
+(()=>{const{x,w,h}=base('skyC');
+  for(let i=0;i<26;i++){
+    const cx=Math.random()*w,cy=Math.random()*h,r=50+Math.random()*130;
+    const cols=['80,70,190','40,90,170','90,50,150','30,110,150'];
+    const c=cols[i%4];
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,`rgba(${c},.10)`);g.addColorStop(1,`rgba(${c},0)`);
+    x.fillStyle=g;x.beginPath();x.arc(cx,cy,r,0,6.2832);x.fill();}
+  stars(x,w,h,600,4242);})();
+// D
+(()=>{const{x,w,h}=base('skyD');
+  stars(x,w,h,600,777);
+  [[w*.74,h*.3,86],[w*.26,h*.66,70],[w*.52,h*.82,60]].forEach(([cx,cy,n])=>{
+    for(let i=0;i<n;i++){
+      const a=Math.random()*6.2832,d=Math.abs(Math.random()+Math.random()+Math.random()-1.5)*46;
+      const px=cx+Math.cos(a)*d,py=cy+Math.sin(a)*d*.8;
+      const o=Math.max(.15,.95-d/56);
+      x.beginPath();x.arc(px,py,.4+Math.random()*.9,0,6.2832);
+      x.fillStyle=`rgba(235,245,255,${o})`;x.fill();}
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,58);
+    g.addColorStop(0,'rgba(160,200,255,.12)');g.addColorStop(1,'rgba(160,200,255,0)');
+    x.fillStyle=g;x.beginPath();x.arc(cx,cy,58,0,6.2832);x.fill();});})();
+
+// ── radar ────────────────────────────────────────────────────────────
+const CHECKS=[
+  ['Notifications','3 armed',1],['Calendar access','granted',1],['Calendars visible','4',1],
+  ['Events ahead','52',1],['Punch list','readable',1],['Gateway','127.0.0.1:8000',1],
+  ['Store','10 sessions',1]];
+function dial(svg){
+  const ns='http://www.w3.org/2000/svg';
+  [70,50,30].forEach(r=>{const c=document.createElementNS(ns,'circle');
+    c.setAttribute('cx',100);c.setAttribute('cy',100);c.setAttribute('r',r);
+    c.setAttribute('fill','none');c.setAttribute('stroke','#3A5A82');c.setAttribute('stroke-width','1');
+    c.setAttribute('opacity','.7');svg.appendChild(c);});
+  for(let a=0;a<360;a+=30){const l=document.createElementNS(ns,'line');
+    const r1=66,r2=72,rad=a*Math.PI/180;
+    l.setAttribute('x1',100+Math.cos(rad)*r1);l.setAttribute('y1',100+Math.sin(rad)*r1);
+    l.setAttribute('x2',100+Math.cos(rad)*r2);l.setAttribute('y2',100+Math.sin(rad)*r2);
+    l.setAttribute('stroke','#3A5A82');l.setAttribute('stroke-width','1');svg.appendChild(l);}
+  const wedge=document.createElementNS(ns,'path');
+  wedge.setAttribute('fill','url(#gw'+svg.id+')');svg.appendChild(wedge);
+  const defs=document.createElementNS(ns,'defs');
+  defs.innerHTML=`<radialGradient id="gw${svg.id}"><stop offset="0" stop-color="#5FDDFF" stop-opacity=".55"/>
+    <stop offset="1" stop-color="#5FDDFF" stop-opacity="0"/></radialGradient>`;
+  svg.appendChild(defs);
+  const arm=document.createElementNS(ns,'line');
+  arm.setAttribute('x1',100);arm.setAttribute('y1',100);
+  arm.setAttribute('stroke','#5FDDFF');arm.setAttribute('stroke-width','1.6');svg.appendChild(arm);
+  return {wedge,arm};
+}
+function rowsInto(el){el.innerHTML=CHECKS.map((c,i)=>
+  `<div class="rw" data-i="${i}"><span class="n">${c[0]}</span><span class="v">${c[1]}</span>
+   <span class="chip on">ONLINE</span></div>`).join('')}
+function setArm(d,ang){
+  const rad=ang*Math.PI/180;
+  d.arm.setAttribute('x2',100+Math.cos(rad)*70);d.arm.setAttribute('y2',100+Math.sin(rad)*70);
+  const s=(ang-46)*Math.PI/180;
+  d.wedge.setAttribute('d',`M100 100 L${100+Math.cos(s)*70} ${100+Math.sin(s)*70} A70 70 0 0 1 ${100+Math.cos(rad)*70} ${100+Math.sin(rad)*70} Z`);
+}
+rowsInto(document.getElementById('rowsA'));
+rowsInto(document.getElementById('rowsB'));
+rowsInto(document.getElementById('rowsC'));
+const dA=dial(document.getElementById('radarA')),dB=dial(document.getElementById('radarB'));
+setArm(dB,-90);
+let angA=0;
+(function loopA(){angA=(angA+1.15)%360;setArm(dA,angA-90);
+  const idx=Math.floor(((angA%360)/360)*CHECKS.length);
+  document.querySelectorAll('#rowsA .rw').forEach(r=>
+    r.classList.toggle('hit',+r.dataset.i===idx));
+  requestAnimationFrame(loopA);})();
+let busyB=false;
+function runB(){
+  if(busyB)return;busyB=true;
+  const st=document.getElementById('statB');st.textContent='SWEEPING';st.style.color='#5FDDFF';
+  document.querySelectorAll('#rowsB .rw').forEach(r=>r.classList.remove('hit'));
+  let a=0;const t0=performance.now();
+  (function step(now){
+    a=((now-t0)/2400)*720;
+    if(a>=720){setArm(dB,-90);document.querySelectorAll('#rowsB .rw').forEach(r=>r.classList.remove('hit'));
+      st.textContent='COMPLETE · 7 OF 7';st.style.color='#97F04A';busyB=false;return;}
+    setArm(dB,a-90);
+    const idx=Math.floor(((a%360)/360)*CHECKS.length);
+    document.querySelectorAll('#rowsB .rw').forEach(r=>r.classList.toggle('hit',+r.dataset.i===idx));
+    requestAnimationFrame(step);})(performance.now());
+}
+(function loopC(){
+  const bar=document.getElementById('barC'),host=document.getElementById('sweepC');
+  let t=0;
+  setInterval(()=>{t=0;const w=host.offsetWidth;
+    const s=performance.now();
+    (function f(now){const p=(now-s)/1200;
+      if(p>1){bar.style.left='-120px';return;}
+      bar.style.left=(p*(w+120)-120)+'px';requestAnimationFrame(f);})(performance.now());
+  },5000);})();
+</script></body></html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUD — the starting page, four looks</title>
+<style>
+  /* Palette verbatim from Theme.swift (2026-08-15 AA pass). */
+  :root{
+    --void:#050A14; --panel:#0D1526; --panel-hi:#18263F;
+    --primary:#5FDDFF; --structure:#3A5A82; --alert:#FF8A55; --earned:#FFCF57;
+    --logged:#97F04A; --missed:#F2DC45; --text:#ECF3FC; --muted:#9AB2D0;
+    --faint:#4A5F7A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--void);color:var(--text);overflow-x:hidden;
+       font:14px/1.55 -apple-system,"SF Pro",sans-serif;padding:32px 38px 90px}
+  .data{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+  h1{font-size:15px;letter-spacing:3px;font-weight:600}
+  h1 span{color:var(--primary)}
+  .sub{color:var(--muted);font-size:11.5px;margin-top:6px;max-width:min(880px,100%)}
+  .sub b{color:var(--text);font-weight:600}
+  section{margin-top:34px}
+  h2{font-size:11px;letter-spacing:2.2px;color:var(--earned);
+     border-bottom:1px solid rgba(58,90,130,.5);padding-bottom:6px;margin-bottom:6px}
+  h2 .code{color:var(--faint);float:right;letter-spacing:1px;font-weight:400}
+  .verdict{font-size:10.5px;color:var(--muted);margin:8px 0 12px;max-width:min(900px,100%)}
+  .verdict b{color:var(--text)}
+
+  /* The window frame every look is drawn inside. 13.6" MBA at 1470×956,
+     scaled to 720 wide — the real proportion, so nothing lies about space. */
+  .win{width:720px;height:468px;background:var(--void);position:relative;
+       border:1px solid var(--structure);overflow:hidden;cursor:pointer;
+       user-select:none}
+  .chrome{position:absolute;top:0;left:0;right:0;height:19px;z-index:6;
+          display:flex;align-items:center;gap:5px;padding-left:9px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#3A4356}
+  .dot.r{background:#FF5F57}.dot.y{background:#FEBC2E}.dot.g{background:#28C840}
+  .stage{position:absolute;inset:19px 0 0 0}
+  .stars i{position:absolute;background:#ECF3FC;border-radius:50%}
+  .hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;
+        padding:7px 0;background:linear-gradient(180deg,rgba(5,10,20,0),rgba(5,10,20,.95) 55%);
+        font-size:8.5px;letter-spacing:2.4px;color:var(--faint)}
+  .entered{position:absolute;inset:19px 0 0 0;opacity:0;transition:opacity .3s;
+           pointer-events:none;background:var(--void)}
+  .win.on .entered{opacity:1}
+  .win.on .fades{opacity:0;transition:opacity .25s}
+  .startface{position:absolute;inset:0}
+  .replay{margin-top:8px;display:inline-block;border:1px solid var(--structure);
+          color:var(--muted);font-size:9px;letter-spacing:1.4px;padding:3px 9px;
+          cursor:pointer}
+  .replay:hover{border-color:var(--primary);color:var(--primary)}
+
+  /* shared bits */
+  .wordmark{font-weight:700;letter-spacing:.5px;color:#C8CCD2;line-height:.82;
+            text-shadow:0 2px 0 #6E7278,0 4px 0 #4A4E54,0 6px 10px rgba(0,0,0,.7)}
+  .rule{height:1px;background:var(--structure)}
+  .intent-label{font-size:8.5px;letter-spacing:1.9px;color:var(--primary)}
+  .intent-line{border-bottom:1px solid var(--structure);padding-bottom:5px;
+               font-size:12.5px;color:var(--faint)}
+  .caret{display:inline-block;width:7px;height:13px;background:var(--primary);
+         vertical-align:-2px;animation:blink 1.06s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .skel{position:absolute;border:1px solid var(--structure);
+        clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+  .plabel{position:absolute;font-size:7px;letter-spacing:1.5px;color:var(--faint)}
+  .row{display:flex;gap:22px;flex-wrap:wrap}
+  .fig{color:var(--faint);font-size:9px;letter-spacing:1.2px;margin-top:7px}
+</style>
+</head>
+<body>
+<h1>HUD <span>· THE STARTING PAGE — FOUR LOOKS</span></h1>
+<div class="sub data">MOCK ONLY — NOTHING SHIPS UNTIL YOU PICK. Each frame is the real window
+proportion (1470×956 scaled to 720). <b>Click any frame</b> to see it enter — the 850ms power-on
+that follows is already built and identical in all four; what differs is the page you sit on
+before you click. The composite at the top is <b>what is now in the app</b>; S1–S4 below are the ingredients it was chosen from, kept for reference.</div>
+
+
+<!-- ===================== COMPOSITE ===================== -->
+<section>
+<h2>S2 + S3 + S4 · THE COMPOSITE <span class="code">THE OWNER'S PICK — BUILT 2026-08-24</span></h2>
+<div class="verdict"><b>One page with one logic: the machine wakes, checks itself, reports where
+you stand, and waits.</b> S2 is the substrate (the app's own skeleton, cold, at a third opacity).
+S4 is the sequence (five checks type out over ~600ms). S3 is the payload (the orb at its real
+charge, the week, the one next action) — it lands as the last check clears. Then it holds, with
+no clock running, until you click. The intro assembles in about a second; the page itself waits
+forever.</div>
+<div class="win" id="w0">
+  <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
+  <div class="stage">
+    <div class="startface fades" id="c-frame" style="opacity:0;transition:opacity .34s">
+      <div class="skel" style="left:20px;top:20px;width:118px;height:409px"></div>
+      <div class="skel" style="left:152px;top:20px;width:230px;height:196px"></div>
+      <div class="skel" style="left:396px;top:20px;width:304px;height:196px"></div>
+      <div class="skel" style="left:152px;top:230px;width:548px;height:199px"></div>
+    </div>
+    <div class="startface fades">
+      <div style="position:absolute;left:0;right:0;top:0;bottom:0;
+                  background:radial-gradient(ellipse at 32% 42%,rgba(5,10,20,.93) 42%,rgba(5,10,20,.55))"></div>
+      <div class="c-el" style="position:absolute;left:64px;top:34px">
+        <div class="wordmark" style="font-size:25px">WORDMARK</div>
+        <div class="data" style="font-size:8px;letter-spacing:1.6px;color:var(--muted);margin-top:9px">MONDAY 24 AUGUST · 09:12</div>
+      </div>
+      <div class="data" id="c-boot" style="position:absolute;left:64px;top:100px;font-size:9.5px;
+           line-height:1.92;letter-spacing:.3px"></div>
+      <!-- the orb, resting: one static frame, no clock -->
+      <div class="c-state" style="position:absolute;right:58px;top:52px;opacity:0;transition:opacity .4s">
+        <div style="width:118px;height:118px;border-radius:50%;
+             background:radial-gradient(circle at 42% 36%,rgba(95,221,255,.32),rgba(95,221,255,.06) 60%,transparent 72%);
+             border:1px solid rgba(95,221,255,.34)"></div>
+        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--primary);text-align:center;margin-top:11px">STEADY · 2 OF 3</div>
+      </div>
+      <div class="c-state" style="position:absolute;left:64px;top:216px;opacity:0;transition:opacity .4s">
+        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--faint)">THIS WEEK</div>
+        <div style="display:flex;gap:6px;margin-top:8px" id="c-week"></div>
+      </div>
+      <div class="c-state" style="position:absolute;left:64px;top:290px;opacity:0;transition:opacity .4s">
+        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--alert)">NEXT ACTION</div>
+        <div style="font-size:13.5px;color:var(--text);margin-top:6px">Photograph the four new items</div>
+      </div>
+      <div class="c-intent" style="position:absolute;left:64px;top:352px;opacity:0;transition:opacity .4s">
+        <div class="intent-label">TODAY'S INTENT</div>
+        <div class="intent-line" style="width:400px;margin-top:7px">one line — what today is for<span class="caret"></span></div>
+      </div>
+    </div>
+    <div class="hint fades c-intent" style="opacity:0;transition:opacity .4s">CLICK ANYWHERE TO ENTER</div>
+    <div class="entered"></div>
+  </div>
+</div>
+<span class="replay" data-w="w0">REPLAY</span>
+</section>
+
+<!-- ===================== S1 ===================== -->
+<section>
+<h2>S1 · THE PLAQUE <span class="code">WHAT SHIPPED — BUILT WITHOUT A MOCK</span></h2>
+<div class="verdict"><b>Void, wordmark, one line.</b> Nothing on it moves and nothing on it
+reports. Honest and quiet, but it tells you nothing you did not already know — the app's name
+on the app you just opened. The intent field is the only thing earning its place.</div>
+<div class="win" id="w1">
+  <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
+  <div class="stage">
+    <div class="startface fades" style="padding:96px 0 0 76px">
+      <div class="wordmark" style="font-size:38px">WORDMARK</div>
+      <div class="rule" style="width:520px;margin-top:20px;opacity:.6"></div>
+      <div class="data" style="font-size:9.5px;letter-spacing:1.5px;color:var(--muted);margin-top:11px">MONDAY 24 AUGUST · 09:12</div>
+      <div style="margin-top:36px">
+        <div class="intent-label">TODAY'S INTENT</div>
+        <div class="intent-line" style="width:430px;margin-top:8px">one line — what today is for<span class="caret"></span></div>
+      </div>
+    </div>
+    <div class="hint fades">CLICK ANYWHERE TO ENTER</div>
+    <div class="entered"></div>
+  </div>
+</div>
+<span class="replay" data-w="w1">REPLAY</span>
+</section>
+
+<!-- ===================== S2 ===================== -->
+<section>
+<h2>S2 · COLD FRAME <span class="code">THE L MOCK'S OWN LOOK, HELD</span></h2>
+<div class="verdict"><b>The app powered down, showing its own skeleton.</b> Exactly the frame
+the approved L mock assembled toward — panel outlines, no fill, no data — except it holds
+instead of racing past. Entering fills the frames you were already looking at, so the click
+lands you somewhere you have been standing. Closest thing to a mockup that was actually agreed on.</div>
+<div class="win" id="w2">
+  <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
+  <div class="stage">
+    <!-- The app's own architecture, drawn cold: outlines only, pushed back to
+         a third opacity so it reads as substrate rather than as empty panels
+         someone forgot to fill. -->
+    <div class="startface fades" style="opacity:.34">
+      <div class="skel" style="left:20px;top:20px;width:118px;height:409px"></div>
+      <div class="plabel" style="left:32px;top:32px">NAVIGATION</div>
+      <div class="skel" style="left:152px;top:20px;width:230px;height:196px"></div>
+      <div class="plabel" style="left:164px;top:32px">H1 · REACTOR</div>
+      <div class="skel" style="left:396px;top:20px;width:304px;height:196px"></div>
+      <div class="plabel" style="left:408px;top:32px">H2 · THE COMMITMENT</div>
+      <div class="skel" style="left:152px;top:230px;width:548px;height:199px"></div>
+      <div class="plabel" style="left:164px;top:242px">H4 · ROLLING 7-DAY TRACKER</div>
+    </div>
+    <!-- The plaque rides over the cold frame on its own scrim, so the type
+         never fights a panel edge. -->
+    <div class="startface fades">
+      <div style="position:absolute;left:0;right:0;top:132px;height:184px;
+                  background:linear-gradient(90deg,rgba(5,10,20,.94) 62%,rgba(5,10,20,0))"></div>
+      <div style="position:absolute;left:76px;top:150px">
+        <div class="wordmark" style="font-size:30px">WORDMARK</div>
+        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:13px">MONDAY 24 AUGUST · 09:12 · <span style="color:var(--faint)">SYSTEMS COLD</span></div>
+        <div style="margin-top:28px">
+          <div class="intent-label">TODAY'S INTENT</div>
+          <div class="intent-line" style="width:400px;margin-top:8px">one line — what today is for<span class="caret"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="hint fades">CLICK ANYWHERE TO POWER ON</div>
+    <div class="entered"></div>
+  </div>
+</div>
+<span class="replay" data-w="w2">REPLAY</span>
+</section>
+
+<!-- ===================== S3 ===================== -->
+<section>
+<h2>S3 · THE READY ROOM <span class="code">STATE BEFORE ENTRY</span></h2>
+<div class="verdict"><b>It answers the question you opened the app to ask, before you are in it.</b>
+The orb resting at its real charge, the week as seven marks, the streak, the one next action.
+Most useful of the four, and the only one where the page is worth sitting on. Risk: it duplicates
+the dashboard, so entering can feel like arriving where you already were.</div>
+<div class="win" id="w3">
+  <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
+  <div class="stage">
+    <div class="startface fades">
+      <div style="position:absolute;left:70px;top:56px">
+        <div class="wordmark" style="font-size:26px">WORDMARK</div>
+        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:12px">MONDAY 24 AUGUST · 09:12</div>
+      </div>
+      <!-- resting orb -->
+      <div style="position:absolute;right:78px;top:52px;width:132px;height:132px;border-radius:50%;
+                  background:radial-gradient(circle at 42% 38%,rgba(95,221,255,.30),rgba(95,221,255,.05) 62%,transparent 72%);
+                  border:1px solid rgba(95,221,255,.34)"></div>
+      <div class="data" style="position:absolute;right:78px;top:192px;width:132px;text-align:center;
+                  font-size:8px;letter-spacing:1.8px;color:var(--primary)">STEADY · 2 OF 3</div>
+      <!-- week strip -->
+      <div style="position:absolute;left:70px;top:176px">
+        <div class="data" style="font-size:8px;letter-spacing:1.8px;color:var(--faint)">THIS WEEK</div>
+        <div style="display:flex;gap:7px;margin-top:9px" id="weekstrip"></div>
+      </div>
+      <!-- next action -->
+      <div style="position:absolute;left:70px;top:250px">
+        <div class="data" style="font-size:8px;letter-spacing:1.8px;color:var(--alert)">NEXT ACTION</div>
+        <div style="font-size:15px;color:var(--text);margin-top:7px">Photograph the four new items</div>
+      </div>
+      <div style="position:absolute;left:70px;top:330px">
+        <div class="intent-label">TODAY'S INTENT</div>
+        <div class="intent-line" style="width:430px;margin-top:8px">one line — what today is for<span class="caret"></span></div>
+      </div>
+    </div>
+    <div class="hint fades">CLICK ANYWHERE TO ENTER</div>
+    <div class="entered"></div>
+  </div>
+</div>
+<span class="replay" data-w="w3">REPLAY</span>
+</section>
+
+<!-- ===================== S4 ===================== -->
+<section>
+<h2>S4 · COLD BOOT <span class="code">THE TERMINAL</span></h2>
+<div class="verdict"><b>The machine checks itself in front of you, then waits.</b> Six lines type
+out over ~700ms and stop; the last one is a prompt that takes your intent. The only look where
+waiting is the point rather than the cost. Risk: it is the most theatrical, and theatre gets old
+on the four-hundredth launch — worth weighing against S2, which is quiet by construction.</div>
+<div class="win" id="w4">
+  <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
+  <div class="stage">
+    <div class="startface fades">
+      <div style="position:absolute;left:74px;top:58px">
+        <div class="wordmark" style="font-size:22px">WORDMARK</div>
+      </div>
+      <div class="data" id="boot" style="position:absolute;left:74px;top:118px;font-size:11px;
+           line-height:1.95;color:var(--muted);letter-spacing:.4px"></div>
+    </div>
+    <div class="hint fades">CLICK ANYWHERE TO ENTER</div>
+    <div class="entered"></div>
+  </div>
+</div>
+<span class="replay" data-w="w4">REPLAY</span>
+</section>
+
+<section>
+<h2>PICKING <span class="code">THE READ</span></h2>
+<div class="verdict"><b>S2 is the one to build.</b> It is the only look descended from a mock
+you actually approved, it makes entering mean something (the frames you are staring at fill in),
+and it costs nothing per frame — outlines and text, no clock at all. <b>S3 is the one you may
+actually want</b> if the starting page should do a job rather than set a mood; say so and it is a
+straight swap. S4 is the best-looking and the first to wear out. S1 stays only if you like the
+silence. Any of them keeps the intent line and the 850ms power-on exactly as built.</div>
+</section>
+
+<script>
+(function(){
+  try{
+    // Deterministic sparse starfield — the sky is absent from every start
+    // face on purpose (it fades up as the power-on's last beat), so these
+    // sit only in the ENTERED state as a hint of what arrives.
+    function rng(seed){let s=seed>>>0;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
+    document.querySelectorAll('.entered').forEach(function(el,n){
+      var r=rng(97+n*13),h='';
+      for(var i=0;i<64;i++){
+        var sz=r()<.82?1:2;
+        h+='<i style="left:'+(r()*100).toFixed(2)+'%;top:'+(r()*100).toFixed(2)+'%;width:'+sz+'px;height:'+sz+'px;opacity:'+(.18+r()*.5).toFixed(2)+'"></i>';
+      }
+      el.className='entered stars';el.innerHTML=h;
+    });
+  }catch(e){console.log('starfield failed:',e)}
+
+  try{
+    // S3's week strip — the real DayState vocabulary: logged, missed, rest, today.
+    var marks=[['S','rest'],['M','done'],['T','rest'],['W','done'],['T','rest'],['F','today'],['S','rest']];
+    var C={done:'#97F04A',missed:'#F2DC45',rest:'#3A5A82',today:'#5FDDFF'};
+    var h='';
+    marks.forEach(function(m){
+      var c=C[m[1]],fill=m[1]==='done'?'background:rgba(151,240,74,.20);':'';
+      h+='<div style="width:26px;height:30px;'+fill+'border:1px solid '+c+';'+
+         'clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);'+
+         'display:flex;align-items:center;justify-content:center;font:9px \'SF Mono\',monospace;color:'+c+'">'+m[0]+'</div>';
+    });
+    document.getElementById('weekstrip').innerHTML=h;
+  }catch(e){console.log('weekstrip failed:',e)}
+
+  var bootTimers=[];
+  function runBoot(){
+    try{
+      bootTimers.forEach(clearTimeout);bootTimers=[];
+      var el=document.getElementById('boot');if(!el)return;
+      var lines=[
+        ['SESSION STORE','214 SESSIONS','#97F04A'],
+        ['CALENDAR','5 EVENTS · 30-DAY HORIZON','#97F04A'],
+        ['REMINDERS','3 ARMED · MWF 07:50','#97F04A'],
+        ['AGENTS','SIMULATED — NO ROSTER FILE','#FFCF57'],
+        ['OUTBOUND','WEATHER ONLY','#9AB2D0']
+      ];
+      el.innerHTML='';
+      lines.forEach(function(L,i){
+        bootTimers.push(setTimeout(function(){
+          var d=document.createElement('div');
+          d.innerHTML='<span style="color:#4A5F7A">·</span> '+
+            '<span style="display:inline-block;width:132px;color:#9AB2D0">'+L[0]+'</span>'+
+            '<span style="color:'+L[2]+'">'+L[1]+'</span>';
+          el.appendChild(d);
+        },i*118));
+      });
+      bootTimers.push(setTimeout(function(){
+        var d=document.createElement('div');
+        d.style.marginTop='16px';
+        d.innerHTML='<span style="color:#5FDDFF">&gt;</span> '+
+          '<span style="color:#4A5F7A">state today’s intent, or click to enter</span>'+
+          '<span class="caret" style="margin-left:5px"></span>';
+        el.appendChild(d);
+      },lines.length*118+140));
+    }catch(e){console.log('boot failed:',e)}
+  }
+  runBoot();
+
+  var cTimers=[];
+  function runComposite(){
+    try{
+      cTimers.forEach(clearTimeout);cTimers=[];
+      var frame=document.getElementById('c-frame'),boot=document.getElementById('c-boot');
+      if(!frame||!boot)return;
+      frame.style.opacity='0';boot.innerHTML='';
+      document.querySelectorAll('#w0 .c-state,#w0 .c-intent').forEach(function(e){e.style.opacity='0'});
+
+      // The cold frame first — the room, before anything in it.
+      cTimers.push(setTimeout(function(){frame.style.opacity='.34'},60));
+
+      var checks=[
+        ['SESSION STORE','214 SESSIONS','#97F04A'],
+        ['CALENDAR','5 EVENTS · 30-DAY HORIZON','#97F04A'],
+        ['REMINDERS','3 ARMED · MWF 07:50','#97F04A'],
+        ['AGENTS','SIMULATED — NO ROSTER FILE','#FFCF57'],
+        ['OUTBOUND','WEATHER ONLY','#9AB2D0']
+      ];
+      checks.forEach(function(L,i){
+        cTimers.push(setTimeout(function(){
+          var d=document.createElement('div');
+          d.innerHTML='<span style="color:#4A5F7A">·</span> '+
+            '<span style="display:inline-block;width:124px;color:#9AB2D0">'+L[0]+'</span>'+
+            '<span style="color:'+L[2]+'">'+L[1]+'</span>';
+          boot.appendChild(d);
+        },200+i*96));
+      });
+      // State lands as the last check clears; the intent line last of all.
+      cTimers.push(setTimeout(function(){
+        document.querySelectorAll('#w0 .c-state').forEach(function(e){e.style.opacity='1'});
+      },200+checks.length*96+90));
+      cTimers.push(setTimeout(function(){
+        document.querySelectorAll('#w0 .c-intent').forEach(function(e){e.style.opacity='1'});
+      },200+checks.length*96+300));
+    }catch(e){console.log('composite failed:',e)}
+  }
+  runComposite();
+
+  try{
+    var cw=document.getElementById('c-week');
+    if(cw){
+      var m=[['S','rest'],['M','done'],['T','rest'],['W','done'],['T','rest'],['F','today'],['S','rest']];
+      var CC={done:'#97F04A',missed:'#F2DC45',rest:'#3A5A82',today:'#5FDDFF'};
+      cw.innerHTML=m.map(function(x){
+        var c=CC[x[1]],f=x[1]==='done'?'background:rgba(151,240,74,.20);':'';
+        return '<div style="width:24px;height:28px;'+f+'border:1px solid '+c+';'+
+          'clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);'+
+          'display:flex;align-items:center;justify-content:center;font:8.5px \'SF Mono\',monospace;color:'+c+'">'+x[0]+'</div>';
+      }).join('');
+    }
+  }catch(e){console.log('composite week failed:',e)}
+
+  try{
+    document.querySelectorAll('.win').forEach(function(w){
+      w.addEventListener('click',function(){w.classList.add('on')});
+    });
+    document.querySelectorAll('.replay').forEach(function(b){
+      b.addEventListener('click',function(){
+        var w=document.getElementById(b.dataset.w);
+        if(!w)return;
+        w.classList.remove('on');
+        if(b.dataset.w==='w4')runBoot();
+        if(b.dataset.w==='w0')runComposite();
+      });
+    });
+  }catch(e){console.log('wiring failed:',e)}
+})();
+</script>
+</body>
+</html>

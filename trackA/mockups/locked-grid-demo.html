@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Locked grid vs reflowing grid</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #050A14; color: #ECF3FC;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    padding: 36px 30px 60px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .18em; color: #5FDDFF; margin-bottom: 11px; }
+  h1 { font-size: 28px; font-weight: 300; margin-bottom: 13px; }
+  .lede { font-size: 15px; line-height: 1.62; color: #9AB2D0; max-width: 700px; margin-bottom: 8px; }
+  .lede b { color: #ECF3FC; font-weight: 600; }
+
+  .controls { margin: 26px 0 22px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button {
+    font: 600 11.5px/1 -apple-system, system-ui, sans-serif; letter-spacing: .1em;
+    background: #0D1526; color: #5FDDFF; border: 1px solid #3A5A82;
+    padding: 11px 15px; cursor: pointer;
+    clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  }
+  button:hover { background: #18263F; color: #ECF3FC; }
+  button.on { background: #18263F; color: #FF8A55; border-color: #FF8A55; }
+  .hint { font-size: 12.5px; color: #4A5F7A; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .col h2 { font-size: 12px; font-weight: 600; letter-spacing: .15em; margin-bottom: 5px; }
+  .col .sub { font-size: 12.5px; color: #9AB2D0; margin-bottom: 14px; min-height: 34px; line-height: 1.45; }
+  .colA h2 { color: #F2DC45; }
+  .colB h2 { color: #97F04A; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+
+  .p {
+    background: #0D1526; border: 1px solid #3A5A82; padding: 12px; min-height: 104px;
+    clip-path: polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    transition: opacity .18s;
+  }
+  .p .t { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; color: #5FDDFF; margin-bottom: 9px; }
+  .p .v { font-family: ui-monospace, Menlo, monospace; font-size: 21px; font-weight: 300; color: #ECF3FC; }
+  .p .s { font-size: 11.5px; color: #9AB2D0; margin-top: 5px; line-height: 1.4; }
+  .p.gone { display: none; }
+
+  .hole {
+    border: 1px dashed #3A5A82; min-height: 104px; opacity: .5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; letter-spacing: .14em; color: #4A5F7A;
+    clip-path: polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+  }
+  .hole.hidden { display: none; }
+
+  .verdict { margin-top: 30px; border-top: 1px solid #18263F; padding-top: 20px;
+             display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .verdict h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .verdict p { font-size: 13px; line-height: 1.6; color: #9AB2D0; }
+  .verdict .cost { color: #FF8A55; }
+  .verdict .keep { color: #97F04A; }
+  .foot { margin-top: 24px; font-size: 13.5px; line-height: 1.65; color: #9AB2D0;
+          border-top: 1px solid #18263F; padding-top: 18px; }
+  .foot b { color: #ECF3FC; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">HUD · LAYOUT BEHAVIOUR</div>
+  <h1>What happens when you close a panel</h1>
+  <p class="lede">
+    Both grids below hold the same four panels. <b>Close one and watch what the other three do.</b>
+    That difference is the entire decision — there is nothing else to it.
+  </p>
+
+  <div class="controls">
+    <button onclick="tog('next',this)">CLOSE · NEXT ACTION</button>
+    <button onclick="tog('punch',this)">CLOSE · PUNCH LIST</button>
+    <button onclick="tog('weather',this)">CLOSE · WEATHER</button>
+    <button onclick="tog('diag',this)">CLOSE · DIAGNOSTICS</button>
+    <span class="hint">click again to reopen</span>
+  </div>
+
+  <div class="cols">
+    <div class="col colA">
+      <h2>REFLOWING — what most apps do</h2>
+      <p class="sub">The survivors slide up to fill the gap. No wasted space, and nothing is where you left it.</p>
+      <div class="grid" id="gridA"></div>
+    </div>
+    <div class="col colB">
+      <h2>LOCKED — what Symphony does</h2>
+      <p class="sub">The slot stays empty. You look at a hole, and every other panel is exactly where it was.</p>
+      <div class="grid" id="gridB"></div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div>
+      <h3 style="color:#F2DC45">Reflowing costs you muscle memory</h3>
+      <p>Every open and close reshuffles the screen, so you have to <b style="color:#ECF3FC">read</b> it to find
+      anything. The layout is never the same twice, which means it can never become automatic.
+      <span class="cost">You save space and pay for it in attention, every single time.</span></p>
+    </div>
+    <div>
+      <h3 style="color:#97F04A">Locked costs you space</h3>
+      <p>The punch list is top-left at 3am and top-left at noon. After a week you stop reading the screen
+      and just look. <span class="keep">You pay in holes and get back the thing that makes an instrument
+      an instrument — your hand knows where the dial is.</span></p>
+    </div>
+  </div>
+
+  <p class="foot">
+    <b>Why this is a live question for you and not a preference:</b> ⌘1–⌘4 already gives you spatial
+    persistence at the <b>navigation</b> level — destination 2 is always destination 2. The grid question is
+    about what happens <b>inside</b> one destination. If panels there reflow, you have a stable outer shell
+    wrapped around a surface that rearranges itself, which is the worst of both — you learn where to go and
+    then have to search once you arrive.
+  </p>
+</div>
+
+<script>
+  const PANELS = [
+    { id:'next',    t:'NEXT ACTION', v:'5',     s:'next item' },
+    { id:'punch',   t:'PUNCH LIST',  v:'64%',   s:'7 of 11 closed' },
+    { id:'weather', t:'WEATHER',     v:'23°',   s:'Clear · local' },
+    { id:'diag',    t:'DIAGNOSTICS', v:'OK',    s:'store · reminders · calendar' },
+  ];
+  const closed = new Set();
+
+  function panelHTML(p) {
+    return '<div class="p" data-id="'+p.id+'"><div class="t">'+p.t+'</div>'+
+           '<div class="v">'+p.v+'</div><div class="s">'+p.s+'</div></div>';
+  }
+  function holeHTML() { return '<div class="hole">EMPTY</div>'; }
+
+  function render() {
+    // A — reflowing: closed panels are removed from the flow entirely
+    document.getElementById('gridA').innerHTML =
+      PANELS.filter(p => !closed.has(p.id)).map(panelHTML).join('');
+    // B — locked: the slot persists as a hole, nothing else moves
+    document.getElementById('gridB').innerHTML =
+      PANELS.map(p => closed.has(p.id) ? holeHTML() : panelHTML(p)).join('');
+  }
+  function tog(id, btn) {
+    closed.has(id) ? closed.delete(id) : closed.add(id);
+    btn.classList.toggle('on', closed.has(id));
+    render();
+  }
+  render();
+</script>
+</body>
+</html>

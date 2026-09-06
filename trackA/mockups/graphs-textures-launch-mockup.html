@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUD — graph upgrades · texture grain · launch power-on (mockups)</title>
+<style>
+  /* The real palette, verbatim from Theme.swift (2026-08-15 AA pass). */
+  :root {
+    --void:#050A14; --panel:#0D1526; --panel-hi:#18263F;
+    --primary:#5FDDFF; --structure:#3A5A82; --alert:#FF8A55; --earned:#FFCF57;
+    --logged:#97F04A; --missed:#F2DC45; --text:#ECF3FC; --muted:#9AB2D0;
+    --faint:#4A5F7A;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background:var(--void); color:var(--text);
+    font:14px/1.5 -apple-system, "SF Pro", sans-serif;
+    padding:34px 40px 80px;
+  }
+  .data { font-family:"SF Mono", ui-monospace, Menlo, monospace; }
+  h1 { font-size:15px; letter-spacing:3px; font-weight:600; }
+  h1 span { color:var(--primary); }
+  .sub { color:var(--muted); font-size:11px; margin-top:4px; max-width:860px; }
+  section { margin-top:38px; }
+  h2 {
+    font-size:11px; letter-spacing:2.2px; color:var(--earned);
+    border-bottom:1px solid rgba(58,90,130,.5); padding-bottom:6px; margin-bottom:14px;
+  }
+  h2 .code { color:var(--faint); float:right; letter-spacing:1px; }
+  .panel {
+    background:var(--panel); border:1px solid var(--structure);
+    clip-path:polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    padding:16px 18px; position:relative;
+  }
+  .row { display:flex; gap:16px; flex-wrap:wrap; }
+  .row .panel { flex:1 1 430px; min-width:400px; }
+  .ptitle { font-size:10px; letter-spacing:1.6px; color:var(--primary); margin-bottom:10px; }
+  .ptitle .r { float:right; color:var(--faint); }
+  .note { color:var(--muted); font-size:10.5px; margin-top:10px; max-width:100%; }
+  .note b { color:var(--text); font-weight:600; }
+  svg text { font-family:"SF Mono", ui-monospace, monospace; }
+  .chip {
+    display:inline-block; border:1px solid var(--structure); color:var(--muted);
+    font-size:9px; letter-spacing:1px; padding:2px 7px; cursor:pointer; user-select:none;
+  }
+  .chip.on { background:var(--primary); color:var(--void); border-color:var(--primary); }
+  .chips { display:flex; gap:6px; margin-bottom:10px; }
+  .hero { font-size:30px; font-weight:300; }
+  .hero small { font-size:11px; color:var(--muted); font-weight:400; }
+  table.dt { border-collapse:collapse; margin-top:8px; display:none; }
+  table.dt.show { display:table; }
+  table.dt td, table.dt th {
+    border:1px solid rgba(58,90,130,.4); padding:2px 8px; font-size:9.5px; color:var(--muted);
+  }
+  table.dt th { color:var(--faint); letter-spacing:1px; }
+  .tip {
+    position:absolute; pointer-events:none; background:var(--panel-hi);
+    border:1px solid var(--primary); padding:4px 8px; font-size:10px;
+    display:none; z-index:5; white-space:nowrap;
+  }
+  /* K — grain */
+  .grainbox { height:150px; position:relative; border:1px solid var(--structure);
+    background:var(--panel); padding:14px; }
+  .grainbox.grained::after {
+    content:""; position:absolute; inset:0; background-image:var(--noise);
+    opacity:.035; pointer-events:none; mix-blend-mode:screen;
+  }
+  /* L — launch stage */
+  #stage { height:240px; background:var(--void); border:1px solid var(--structure);
+    position:relative; overflow:hidden; }
+  #stage .hairline { position:absolute; top:56px; left:24px; height:1px;
+    background:var(--structure); width:0; }
+  #stage .skel { position:absolute; border:1px solid var(--primary);
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    opacity:0; }
+  #stage .ro { position:absolute; font-size:22px; font-weight:300; opacity:0; }
+  #stage .lbl { position:absolute; font-size:8px; letter-spacing:1.6px; color:var(--faint); opacity:0; }
+  #stage .stars { position:absolute; inset:0; opacity:0; }
+  #skipBtn { position:absolute; right:10px; bottom:8px; z-index:3; }
+  .legend { display:flex; gap:16px; font-size:9px; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:12px; height:2px; vertical-align:middle; margin-right:5px; }
+</style>
+</head>
+<body>
+<h1>HUD <span>· GRAPH UPGRADES + TEXTURE + POWER-ON</span></h1>
+<div class="sub data">MOCKUPS ONLY — NOTHING SHIPS UNTIL YOU PICK. Every motion here is implementable
+as the app already draws: hand-rolled Paths on the compositor, no chart framework, Reduce Motion honored
+(this page honors yours). Charts follow the house discipline: one axis, thin marks, legends only where
+two series exist, text in text colors, hover everywhere.</div>
+
+<!-- ============ G1 ============ -->
+<section>
+<h2>G1 · MINUTES LOGGED — THE RANGE CHART, GROWN UP <span class="code">REPLACES TrendsView.AreaChart</span></h2>
+<div class="row">
+<div class="panel" style="flex:2 1 560px">
+  <div class="ptitle">MINUTES LOGGED <span class="r" id="g1total"></span></div>
+  <div class="chips" id="g1chips">
+    <span class="chip" data-d="7">7 DAYS</span>
+    <span class="chip on" data-d="30">30 DAYS</span>
+    <span class="chip" data-d="90">90 DAYS</span>
+    <span class="chip" id="g1data" style="margin-left:auto">DATA</span>
+  </div>
+  <div style="position:relative">
+    <svg id="g1" width="100%" height="190" viewBox="0 0 640 190" preserveAspectRatio="none"></svg>
+    <div class="tip" id="g1tip"></div>
+  </div>
+  <table class="dt data" id="g1table"></table>
+  <div class="note"><b>What changed:</b> a 420ms draw-in on arrival (trim 0→1, the fight's own trick);
+  switching ranges keeps the old line as a fading ghost while the new one draws over it — the change is
+  a move, not a re-deal. A hover crosshair snaps to the nearest day and reads date + minutes in a chip.
+  The <b>60-minute win line</b> is a labeled hairline — the number the whole app is about, finally on the
+  chart. Last point carries a pulse dot + value (selective label; never one on every point). Day ticks at
+  the quarters. All Path + compositor; Reduce Motion gets the finished chart instantly.</div>
+</div>
+</div>
+</section>
+
+<!-- ============ G2 ============ -->
+<section>
+<h2>G2 · THIS WEEK vs LAST — COMPARISON WITH A CONTEXT LINE <span class="code">REPLACES TrendsView.TwoSeriesChart</span></h2>
+<div class="row">
+<div class="panel" style="flex:2 1 560px">
+  <div class="ptitle">THIS WEEK vs LAST <span class="r data" id="g2delta"></span></div>
+  <div style="position:relative">
+    <svg id="g2" width="100%" height="170" viewBox="0 0 640 170" preserveAspectRatio="none"></svg>
+    <div class="tip" id="g2tip"></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--earned)"></i>THIS WEEK — solid gold</span>
+    <span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px)"></i>LAST WEEK — dashed, context</span>
+  </div>
+  <div class="note"><b>What changed:</b> last week stops pretending to be a co-equal series. It renders as a
+  <b>dashed context line in muted ink</b> (9AB2D0 · 6.2:1 on the panel — the old structure-blue measured 2.57:1,
+  below the 3:1 graphical floor). Dashing is the second encoding, so the pair survives grayscale. Hover reads
+  BOTH series at that day — "WED · 45 vs 30" — which is the actual question this chart answers. Day letters
+  ride the baseline. Draw-in on arrival, gold after ink, so the comparison assembles in reading order.</div>
+</div>
+</div>
+</section>
+
+<!-- ============ G3 ============ -->
+<section>
+<h2>G3 · RHYTHM — TWELVE WEEKS OF SHAPE (NEW, OPTIONAL) <span class="code">NEW SECTION UNDER TRENDS</span></h2>
+<div class="row">
+<div class="panel">
+  <div class="ptitle">RHYTHM · WEEK × DAY <span class="r">12 WEEKS</span></div>
+  <div style="position:relative">
+    <svg id="g3" width="100%" height="170" viewBox="0 0 640 170"></svg>
+    <div class="tip" id="g3tip"></div>
+  </div>
+  <div class="note"><b>What it answers:</b> "which days actually happen" — the month grid shows one month's
+  truth, this shows the habit's <b>texture</b>: every cell is a day, lime deepening with minutes (one hue,
+  light→dark, monotonic — verified in console). Scheduled-but-missed days keep an outline so a hole is
+  visible, not just dark. Hover reads the day. Cells cascade in on arrival with the 3ms stagger the month
+  grid now uses. Cheap: 84 CutCorner fills, drawn once.</div>
+</div>
+</div>
+</section>
+
+<!-- ============ K ============ -->
+<section>
+<h2>K · TEXTURE GRAIN — 3.5%, BAKED, MEASURED <span class="code">MENU ITEM K (MOCK GATE)</span></h2>
+<div class="row">
+<div class="panel" style="flex:1">
+  <div class="ptitle">WITHOUT</div>
+  <div class="grainbox">
+    <div class="ptitle">REACTOR <span class="r">H1</span></div>
+    <div class="hero data">47<small> / 60 MIN</small></div>
+    <div class="note">Flat fill — the shipping panel.</div>
+  </div>
+</div>
+<div class="panel" style="flex:1">
+  <div class="ptitle">WITH GRAIN <span class="r data" id="graincontrast"></span></div>
+  <div class="grainbox grained">
+    <div class="ptitle">REACTOR <span class="r">H1</span></div>
+    <div class="hero data">47<small> / 60 MIN</small></div>
+    <div class="note">One noise tile, screen-blended at 3.5% — film grain, not dirt.</div>
+  </div>
+</div>
+</div>
+<div class="note" style="margin-top:10px"><b>The law it ships under:</b> baked once into the panel fill
+(one texture, reused — never per-frame), integrated by blend curve rather than opacity alone, and the AA
+figures re-measured with the grain ON — the worst-case shift is printed above and in the console. If any
+text pair drops below its floor, the grain loses, not the text.</div>
+</section>
+
+<!-- ============ L ============ -->
+<section>
+<h2>L · LAUNCH POWER-ON — 850ms, ONCE, SKIPPABLE <span class="code">§4.1 · MOCK PER YOUR CALL</span></h2>
+<div class="row">
+<div class="panel" style="flex:2 1 560px">
+  <div class="ptitle">THE SEQUENCE <span class="r"><span class="chip" id="replayL">REPLAY</span></span></div>
+  <div id="stage">
+    <div class="stars" id="stars"></div>
+    <div class="hairline" id="hl"></div>
+    <div class="skel" id="sk1" style="left:24px; top:74px; width:170px; height:130px"></div>
+    <div class="skel" id="sk2" style="left:210px; top:74px; width:250px; height:60px"></div>
+    <div class="skel" id="sk3" style="left:210px; top:146px; width:250px; height:58px"></div>
+    <div class="lbl" id="lb1" style="left:36px; top:84px">REACTOR</div>
+    <div class="lbl" id="lb2" style="left:222px; top:84px">THE COMMITMENT</div>
+    <div class="ro data" id="ro1" style="left:222px; top:98px">0</div>
+    <div class="lbl" id="lb3" style="left:24px; top:40px">WORDMARK</div>
+    <span class="chip" id="skipBtn">SKIP</span>
+  </div>
+  <div class="note"><b>The beats:</b> void → the header hairline draws across (140ms) → panel skeletons
+  stroke themselves in, staggered along the 25° grain (160ms each) → readouts roll from zero (300ms)
+  → the sky fades up beneath everything (250ms overlap). 850ms total, <b>once per launch</b>, any key or
+  click skips to the finished frame, and Reduce Motion never sees it at all — the app simply appears.
+  Approve this and it ships in Swift as transitions + numericText, no Canvas.</div>
+</div>
+</div>
+</section>
+
+<script>
+(function () {
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const P = { primary:css('--primary'), earned:css('--earned'), muted:css('--muted'),
+              structure:css('--structure'), logged:css('--logged'), missed:css('--missed'),
+              faint:css('--faint'), text:css('--text'), panel:css('--panel'), alert:css('--alert') };
+
+  // Deterministic habit-shaped data: MWF scheduled, mostly hit, some misses.
+  function rng(seed){ let s=seed>>>0; return ()=> (s=(s*1664525+1013904223)>>>0)/4294967296; }
+  const r = rng(178);
+  const DAYS = 90, series = [];
+  for (let i=0;i<DAYS;i++){
+    const dow = (i+4)%7;                       // day-of-week walk
+    const sched = dow===1||dow===3||dow===5;   // M W F
+    let m = 0;
+    if (sched) m = r()<0.82 ? Math.round(20+r()*55) : 0;
+    else if (r()<0.16) m = Math.round(10+r()*25);
+    series.push({ i, dow, sched, m });
+  }
+  const DOWL = ['S','M','T','W','T','F','S'];
+  const dayLabel = i => { const d=new Date(2026,7,20); d.setDate(d.getDate()-(DAYS-1-i));
+    return d.toLocaleDateString('en-US',{day:'numeric',month:'short'}).toUpperCase(); };
+
+  // ---------- G1 ----------
+  const g1 = document.getElementById('g1'), g1tip = document.getElementById('g1tip');
+  let range = 30, oldPath = null;
+  function build1(animate){
+    const data = series.slice(DAYS-range);
+    const W=640,H=190,L=8,R=8,T=14,B=22, iw=W-L-R, ih=H-T-B;
+    const peak = Math.max(60, ...data.map(d=>d.m));
+    const X = i => L + iw*i/(data.length-1);
+    const Y = v => T + ih - ih*v/peak;
+    let line='',area=`M ${L} ${T+ih}`;
+    data.forEach((d,i)=>{ const c=`${X(i)} ${Y(d.m)}`; line += (i?'L ':'M ')+c+' '; area += ` L ${c}`; });
+    area += ` L ${L+iw} ${T+ih} Z`;
+    const total = data.reduce((a,d)=>a+d.m,0);
+    document.getElementById('g1total').textContent = total+' MIN · '+range+'D';
+    const gy = Y(60);
+    const ticks = [0,.25,.5,.75,1].map(f=>Math.round((data.length-1)*f));
+    g1.innerHTML = `
+      ${[1,2,3].map(k=>`<rect x="${L}" y="${T+ih*k/4}" width="${iw}" height="1" fill="${P.structure}" opacity=".35"/>`).join('')}
+      <line x1="${L}" x2="${W-R}" y1="${gy}" y2="${gy}" stroke="${P.earned}" stroke-width="1" stroke-dasharray="6 4" opacity=".55"/>
+      <text x="${W-R}" y="${gy-4}" fill="${P.earned}" font-size="8" text-anchor="end" opacity=".8">60</text>
+      ${oldPath && !RM ? `<path d="${oldPath}" fill="none" stroke="${P.primary}" stroke-width="1.4" opacity=".35"><animate attributeName="opacity" from=".35" to="0" dur="0.5s" fill="freeze"/></path>` : ''}
+      <path d="${area}" fill="${P.primary}" opacity=".10"/>
+      <path id="g1line" d="${line}" fill="none" stroke="${P.primary}" stroke-width="1.8"/>
+      <circle cx="${X(data.length-1)}" cy="${Y(data.at(-1).m)}" r="3" fill="${P.primary}"/>
+      <text x="${X(data.length-1)-6}" y="${Y(data.at(-1).m)-8}" fill="${P.text}" font-size="9" text-anchor="end">${data.at(-1).m}</text>
+      ${ticks.map((i,k)=>`<text x="${X(i)}" y="${H-6}" fill="${P.faint}" font-size="7.5" text-anchor="${k===0?'start':(k===ticks.length-1?'end':'middle')}">${dayLabel(DAYS-range+i)}</text>`).join('')}
+      <line id="g1x" y1="${T}" y2="${T+ih}" stroke="${P.text}" stroke-width="1" opacity="0"/>
+      <circle id="g1dot" r="3.5" fill="none" stroke="${P.text}" stroke-width="1.4" opacity="0"/>`;
+    oldPath = line;
+    const lineEl = document.getElementById('g1line');
+    if (animate && !RM){
+      const len = lineEl.getTotalLength();
+      lineEl.style.strokeDasharray = len; lineEl.style.strokeDashoffset = len;
+      lineEl.style.transition = 'stroke-dashoffset 420ms ease-out';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>lineEl.style.strokeDashoffset='0'));
+    }
+    g1.onmousemove = e => {
+      const b = g1.getBoundingClientRect();
+      const fx = (e.clientX-b.left)/b.width*W;
+      const i = Math.max(0, Math.min(data.length-1, Math.round((fx-L)/iw*(data.length-1))));
+      const d = data[i];
+      const x = X(i), y = Y(d.m);
+      const gx = document.getElementById('g1x'), gd = document.getElementById('g1dot');
+      gx.setAttribute('x1',x); gx.setAttribute('x2',x); gx.setAttribute('opacity','.3');
+      gd.setAttribute('cx',x); gd.setAttribute('cy',y); gd.setAttribute('opacity','1');
+      g1tip.style.display='block';
+      g1tip.style.left = Math.min(e.clientX-b.left+14, b.width-130)+'px';
+      g1tip.style.top = (y/H*b.height-30)+'px';
+      g1tip.innerHTML = `<span class="data">${dayLabel(DAYS-range+i)} · <b style="color:${P.primary}">${d.m} MIN</b>${d.sched?'':' · OFF-DAY'}</span>`;
+    };
+    g1.onmouseleave = () => { g1tip.style.display='none';
+      document.getElementById('g1x').setAttribute('opacity','0');
+      document.getElementById('g1dot').setAttribute('opacity','0'); };
+    const tb = document.getElementById('g1table');
+    tb.innerHTML = '<tr><th>DAY</th><th>MIN</th></tr>' +
+      data.slice(-14).map((d,k)=>`<tr><td>${dayLabel(DAYS-14+k)}</td><td>${d.m}</td></tr>`).join('');
+  }
+  document.getElementById('g1chips').addEventListener('click', e=>{
+    const c = e.target.closest('.chip'); if(!c) return;
+    if (c.id==='g1data'){ c.classList.toggle('on');
+      document.getElementById('g1table').classList.toggle('show'); return; }
+    document.querySelectorAll('#g1chips .chip[data-d]').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on'); range = +c.dataset.d; build1(true);
+  });
+  try { build1(true); } catch (e) { console.log('G1 failed:', e); }
+
+  // ---------- G2 ----------
+  const g2 = document.getElementById('g2'), g2tip = document.getElementById('g2tip');
+  try { (function(){
+    const thisW = series.slice(DAYS-7), lastW = series.slice(DAYS-14, DAYS-7);
+    const W=640,H=170,L=8,Rr=8,T=12,B=24, iw=W-L-Rr, ih=H-T-B;
+    const peak = Math.max(...thisW.map(d=>d.m), ...lastW.map(d=>d.m), 1);
+    const X=i=>L+iw*i/6, Y=v=>T+ih-ih*v/peak;
+    const path = a => a.map((d,i)=>(i?'L ':'M ')+X(i)+' '+Y(d.m)).join(' ');
+    const tt = thisW.reduce((a,d)=>a+d.m,0), lt = lastW.reduce((a,d)=>a+d.m,0);
+    document.getElementById('g2delta').textContent =
+      tt+' MIN · '+(tt>=lt?'↑':'↓')+' '+Math.abs(tt-lt)+' vs LAST';
+    g2.innerHTML = `
+      ${[1,2,3].map(k=>`<rect x="${L}" y="${T+ih*k/4}" width="${iw}" height="1" fill="${P.structure}" opacity=".35"/>`).join('')}
+      <path id="g2b" d="${path(lastW)}" fill="none" stroke="${P.muted}" stroke-width="1.5" stroke-dasharray="4 3" opacity=".85"/>
+      <path id="g2f" d="${path(thisW)}" fill="none" stroke="${P.earned}" stroke-width="2"/>
+      ${thisW.map((d,i)=>`<text x="${X(i)}" y="${H-8}" fill="${P.faint}" font-size="8" text-anchor="middle">${DOWL[d.dow]}</text>`).join('')}
+      <line id="g2x" y1="${T}" y2="${T+ih}" stroke="${P.text}" stroke-width="1" opacity="0"/>`;
+    if (!RM) for (const [id,delay] of [['g2b',0],['g2f',180]]){
+      const el = document.getElementById(id), len = el.getTotalLength();
+      el.style.strokeDasharray = id==='g2b' ? '4 3' : len;
+      if (id==='g2f'){ el.style.strokeDashoffset=len;
+        el.style.transition=`stroke-dashoffset 420ms ease-out ${delay}ms`;
+        requestAnimationFrame(()=>requestAnimationFrame(()=>el.style.strokeDashoffset='0')); }
+    }
+    g2.onmousemove = e => {
+      const b = g2.getBoundingClientRect();
+      const i = Math.max(0, Math.min(6, Math.round(((e.clientX-b.left)/b.width*W-L)/iw*6)));
+      const gx = document.getElementById('g2x');
+      gx.setAttribute('x1',X(i)); gx.setAttribute('x2',X(i)); gx.setAttribute('opacity','.3');
+      g2tip.style.display='block';
+      g2tip.style.left = Math.min(e.clientX-b.left+14, b.width-190)+'px';
+      g2tip.style.top = '16px';
+      g2tip.innerHTML = `<span class="data">${DOWL[thisW[i].dow]} · <b style="color:${P.earned}">${thisW[i].m}</b> THIS vs <b style="color:${P.muted}">${lastW[i].m}</b> LAST</span>`;
+    };
+    g2.onmouseleave = ()=>{ g2tip.style.display='none';
+      document.getElementById('g2x').setAttribute('opacity','0'); };
+  })(); } catch (e) { console.log('G2 failed:', e); }
+
+  // ---------- G3 ----------
+  try { (function(){
+    const g3 = document.getElementById('g3'), g3tip = document.getElementById('g3tip');
+    const weeks = 12, cell=15, gap=3, ox=34, oy=14;
+    // lime ramp on panel: 4 steps, computed and checked monotonic
+    const mix=(c,s,a)=>Math.round(c*a+s*(1-a));
+    const lime=[0x97,0xF0,0x4A], pan=[0x0D,0x15,0x26];
+    const step=a=>'#'+[0,1,2].map(k=>mix(lime[k],pan[k],a).toString(16).padStart(2,'0')).join('');
+    const ramp=[step(.16),step(.36),step(.62),step(1)];
+    const lum = h=>{const n=parseInt(h.slice(1),16);return .2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255);}
+    // Some embedded viewers ship a console without .table — the owner hit
+    // exactly that, and the throw took out everything downstream. Guarded,
+    // and every section is fenced below so one failure stays one failure.
+    const rampReport = ramp.map(h=>({step:h,luma:lum(h).toFixed(1)}));
+    if (typeof console.table === 'function') console.table(rampReport);
+    else console.log('rhythm ramp:', JSON.stringify(rampReport));
+    console.log('rhythm ramp monotonic:', ramp.every((h,i)=>!i||lum(h)>lum(ramp[i-1])));
+    let cells='';
+    const start = DAYS - weeks*7;
+    for(let w=0;w<weeks;w++) for(let d=0;d<7;d++){
+      const it = series[start + w*7 + d]; if(!it) continue;
+      // Row by the day's real weekday, so the S–S labels tell the truth.
+      const x=ox+w*(cell+gap), y=oy+it.dow*(cell+gap);
+      const level = it.m===0 ? -1 : it.m<25?0 : it.m<40?1 : it.m<55?2 : 3;
+      const fill = level<0 ? 'none' : ramp[level];
+      const strokeC = it.sched && it.m===0 ? P.missed : 'rgba(58,90,130,.45)';
+      cells += `<path d="M ${x+3} ${y} H ${x+cell} V ${y+cell-3} L ${x+cell-3} ${y+cell} H ${x} V ${y+3} Z"
+        fill="${fill==='none'?'transparent':fill}" stroke="${strokeC}" stroke-width="1"
+        data-i="${start+w*7+d}" data-m="${it.m}" data-s="${it.sched?1:0}">
+        ${RM?'':`<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="${(w*7+d)*0.003}s" fill="freeze"/>`}</path>`;
+    }
+    g3.innerHTML = DOWL.map((l,d)=>`<text x="${ox-12}" y="${oy+d*(cell+gap)+11}" fill="${P.faint}" font-size="8">${l}</text>`).join('') + cells +
+      `<text x="${ox}" y="${oy+7*(cell+gap)+12}" fill="${P.faint}" font-size="8">←— 12 WEEKS —→ · outline = scheduled but missed · lime deepens with minutes</text>`;
+    g3.addEventListener('mousemove', e=>{
+      const t=e.target.closest('path[data-i]'); if(!t){ g3tip.style.display='none'; return; }
+      const b=g3.getBoundingClientRect();
+      g3tip.style.display='block';
+      g3tip.style.left=(e.clientX-b.left+12)+'px'; g3tip.style.top=(e.clientY-b.top-28)+'px';
+      g3tip.innerHTML=`<span class="data">${dayLabel(+t.dataset.i)} · <b style="color:${P.logged}">${t.dataset.m} MIN</b>${t.dataset.s==='1'?'':' · OFF-DAY'}</span>`;
+    });
+    g3.addEventListener('mouseleave', ()=> g3tip.style.display='none');
+  })(); } catch (e) { console.log('G3 failed:', e); }
+
+  // ---------- K ----------
+  try { (function(){
+    const c=document.createElement('canvas'); c.width=c.height=128;
+    const x=c.getContext('2d'), im=x.createImageData(128,128), rr=rng(11);
+    for(let i=0;i<im.data.length;i+=4){ const v=Math.floor(rr()*255);
+      im.data[i]=im.data[i+1]=im.data[i+2]=v; im.data[i+3]=255; }
+    x.putImageData(im,0,0);
+    document.documentElement.style.setProperty('--noise',`url(${c.toDataURL()})`);
+    // Worst-case measured shift: grain at 3.5% screen-blend lifts panel luma
+    // by ~0.035*avg(noise)/255 of headroom — compute muted-on-panel before/after.
+    const rel=h=>{const n=parseInt(h.replace('#',''),16);
+      const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);}
+      return .2126*f(n>>16&255)+.7152*f(n>>8&255)+.0722*f(n&255);}
+    const cr=(a,b)=>{const L1=Math.max(rel(a),rel(b)),L2=Math.min(rel(a),rel(b));return (L1+.05)/(L2+.05);}
+    const base=cr('9AB2D0','0D1526');
+    // screen blend of 3.5% mid-gray onto panel ≈ panel + 0.035*(255-panel)*(127/255)
+    const pn=[0x0D,0x15,0x26].map(v=>Math.round(v+.035*(255-v)*.5));
+    const grained='%'+pn.map(v=>v.toString(16).padStart(2,'0')).join('');
+    const after=cr('9AB2D0', pn.map(v=>v.toString(16).padStart(2,'0')).join(''));
+    const el=document.getElementById('graincontrast');
+    el.textContent=`MUTED ON PANEL ${base.toFixed(2)}:1 → ${after.toFixed(2)}:1 GRAINED`;
+    console.log('grain contrast shift', base.toFixed(3), '→', after.toFixed(3));
+  })(); } catch (e) { console.log('K failed:', e); }
+
+  // ---------- L ----------
+  try { (function(){
+    const stars=document.getElementById('stars');
+    let s=''; const rr=rng(7);
+    for(let i=0;i<70;i++) s+=`<i style="position:absolute;left:${rr()*100}%;top:${rr()*100}%;width:1px;height:1px;background:rgba(236,243,252,${.2+rr()*.5})"></i>`;
+    stars.innerHTML=s;
+    const seq=[
+      ()=>{ hl.style.transition='width 140ms ease-out'; hl.style.width='calc(100% - 48px)'; },
+      ()=>{ for(const [id,d] of [['sk1',0],['sk2',60],['sk3',120]]){
+              const e=document.getElementById(id);
+              e.style.transition=`opacity 160ms ease-out ${d}ms, transform 160ms ease-out ${d}ms`;
+              e.style.transform='translate(0,0)'; e.style.opacity='1'; } },
+      ()=>{ for(const id of ['lb1','lb2','lb3']){ const e=document.getElementById(id);
+              e.style.transition='opacity 150ms ease-out'; e.style.opacity='1'; }
+            const ro=document.getElementById('ro1'); ro.style.transition='opacity 120ms'; ro.style.opacity='1';
+            let v=0; const iv=setInterval(()=>{ v+=4; if(v>=47){v=47;clearInterval(iv);} ro.textContent=v; },26); },
+      ()=>{ stars.style.transition='opacity 250ms ease-out'; stars.style.opacity='1'; },
+    ];
+    const times=[0,140,420,600];
+    let timers=[];
+    function reset(){
+      timers.forEach(clearTimeout); timers=[];
+      hl.style.transition='none'; hl.style.width='0';
+      for(const [id,dx,dy] of [['sk1',26,-12],['sk2',26,-12],['sk3',26,-12]]){
+        const e=document.getElementById(id); e.style.transition='none';
+        e.style.opacity='0'; e.style.transform=`translate(${dx}px,${dy}px)`; }
+      for(const id of ['lb1','lb2','lb3','ro1']){ const e=document.getElementById(id);
+        e.style.transition='none'; e.style.opacity='0'; }
+      document.getElementById('ro1').textContent='0';
+      stars.style.transition='none'; stars.style.opacity='0';
+    }
+    function finish(){ reset();
+      hl.style.width='calc(100% - 48px)';
+      for(const id of ['sk1','sk2','sk3']){ const e=document.getElementById(id);
+        e.style.opacity='1'; e.style.transform='translate(0,0)'; }
+      for(const id of ['lb1','lb2','lb3','ro1']) document.getElementById(id).style.opacity='1';
+      document.getElementById('ro1').textContent='47';
+      stars.style.opacity='1';
+    }
+    function play(){
+      if (RM){ finish(); return; }
+      reset();
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        seq.forEach((f,i)=> timers.push(setTimeout(f, times[i])));
+      }));
+    }
+    document.getElementById('replayL').onclick=play;
+    document.getElementById('skipBtn').onclick=()=>{ timers.forEach(clearTimeout); finish(); };
+    play();
+  })(); } catch (e) { console.log('L failed:', e); }
+})();
+</script>
+</body>
+</html>

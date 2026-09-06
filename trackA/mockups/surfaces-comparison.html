@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Surfaces — what a panel is made of</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #050A14;
+    color: #ECF3FC;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 40px 32px 64px;
+  }
+  .head { max-width: 980px; margin: 0 auto 34px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .18em;
+    color: #5FDDFF; margin-bottom: 12px;
+  }
+  h1 { font-size: 30px; font-weight: 300; letter-spacing: -.01em; margin-bottom: 14px; }
+  .lede { font-size: 15.6px; line-height: 1.6; color: #9AB2D0; max-width: 720px; }
+  .lede b { color: #ECF3FC; font-weight: 600; }
+
+  .grid {
+    max-width: 980px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 13px;
+  }
+  .cell { position: relative; overflow: hidden; min-height: 420px;
+          display: flex; flex-direction: column; }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center;
+           padding: 30px 26px; position: relative; }
+  .caption { padding: 14px 18px 16px; border-top: 1px solid rgba(255,255,255,.08);
+             background: #080E1A; }
+  .caption .n { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+                color: #4A5F7A; letter-spacing: .1em; }
+  .caption h2 { font-size: 15px; font-weight: 600; margin: 5px 0 6px; color: #ECF3FC; }
+  .caption p { font-size: 12.5px; line-height: 1.55; color: #9AB2D0; }
+  .caption .cost { display: block; margin-top: 7px; color: #FF8A55; font-size: 12px; }
+  .caption .keep { display: block; margin-top: 7px; color: #97F04A; font-size: 12px; }
+
+  /* ---------- shared panel content ---------- */
+  .panel { width: 100%; max-width: 320px; }
+  .prow { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .plabel { font-size: 13.5px; flex: 1; }
+  .phead { display: flex; align-items: center; justify-content: space-between;
+           padding-bottom: 11px; margin-bottom: 9px; }
+  .ptitle { font-size: 12px; font-weight: 600; letter-spacing: .16em; }
+  .prate { font-family: ui-monospace, Menlo, monospace; font-size: 16.8px; font-weight: 500; }
+  .pfoot { margin-top: 12px; padding-top: 11px; font-size: 11px;
+           letter-spacing: .12em; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  svg.mark { width: 15px; height: 15px; flex: none; }
+
+  /* ---------- A · cut corner, near-black (current) ---------- */
+  .cellA { background: #050A14; }
+  .panelA {
+    background: #0D1526; border: 1px solid #3A5A82; padding: 14px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    box-shadow: 0 0 22px rgba(95,221,255,.06);
+  }
+  .panelA .phead { border-bottom: 1px solid #3A5A82; }
+  .panelA .ptitle { color: #5FDDFF; }
+  .panelA .prate  { color: #ECF3FC; }
+  .panelA .plabel { color: #ECF3FC; }
+  .panelA .done   { color: #9AB2D0; }
+  .panelA .pfoot  { border-top: 1px solid #3A5A82; color: #FF8A55; }
+
+  /* ---------- B · frosted glass over the starfield ---------- */
+  .cellB { background: #060B16; }
+  #stars { position: absolute; inset: 0; }
+  .panelB {
+    position: relative;
+    background: rgba(28,44,72,.42);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(180,215,255,.22); border-radius: 16px; padding: 14px;
+    box-shadow: 0 10px 34px rgba(0,0,0,.5);
+  }
+  .panelB .phead { border-bottom: 1px solid rgba(180,215,255,.18); }
+  .panelB .ptitle { color: #A8E6FF; }
+  .panelB .prate  { color: #FFFFFF; }
+  .panelB .plabel { color: #EAF4FF; }
+  .panelB .done   { color: #A9C2DC; }
+  .panelB .pfoot  { border-top: 1px solid rgba(180,215,255,.18); color: #FFB183; }
+
+  /* ---------- C · warm light ---------- */
+  .cellC { background: #EFE9DF; }
+  .panelC {
+    background: #F7F3EC; border: 1px solid #D6CCBC; border-radius: 4px; padding: 14px;
+    box-shadow: 0 2px 10px rgba(90,70,45,.09);
+  }
+  .panelC .phead { border-bottom: 1px solid #D6CCBC; }
+  .panelC .ptitle { color: #7A6A52; }
+  .panelC .prate  { color: #2E2A22; }
+  .panelC .plabel { color: #2E2A22; }
+  .panelC .done   { color: #8A8072; }
+  .panelC .pfoot  { border-top: 1px solid #D6CCBC; color: #A8752A; }
+
+  /* ---------- D · flat black, rounded ---------- */
+  .cellD { background: #000000; }
+  .panelD {
+    background: #1C1C1E; border: none; border-radius: 14px; padding: 14px;
+  }
+  .panelD .phead { border-bottom: 1px solid #2C2C2E; }
+  .panelD .ptitle { color: #8E8E93; }
+  .panelD .prate  { color: #FFFFFF; }
+  .panelD .plabel { color: #FFFFFF; }
+  .panelD .done   { color: #8E8E93; }
+  .panelD .pfoot  { border-top: 1px solid #2C2C2E; color: #FF9F0A; }
+
+  .foot { max-width: 980px; margin: 30px auto 0; font-size: 13px; line-height: 1.65;
+          color: #9AB2D0; border-top: 1px solid #18263F; padding-top: 18px; }
+  .foot b { color: #ECF3FC; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="eyebrow">HUD · SURFACE COMPARISON</div>
+  <h1>What a panel is made of</h1>
+  <p class="lede">
+    A <b>surface</b> is the slab a panel is drawn on — its background colour, its edge,
+    and whether you can see through it. Same content in all four below: a sample punch
+    list, the real palette, the real spacing (14pt padding, 10pt corner cut, 1pt strokes).
+    <b>Only the slab changes.</b>
+  </p>
+</div>
+
+<div class="grid">
+
+  <!-- A -->
+  <div class="cell cellA">
+    <div class="stage">
+      <div class="panel panelA">
+        <div class="phead"><span class="ptitle">PUNCH LIST</span><span class="prate">64%</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#97F04A"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#0D1526" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">4 — draft the announcement</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#97F04A"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#0D1526" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">8 — record the figures</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#9AB2D0" stroke-width="1.4"/></svg><span class="plabel">5 — photograph the items</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#5FDDFF" stroke-width="1.4"/><path d="M8 2a6 6 0 000 12z" fill="#5FDDFF"/></svg><span class="plabel">6 — write the description</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#9AB2D0" stroke-width="1.4"/></svg><span class="plabel">7 — verify it went live</span></div>
+        <div class="pfoot">NEXT ACTION → 5</div>
+      </div>
+    </div>
+    <div class="caption">
+      <div class="n">A</div>
+      <h2>Cut corner, near-black — what you have</h2>
+      <p>Two corners clipped at 10pt on the diagonal. One hairline stroke in <code>structure</code> blue. Faint cyan bloom. Numerals monospaced.</p>
+      <span class="keep">Keeps: everything locked in VISION.md. Costs nothing — it already exists and compiles.</span>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="cell cellB">
+    <div class="stage"><canvas id="stars"></canvas>
+      <div class="panel panelB">
+        <div class="phead"><span class="ptitle">PUNCH LIST</span><span class="prate">64%</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#97F04A"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#12203A" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">4 — draft the announcement</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#97F04A"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#12203A" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">8 — record the figures</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#A9C2DC" stroke-width="1.4"/></svg><span class="plabel">5 — photograph the items</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#A8E6FF" stroke-width="1.4"/><path d="M8 2a6 6 0 000 12z" fill="#A8E6FF"/></svg><span class="plabel">6 — write the description</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#A9C2DC" stroke-width="1.4"/></svg><span class="plabel">7 — verify it went live</span></div>
+        <div class="pfoot">NEXT ACTION → 5</div>
+      </div>
+    </div>
+    <div class="caption">
+      <div class="n">B</div>
+      <h2>Frosted glass over the starfield</h2>
+      <p>A frosted-glass treatment. Translucent slab, rounded, background blurred behind it so the stars show through as soft light.</p>
+      <span class="cost">Costs: a live blur over 360 moving stars is the most expensive thing in the app — the GPU re-blurs every frame, all 60 of them, forever.</span>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="cell cellC">
+    <div class="stage">
+      <div class="panel panelC">
+        <div class="phead"><span class="ptitle">PUNCH LIST</span><span class="prate">64%</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#6E8558"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#F7F3EC" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">4 — draft the announcement</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#6E8558"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#F7F3EC" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">8 — record the figures</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#8A8072" stroke-width="1.4"/></svg><span class="plabel">5 — photograph the items</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#A8752A" stroke-width="1.4"/><path d="M8 2a6 6 0 000 12z" fill="#A8752A"/></svg><span class="plabel">6 — write the description</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#8A8072" stroke-width="1.4"/></svg><span class="plabel">7 — verify it went live</span></div>
+        <div class="pfoot">NEXT ACTION → 5</div>
+      </div>
+    </div>
+    <div class="caption">
+      <div class="n">C</div>
+      <h2>Warm light — a second theme</h2>
+      <p>A warm-paper treatment. Paper base, soft shadow instead of a glowing stroke, sage and clay instead of cyan and orange.</p>
+      <span class="cost">Costs: every colour decision from here gets made twice, forever — including the six mood colours and the three punch states.</span>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="cell cellD">
+    <div class="stage">
+      <div class="panel panelD">
+        <div class="phead"><span class="ptitle">PUNCH LIST</span><span class="prate">64%</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#30D158"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#1C1C1E" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">4 — draft the announcement</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#30D158"/><path d="M5 8.2l2.1 2.1L11 6.4" stroke="#1C1C1E" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="plabel done">8 — record the figures</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#8E8E93" stroke-width="1.4"/></svg><span class="plabel">5 — photograph the items</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#0A84FF" stroke-width="1.4"/><path d="M8 2a6 6 0 000 12z" fill="#0A84FF"/></svg><span class="plabel">6 — write the description</span></div>
+        <div class="prow"><svg class="mark" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#8E8E93" stroke-width="1.4"/></svg><span class="plabel">7 — verify it went live</span></div>
+        <div class="pfoot">NEXT ACTION → 5</div>
+      </div>
+    </div>
+    <div class="caption">
+      <div class="n">D</div>
+      <h2>Flat black, rounded — the network monitor</h2>
+      <p>Plain rounded cards on pure black. No cut corners, no hairline, no bloom. Separation comes from the card being lighter than the void, nothing else.</p>
+      <span class="cost">Costs: this is what every iOS app looks like. It is the one option where the HUD stops being recognisable as itself.</span>
+    </div>
+  </div>
+
+</div>
+
+<p class="foot">
+  <b>The question:</b> which slab. The content, the spacing and the three state marks
+  are identical in all four — so anything you like or dislike here is the surface, not the
+  layout. <b>The dark network monitor's density is available in every one of these</b>; that
+  is a separate decision from the slab, and it is the one worth taking from it regardless.
+</p>
+
+<script>
+  const c = document.getElementById('stars'), x = c.getContext('2d');
+  function fit(){ c.width = c.offsetWidth * 2; c.height = c.offsetHeight * 2; draw(); }
+  function draw(){
+    x.clearRect(0,0,c.width,c.height);
+    let s = 1;
+    for (let i = 0; i < 260; i++) {
+      s = (s * 16807) % 2147483647;
+      const px = (s / 2147483647) * c.width;
+      s = (s * 16807) % 2147483647;
+      const py = (s / 2147483647) * c.height;
+      s = (s * 16807) % 2147483647;
+      const a = 0.15 + (s / 2147483647) * 0.75;
+      s = (s * 16807) % 2147483647;
+      const r = 0.6 + (s / 2147483647) * 1.9;
+      x.beginPath(); x.arc(px, py, r, 0, 6.2832);
+      x.fillStyle = 'rgba(210,232,255,' + a + ')'; x.fill();
+    }
+    const g = x.createRadialGradient(c.width*.7, c.height*.3, 0, c.width*.7, c.height*.3, c.width*.55);
+    g.addColorStop(0,'rgba(90,70,190,.30)'); g.addColorStop(1,'rgba(90,70,190,0)');
+    x.fillStyle = g; x.fillRect(0,0,c.width,c.height);
+  }
+  fit(); window.addEventListener('resize', fit);
+</script>
+</body>
+</html>

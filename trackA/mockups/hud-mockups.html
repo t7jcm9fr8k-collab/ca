@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>HUD — reference mockups</title>
+<style>
+:root{
+  --void:#050A14; --panel:#0D1526; --panelHi:#18263F;
+  --primary:#5FDDFF; --structure:#3A5A82; --alert:#FF8A55; --earned:#FFCF57;
+  --logged:#97F04A; --missed:#F2DC45; --irregular:#FF3B30;
+  --text:#ECF3FC; --muted:#9AB2D0; --faint:#4A5F7A;
+  --cut:10px; --pad:14px; --gutter:13px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:34px 26px 70px}
+.wrap{max-width:1180px;margin:0 auto}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--primary);margin-bottom:10px}
+h1{font-size:27px;font-weight:300;margin-bottom:12px}
+.lede{font-size:14.5px;line-height:1.6;color:var(--muted);max-width:760px}
+.lede b{color:var(--text);font-weight:600}
+h2{font-size:11.5px;font-weight:600;letter-spacing:.16em;margin:44px 0 5px;
+   border-top:1px solid var(--panelHi);padding-top:20px;color:var(--primary)}
+.sub{font-size:12.5px;color:var(--muted);margin-bottom:16px;max-width:820px;line-height:1.55}
+.sub b{color:var(--text)} .sub .x{color:var(--alert)} .sub .k{color:var(--logged)}
+
+.pnl{background:var(--panel);border:1px solid var(--structure);padding:var(--pad);
+  clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut))}
+.ttl{font-size:12px;font-weight:600;letter-spacing:.15em;margin-bottom:11px}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.row{display:flex;gap:var(--gutter)}
+.col{display:flex;flex-direction:column;gap:var(--gutter)}
+
+/* ---------- 1 COMPONENT SHEET ---------- */
+.ribbon{display:flex;align-items:center;gap:10px;font-family:ui-monospace,Menlo,monospace;
+  font-size:10px;color:var(--muted);letter-spacing:.06em;margin-bottom:2px}
+.ribbon .b{color:var(--primary)}
+.hatch{flex:1;height:9px;background:repeating-linear-gradient(115deg,var(--structure) 0 1px,transparent 1px 5px)}
+table.tel{width:100%;border-collapse:collapse;font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+table.tel th{text-align:left;color:var(--faint);font-weight:600;letter-spacing:.1em;
+  padding:0 0 6px;font-size:9px;border-bottom:1px solid var(--structure)}
+table.tel td{padding:5px 0;border-bottom:1px solid rgba(58,90,130,.35);color:var(--text)}
+table.tel td.d{color:var(--muted)}
+.chip{font-size:9px;letter-spacing:.1em;padding:2px 6px;border:1px solid currentColor;display:inline-block}
+.on{color:var(--logged)} .off{color:var(--alert)}
+.meter{display:flex;align-items:center;gap:9px;margin:7px 0}
+.meter .lab{font-size:10px;color:var(--muted);width:96px;flex:none}
+.meter .track{flex:1;height:7px;background:var(--panelHi);position:relative}
+.meter .fill{height:100%;background:var(--primary)}
+.meter .val{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text);width:42px;text-align:right}
+.seg{display:flex;gap:2px;align-items:center}
+.seg i{width:7px;height:13px;background:var(--panelHi);display:block}
+.seg i.f{background:var(--primary)}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.thumbs div{aspect-ratio:1;border:1px solid var(--structure);position:relative}
+.thumbs div.lit{border-color:var(--earned);background:rgba(255,207,87,.10)}
+
+/* ---------- 2 CALENDAR / MONARCH ---------- */
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.scoper{font-size:10px;letter-spacing:.1em;color:var(--muted);border:1px solid var(--structure);
+  padding:3px 8px;clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px)}
+.hero{display:flex;align-items:baseline;gap:9px}
+.hero .n{font-family:ui-monospace,Menlo,monospace;font-size:31px;font-weight:300}
+.hero .d{font-size:11.5px}
+.up{color:var(--logged)} .dn{color:var(--alert)}
+.stats{display:flex;gap:26px}
+.stat .n{font-family:ui-monospace,Menlo,monospace;font-size:25px;font-weight:300}
+.stat .l{font-size:8.5px;letter-spacing:.12em;color:var(--faint);margin-top:2px}
+.stat .d{font-size:10px;margin-top:3px}
+.evrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid rgba(58,90,130,.32)}
+.evrow:last-child{border:none}
+.ic{width:20px;height:20px;flex:none;border:1px solid var(--structure);display:flex;
+  align-items:center;justify-content:center;font-size:9px;font-family:ui-monospace,Menlo,monospace;color:var(--primary)}
+.evrow .nm{flex:1;font-size:12px}
+.evrow .ct{font-size:10px;color:var(--faint)}
+.evrow .vl{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted)}
+
+/* ---------- 3 SIDEBAR ---------- */
+.side{width:196px;background:var(--panel);padding:14px 0;flex:none;border:1px solid var(--structure)}
+.nav{display:flex;align-items:center;gap:10px;padding:8px 12px;margin:0 6px;font-size:11px;
+  letter-spacing:.12em;color:var(--muted)}
+.nav.act{color:var(--primary);background:rgba(95,221,255,.12)}
+.nav .g{width:15px;text-align:center;font-size:12px}
+.nav .sp{flex:1}
+.nav .kb{font-family:ui-monospace,Menlo,monospace;font-size:8px;color:var(--faint)}
+.badge{font-family:ui-monospace,Menlo,monospace;font-size:9px;padding:1px 5px;color:var(--void);font-weight:700}
+
+/* ---------- 4 RAMP ---------- */
+.ramp{position:relative;height:15px;margin:14px 0 6px;
+  background:linear-gradient(90deg,#FF3B30 0%,#FF8A55 34%,#F2DC45 58%,#97F04A 100%)}
+.ramp .mk{position:absolute;top:-6px;width:3px;height:27px;background:var(--text);box-shadow:0 0 7px var(--text)}
+.rampx{display:flex;justify-content:space-between;font-family:ui-monospace,Menlo,monospace;
+  font-size:9px;color:var(--faint)}
+.bars{display:flex;align-items:flex-end;gap:5px;height:62px;margin:10px 0 6px}
+.bars b{flex:1;background:var(--structure);position:relative}
+.bars b.u{background:var(--primary)} .bars b.e{background:var(--earned)} .bars b.z{background:var(--panelHi)}
+.blab{display:flex;gap:5px;font-family:ui-monospace,Menlo,monospace;font-size:9px;color:var(--faint)}
+.blab span{flex:1;text-align:center}
+.gate{border-left:2px solid var(--alert);padding:9px 0 9px 12px;margin-top:12px}
+.gate .h{font-size:10px;letter-spacing:.12em;color:var(--alert);margin-bottom:4px}
+.gate p{font-size:11.5px;color:var(--muted);line-height:1.5}
+.foot{margin-top:44px;border-top:1px solid var(--panelHi);padding-top:20px;
+  font-size:13px;line-height:1.65;color:var(--muted)}
+.foot b{color:var(--text)}
+</style></head><body><div class="wrap">
+
+<div class="eyebrow">HUD · REFERENCE MOCKUPS · 2026-08-17</div>
+<h1>Five things, from three images</h1>
+<p class="lede">
+Everything below uses <b>Theme.swift's actual hexes</b> — void <span class="mono">#050A14</span>,
+panel <span class="mono">#0D1526</span>, primary <span class="mono">#5FDDFF</span>, earned
+<span class="mono">#FFCF57</span>, irregular <span class="mono">#FF3B30</span> — your 10pt diagonal
+corner cut, 1pt structure strokes, and mono numerals. <b>Real numbers throughout:</b> 7 of 11 punch
+items closed, 10 days tracked, 6 irregular days, term opening 25 Aug.
+</p>
+
+<!-- ═════════ 1 ═════════ -->
+<h2>1 · COMPONENT SHEET — image 2, in your palette</h2>
+<p class="sub">The reference runs <b>green resting</b>. Yours runs <b>cyan resting, orange attention,
+gold earned</b>. Same discipline, different assignment — so these are its <b>forms</b> wearing your
+hues. Each maps to a template you already have.</p>
+
+<div class="ribbon">
+  <span class="b">[ TRACKER ONLINE ]</span><span class="hatch"></span>
+  <span class="b">[ GATEWAY 127.0.0.1:8000 ]</span><span class="hatch"></span>
+  <span class="b">[ TERM T−8 ]</span><span class="hatch"></span>
+  <span>10 DAYS TRACKED</span>
+</div>
+<p class="sub" style="margin:6px 0 14px">▲ <b>Status ribbon.</b> Nothing you have does this. Bracketed
+truths across the top, hatched spacers between. Costs no data you don't already hold.</p>
+
+<div class="row">
+  <div class="pnl" style="flex:1.15">
+    <div class="ttl" style="color:var(--primary)">R4 · COMMITMENT TABLE</div>
+    <table class="tel">
+      <tr><th>DAY</th><th>OWED</th><th>LOGGED</th><th>MIN</th><th>STATE</th></tr>
+      <tr><td>MON 17</td><td class="d">10</td><td class="d">10</td><td>10</td><td><span class="chip on">ONLINE</span></td></tr>
+      <tr><td>FRI 14</td><td class="d">10</td><td class="d">25</td><td>25</td><td><span class="chip on">ONLINE</span></td></tr>
+      <tr><td>WED 12</td><td class="d">10</td><td class="d">10</td><td>10</td><td><span class="chip on">ONLINE</span></td></tr>
+      <tr><td>MON 10</td><td class="d">10</td><td class="d">—</td><td>00</td><td><span class="chip off">OFFLINE</span></td></tr>
+      <tr><td>FRI 07</td><td class="d">10</td><td class="d">15</td><td>15</td><td><span class="chip on">ONLINE</span></td></tr>
+    </table>
+    <p style="font-size:10px;color:var(--faint);margin-top:9px">Your <span class="mono">r4List</span> template. No zebra
+      striping, 1px rules, state chips. The irregularities list wants this shape.</p>
+  </div>
+
+  <div class="pnl" style="flex:.85">
+    <div class="ttl" style="color:var(--earned)">FN03 · METERS</div>
+    <div class="meter"><span class="lab">ADHERENCE</span><span class="track"><span class="fill" style="width:71%"></span></span><span class="val">5/7</span></div>
+    <div class="meter"><span class="lab">PUNCH LIST</span><span class="track"><span class="fill" style="width:64%;background:var(--earned)"></span></span><span class="val">64%</span></div>
+    <div class="meter"><span class="lab">TERM</span><span class="track"><span class="fill" style="width:0%"></span></span><span class="val">T−8</span></div>
+    <div class="meter"><span class="lab">TREE GATE</span><span class="track"><span class="fill" style="width:71%;background:var(--earned)"></span></span><span class="val">10/14</span></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:13px">
+      <span class="mono" style="font-size:19px;font-weight:300;letter-spacing:.06em">00:10:00:000</span>
+      <div class="seg">
+        <i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+        <i></i><i></i><i></i><i></i><i></i>
+      </div>
+    </div>
+    <p style="font-size:10px;color:var(--faint);margin-top:9px">Bar meters, a fixed-width timer, a segmented loader.
+      The ten-minute floor has a natural home here.</p>
+  </div>
+</div>
+
+<div class="row" style="margin-top:13px">
+  <div class="pnl" style="flex:1">
+    <div class="ttl" style="color:var(--primary)">NODE / BRANCH — the skill tree's grammar at widget scale</div>
+    <svg width="100%" height="118" viewBox="0 0 520 118">
+      <g stroke="#3A5A82" stroke-width="1" fill="none">
+        <path d="M20 59 H120"/><path d="M120 59 V22 H230"/><path d="M120 59 V96 H230"/>
+        <path d="M230 22 H330"/><path d="M230 96 H300"/><path d="M330 22 V59 H430"/>
+        <path d="M300 96 V59"/><path d="M300 59 H430"/><path d="M430 59 H500"/>
+      </g>
+      <g stroke="#5FDDFF" stroke-width="1.4" fill="none">
+        <path d="M20 59 H120"/><path d="M120 59 V22 H230"/><path d="M230 22 H330"/>
+      </g>
+      <circle cx="20" cy="59" r="4.5" fill="#5FDDFF"/>
+      <circle cx="120" cy="59" r="4.5" fill="#5FDDFF"/>
+      <circle cx="230" cy="22" r="4.5" fill="#5FDDFF"/>
+      <circle cx="330" cy="22" r="6" fill="none" stroke="#FFCF57" stroke-width="1.6"/>
+      <circle cx="330" cy="22" r="2.5" fill="#FFCF57"/>
+      <circle cx="230" cy="96" r="4" fill="none" stroke="#3A5A82" stroke-width="1.3"/>
+      <circle cx="300" cy="96" r="4" fill="none" stroke="#3A5A82" stroke-width="1.3"/>
+      <circle cx="300" cy="59" r="4" fill="none" stroke="#3A5A82" stroke-width="1.3"/>
+      <circle cx="430" cy="59" r="4" fill="none" stroke="#3A5A82" stroke-width="1.3"/>
+      <line x1="426" y1="55" x2="434" y2="63" stroke="#4A5F7A" stroke-width="1.3"/>
+      <circle cx="500" cy="59" r="4" fill="none" stroke="#3A5A82" stroke-width="1.3"/>
+      <text x="326" y="12" fill="#FFCF57" font-size="8" font-family="ui-monospace,Menlo,monospace">RANK III</text>
+      <text x="414" y="80" fill="#4A5F7A" font-size="8" font-family="ui-monospace,Menlo,monospace">INCAPABLE</text>
+    </svg>
+    <p style="font-size:10px;color:var(--faint)">Gold path = allocated, dim blue-grey = unallocated, diagonal slash =
+      Incapable. All three already specified in SKILL-TREE.md — this is what they look like drawn.</p>
+  </div>
+
+  <div class="pnl" style="flex:.62">
+    <div class="ttl" style="color:var(--earned)">H9 · BRANCH GALLERY</div>
+    <div class="thumbs">
+      <div class="lit"></div><div></div><div></div><div></div>
+      <div></div><div></div><div></div><div></div>
+      <div></div><div></div><div></div><div></div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+      <span class="mono" style="font-size:27px;font-weight:300;color:var(--earned)">1</span>
+      <span style="font-size:11px;color:var(--muted)">of 19 branches lit</span>
+    </div>
+    <p style="font-size:10px;color:var(--faint);margin-top:7px">Dim-until-earned. Eighteen dark branches are the point,
+      not a gap.</p>
+  </div>
+</div>
+
+<!-- ═════════ 2 ═════════ -->
+<h2>2 · CALENDAR DESTINATION — Monarch's grammar, your skin</h2>
+<p class="sub">Every card gets <b>a title row with a right-aligned scoper</b>, <b>one hero number with a
+delta</b>, and one supporting visual. That's the whole lesson from image 3 — none of its colour, all of
+its structure.</p>
+
+<div class="row">
+  <div class="col" style="flex:1">
+    <div class="pnl">
+      <div class="card-h">
+        <span class="ttl" style="color:var(--logged);margin:0">THIS MONTH</span>
+        <span class="scoper">MONTH ▾</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n" style="color:var(--logged)">7</div><div class="l">LOGGED</div><div class="d up">↑ 2 vs last</div></div>
+        <div class="stat"><div class="n" style="color:var(--missed)">0</div><div class="l">MISSED</div><div class="d" style="color:var(--faint)">— no change</div></div>
+        <div class="stat"><div class="n" style="color:var(--primary)">7</div><div class="l">OFF-DAY</div><div class="d up">↑ 3 vs last</div></div>
+        <div class="stat"><div class="n">100%</div><div class="l">ADHERENCE</div><div class="d up">↑ 14 pts</div></div>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="card-h">
+        <span class="ttl" style="color:var(--irregular);margin:0">IRREGULARITIES · 6</span>
+        <span class="scoper">THIS MONTH ▾</span>
+      </div>
+      <table class="tel">
+        <tr><th>DAY</th><th>SUBJECT</th><th>RULE</th><th>STATE</th></tr>
+        <tr><td>TUE 25</td><td class="d">EVENT A · 09:30</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+        <tr><td>TUE 25</td><td class="d">EVENT B · 12:30</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+        <tr><td>WED 26</td><td class="d">EVENT C · 12:00</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+        <tr><td>THU 27</td><td class="d">EVENT D · 14:00</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+        <tr><td>FRI 28</td><td class="d">EVENT C · 12:00</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+        <tr><td>MON 31</td><td class="d">EVENT F · 16:00</td><td class="d">missing</td><td><span class="chip off">OFFLINE</span></td></tr>
+      </table>
+      <p style="font-size:10.5px;color:var(--alert);margin-top:10px">⚠ A predicted list — the "event missing" rule
+        firing on term days whose events are not in the calendar yet. As a table you can read that in one glance.
+        As a count you cannot.</p>
+    </div>
+  </div>
+
+  <div class="col" style="width:330px;flex:none">
+    <div class="pnl">
+      <div class="card-h">
+        <span class="ttl" style="color:var(--primary);margin:0">UP NEXT</span>
+        <span class="scoper">30 DAYS ▾</span>
+      </div>
+      <div class="evrow"><span class="ic">A</span><span class="nm">EVENT A<div class="ct">Room 101</div></span><span class="vl">in 8d</span></div>
+      <div class="evrow"><span class="ic">B</span><span class="nm">EVENT B<div class="ct">Room 202</div></span><span class="vl">in 8d</span></div>
+      <div class="evrow"><span class="ic">C</span><span class="nm">EVENT C<div class="ct">Room 203</div></span><span class="vl">in 8d</span></div>
+      <div class="evrow"><span class="ic">📝</span><span class="nm">Review notes<div class="ct">after the last event</div></span><span class="vl">in 8d</span></div>
+      <div class="evrow"><span class="ic">D</span><span class="nm">EVENT D<div class="ct">Room 304</div></span><span class="vl">in 9d</span></div>
+    </div>
+    <div class="pnl">
+      <div class="card-h"><span class="ttl" style="color:var(--earned);margin:0">PUNCH LIST</span><span class="scoper">OPEN ▾</span></div>
+      <div class="hero"><span class="n" style="color:var(--earned)">7</span><span class="d" style="color:var(--muted)">of 11 closed</span></div>
+      <div class="meter" style="margin-top:11px"><span class="track" style="height:9px">
+        <span class="fill" style="width:64%;background:var(--earned)"></span></span></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:5px">
+        <span>7 closed</span><span>4 remaining</span></div>
+      <p style="font-size:10px;color:var(--faint);margin-top:9px">Spent-vs-remaining on one bar — image 3's budget card.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════ 3 ═════════ -->
+<h2>3 · SIDEBAR BADGES — smallest change, seen every launch</h2>
+<p class="sub">Image 3 badges <b>Recurring · 3</b>. You have <b>6 irregular days and 4 open punch items</b>
+and neither is visible until you go looking. <span class="k">Uses counts you already compute.</span></p>
+<div class="row">
+  <div class="side">
+    <div style="padding:0 12px 12px;font-size:10px;letter-spacing:.26em;color:var(--text)">WORDMARK</div>
+    <div style="padding:0 12px 12px;font-size:19px;color:var(--primary)" class="mono">78°</div>
+    <div class="nav"><span class="g">▣</span>DASHBOARD<span class="sp"></span><span class="kb">⌘1</span></div>
+    <div class="nav"><span class="g">✎</span>PROMPT STUDIO<span class="sp"></span><span class="kb">⌘2</span></div>
+    <div class="nav"><span class="g">▤</span>STUDY<span class="sp"></span><span class="kb">⌘3</span></div>
+    <div class="nav"><span class="g">✧</span>DIAGNOSTICS<span class="sp"></span><span class="kb">⌘4</span></div>
+    <div class="nav act"><span class="g">▦</span>CALENDAR<span class="sp"></span>
+      <span class="badge" style="background:var(--irregular)">6</span><span class="kb" style="margin-left:7px">⌘5</span></div>
+    <div class="nav"><span class="g">⚙</span>SETTINGS<span class="sp"></span><span class="kb">⌘,</span></div>
+    <div style="padding:26px 12px 0;font-size:8px;color:var(--faint)" class="mono">TRACKING DAY 10 OF 14</div>
+  </div>
+  <div class="pnl" style="flex:1">
+    <div class="ttl" style="color:var(--muted)">RULES THAT KEEP IT HONEST</div>
+    <p style="font-size:12.5px;line-height:1.7;color:var(--muted)">
+      <b style="color:var(--text)">Only two colours ever appear in a badge.</b>
+      <span style="color:var(--irregular)">Irregular red</span> for things wrong with data you did not create,
+      <span style="color:var(--earned)">earned gold</span> for work of yours still open.<br><br>
+      <b style="color:var(--text)">A zero renders nothing.</b> A badge showing 0 is a badge that has stopped meaning
+      anything — the row simply loses it.<br><br>
+      <b style="color:var(--text)">No badge on Dashboard.</b> It is where you already look; a count there is telling
+      you something you can see.
+    </p>
+  </div>
+</div>
+
+<!-- ═════════ 4 ═════════ -->
+<h2>4 · THE ADHERENCE RAMP — image 1's health bar, doing real work</h2>
+<p class="sub">Your rolling-7 is a <b>count</b>. A ramp says <b>where you sit on a spectrum</b>, which fits a
+mechanic built so one miss costs one point rather than everything. <span class="x">The gradient runs left to
+right; the marker is the only moving part.</span></p>
+<div class="row">
+  <div class="pnl" style="flex:1">
+    <div class="card-h"><span class="ttl" style="color:var(--primary);margin:0">ROLLING 7 · ADHERENCE</span>
+      <span class="scoper">7 DAYS ▾</span></div>
+    <div class="hero"><span class="n" style="color:var(--logged)">5</span><span class="d" style="color:var(--muted)">of 7 scheduled days</span><span class="d up" style="margin-left:6px">↑ 1</span></div>
+    <div class="ramp"><span class="mk" style="left:71%"></span></div>
+    <div class="rampx"><span>0 — COLLAPSED</span><span>3</span><span>5</span><span>7 — HELD</span></div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.55">
+      Red at zero is not a scold — it is the only place on the ramp where <b style="color:var(--text)">Never Miss
+      Twice</b> has already fired. Everywhere else is survivable, and the bar says so by being mostly warm.</p>
+  </div>
+  <div class="pnl" style="flex:1">
+    <div class="ttl" style="color:var(--alert)">⚠ WHAT THIS COSTS</div>
+    <p style="font-size:12.5px;line-height:1.7;color:var(--muted)">
+      A gradient bar is <b style="color:var(--text)">colour carrying meaning on its own</b>, which the rest of this app
+      refuses to do — logged and missed are told apart by <i>treatment</i>, filled versus outline, precisely so state
+      survives greyscale.<br><br>
+      <b style="color:var(--text)">The marker is what saves it.</b> Position is readable without colour at all. If the
+      ramp ever ships, the number stays beside it and the marker does the work — the gradient is mood, not data.</p>
+  </div>
+</div>
+
+<!-- ═════════ 5 ═════════ -->
+<h2>5 · FOCUS FLOW + REACTION — image 1's questions, pointed at you</h2>
+<p class="sub">In the reference these ask whether the <b>interface</b> is working. Pointed that way they'd be a system
+measuring itself, which is the pattern this project was built against. <b>Pointed at your behaviour instead they are
+exactly what an accountability instrument is for</b> — and both run on timestamps you already store.</p>
+<div class="row">
+  <div class="pnl" style="flex:1">
+    <div class="card-h"><span class="ttl" style="color:var(--primary);margin:0">◎ FOCUS FLOW · WHERE DID ATTENTION GO</span>
+      <span class="scoper">14 DAYS ▾</span></div>
+    <div class="bars">
+      <b class="u" style="height:26%"></b><b class="e" style="height:44%"></b><b class="z" style="height:5%"></b>
+      <b class="u" style="height:26%"></b><b class="u" style="height:66%"></b><b class="e" style="height:38%"></b>
+      <b class="z" style="height:5%"></b><b class="u" style="height:26%"></b><b class="e" style="height:88%"></b>
+      <b class="z" style="height:5%"></b><b class="u" style="height:26%"></b><b class="u" style="height:26%"></b>
+      <b class="z" style="height:5%"></b><b class="u" style="height:26%"></b>
+    </div>
+    <div class="blab"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+      <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+    <div style="display:flex;gap:16px;margin-top:11px;font-size:10px;color:var(--muted)">
+      <span><i style="display:inline-block;width:9px;height:9px;background:var(--primary)"></i> COMMITMENT</span>
+      <span><i style="display:inline-block;width:9px;height:9px;background:var(--earned)"></i> PUNCH LIST</span>
+      <span><i style="display:inline-block;width:9px;height:9px;background:var(--panelHi)"></i> NOTHING</span>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:11px;line-height:1.5">
+      Minutes by day, split by what they were spent on. <b style="color:var(--text)">e.g. 88 minutes on one Tuesday
+      and 10 on four separate Mondays</b> — a fact the app already holds and has never shown.</p>
+  </div>
+
+  <div class="pnl" style="flex:.85">
+    <div class="card-h"><span class="ttl" style="color:var(--primary);margin:0">⟳ REACTION · CUE TO ACTION</span>
+      <span class="scoper">90 DAYS ▾</span></div>
+    <div class="gate">
+      <div class="h">NOT ENOUGH EVIDENCE YET</div>
+      <p>Needs <b style="color:var(--text)">5 days where the reminder fired and you logged</b>, and
+        <b style="color:var(--text)">5 where it fired and you did not</b>, inside 90 days.<br>
+        Currently <span class="mono" style="color:var(--text)">7 / 5</span> and
+        <span class="mono" style="color:var(--text)">1 / 5</span>.</p>
+    </div>
+    <p style="font-size:11.5px;color:var(--muted);margin-top:13px;line-height:1.6">
+      This measures the gap between the 7:50 notification firing and a session being logged —
+      <b style="color:var(--text)">the exact interval the ten-minute floor exists to shorten</b>, and the one
+      Marx (2021) identifies as the aversive part.<br><br>
+      <b style="color:var(--text)">It refuses to render until the evidence gate clears</b>, which is Whoop's
+      5-yes-5-no rule and the same discipline as leaving K unset. Showing a trend from two data points would be the
+      fake progress this project keeps refusing.</p>
+  </div>
+</div>
+
+<p class="foot">
+<b>What to build, in order.</b> Sidebar badges first — smallest change, seen every launch, uses counts that
+already exist. Then the irregularities table, because six red triangles you cannot read is worse than a list.
+Then Focus Flow, which shows you something true that the app has never surfaced.
+<b>The ramp and Reaction last</b>: the ramp puts meaning in colour alone, which this app has spent months
+refusing to do, and Reaction cannot honestly render for weeks yet. Both are right — neither is urgent.
+</p>
+</div></body></html>

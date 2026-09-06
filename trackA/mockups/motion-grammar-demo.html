@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUD — motion grammar demo</title>
+<style>
+  :root{
+    --void:#050A14; --panel:#0D1526; --panelhi:#18263F;
+    --primary:#5FDDFF; --structure:#3A5A82; --alert:#FF8A55; --earned:#FFCF57;
+    --logged:#97F04A; --missed:#F2DC45; --text:#ECF3FC; --muted:#9AB2D0; --faint:#4A5F7A;
+    --cut:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--void); color:var(--text);
+    font-family:"SF Mono", ui-monospace, Menlo, monospace;
+    padding:28px 34px 60px;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 22% 30%, rgba(70,50,160,.14), transparent),
+      radial-gradient(ellipse 55% 45% at 78% 66%, rgba(20,90,150,.12), transparent);
+  }
+  h1{font-size:15px; letter-spacing:4px; font-weight:600; margin-bottom:4px;}
+  .sub{font-size:10px; color:var(--muted); letter-spacing:1px; margin-bottom:26px; line-height:1.7;}
+  .sub b{color:var(--earned); font-weight:600;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(430px,1fr)); gap:18px;}
+  .card{
+    background:rgba(13,21,38,.85);
+    clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
+    border:1px solid rgba(58,90,130,.75); position:relative;
+  }
+  .card h2{
+    font-size:10px; letter-spacing:2.2px; font-weight:600; padding:10px 14px;
+    background:rgba(24,38,63,.6); border-bottom:1px solid rgba(58,90,130,.5);
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2::before{content:""; width:3px; height:11px; background:var(--primary);}
+  .card h2 .why{margin-left:auto; color:var(--faint); font-weight:400; letter-spacing:1px; font-size:8.5px;}
+  .stage{padding:16px 14px; min-height:150px; position:relative;}
+  .controls{padding:0 14px 14px; display:flex; gap:8px; flex-wrap:wrap;}
+  button{
+    font:600 9px/1 "SF Mono", ui-monospace, monospace; letter-spacing:1.6px;
+    color:var(--primary); background:rgba(95,221,255,.08);
+    border:1px solid rgba(95,221,255,.7); padding:8px 14px; cursor:pointer;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+    transition:background .13s ease-out, transform .13s ease-out;
+  }
+  button:hover{background:rgba(95,221,255,.18);}
+  button:active{transform:scale(.97);}
+  button.gold{color:var(--earned); border-color:rgba(255,207,87,.7); background:rgba(255,207,87,.08);}
+  button.gold:hover{background:rgba(255,207,87,.18);}
+  button.mut{color:var(--muted); border-color:rgba(154,178,208,.5); background:transparent;}
+  .note{font-size:9px; color:var(--faint); letter-spacing:.8px; padding:0 14px 12px; line-height:1.6;}
+
+  /* ---------- shared mini-panel ---------- */
+  .mini{
+    background:rgba(13,21,38,.9); border:1px solid rgba(58,90,130,.75);
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    padding:10px 12px; font-size:10px; color:var(--muted);
+  }
+  .mini .t{font-size:9px; letter-spacing:1.8px; color:var(--text); font-weight:600; margin-bottom:8px; display:flex; gap:6px; align-items:center;}
+  .mini .t::before{content:""; width:3px; height:9px; background:var(--primary);}
+  .row{display:flex; align-items:center; gap:8px; padding:3px 0; font-size:9.5px;}
+  .dotrow::before{content:""; width:4px; height:4px; border-radius:50%; background:var(--structure);}
+
+  /* ---------- 1 · destination switch ---------- */
+  #d1 .win{display:flex; height:170px; border:1px solid rgba(58,90,130,.5); overflow:hidden; background:rgba(5,10,20,.5);}
+  #d1 .side{width:92px; border-right:1px solid rgba(58,90,130,.5); padding:8px 6px; flex:none;}
+  #d1 .side{position:relative;}
+  #d1 .side .it{font-size:8px; letter-spacing:1.2px; color:var(--muted); padding:6px 7px; position:relative; cursor:pointer; z-index:1;}
+  #d1 #ind{position:absolute; left:6px; right:6px; background:rgba(95,221,255,.12);
+    clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+    transition:top .2s cubic-bezier(.3,.9,.35,1.05);}
+  #d1 .side .it.on{color:var(--primary);}
+  #d1 .content{flex:1; padding:10px; position:relative;}
+  #d1 .scene{position:absolute; inset:10px; display:grid; grid-template-columns:1fr 1fr; gap:8px; align-content:start;}
+  #d1 .scene .mini{height:64px;}
+  .enterCascade .mini{animation:panelIn .32s cubic-bezier(.25,.9,.3,1.04) both;}
+  .enterCascade .mini:nth-child(2){animation-delay:.05s;}
+  .enterCascade .mini:nth-child(3){animation-delay:.10s;}
+  .enterCascade .mini:nth-child(4){animation-delay:.15s;}
+  @keyframes panelIn{
+    0%{opacity:0; transform:translate(26px,-12px) scale(.985);}
+    62%{opacity:1; transform:translate(-2px,1px) scale(1.008);}
+    100%{opacity:1; transform:translate(0,0) scale(1);}
+  }
+  .exitSmear{animation:sceneOut .11s ease-in both;}
+  @keyframes sceneOut{
+    0%{opacity:1; transform:translate(0,0);}
+    100%{opacity:0; transform:translate(-30px,14px) skewX(-6deg);}
+  }
+
+  /* ---------- 2 · materialise ---------- */
+  #d2 .stagebox{height:150px; display:flex; align-items:center; justify-content:center;}
+  #d2 .wrap{position:relative; width:300px; height:118px;}
+  #d2 svg{position:absolute; inset:0; overflow:visible;}
+  #d2 .outline{fill:none; stroke:var(--structure); stroke-width:1.5;}
+  #d2 .body{position:absolute; inset:1px; background:rgba(13,21,38,.92); opacity:0;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    padding:10px 12px;}
+  #d2 .body .t{font-size:9px; letter-spacing:1.8px; color:var(--text); font-weight:600; margin-bottom:8px;}
+  #d2 .body .row{opacity:0;}
+  #d2.go .outline{stroke-dasharray:840; stroke-dashoffset:840; animation:draw .16s linear forwards;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  #d2.go .body{animation:fillIn .14s ease-out .10s forwards;}
+  @keyframes fillIn{from{opacity:0;} to{opacity:1;}}
+  #d2.go .body .row{animation:rowIn .26s cubic-bezier(.25,.9,.3,1.06) both;}
+  #d2.go .body .row:nth-child(2){animation-delay:.18s;}
+  #d2.go .body .row:nth-child(3){animation-delay:.20s;}
+  #d2.go .body .row:nth-child(4){animation-delay:.23s;}
+  @keyframes rowIn{
+    0%{opacity:0; transform:translateX(14px);}
+    64%{opacity:1; transform:translateX(-1.5px);}
+    100%{opacity:1; transform:translateX(0);}
+  }
+  #d2.out .body{animation:fillOut .10s ease-in forwards;}
+  #d2.out .outline{stroke-dasharray:840; stroke-dashoffset:0; animation:undraw .12s linear .06s forwards;}
+  @keyframes fillOut{to{opacity:0;}}
+  @keyframes undraw{to{stroke-dashoffset:840;}}
+
+  /* ---------- 3 · log event ---------- */
+  #d3 .stage{display:flex; gap:14px; align-items:flex-start;}
+  #d3 .left{flex:1;}
+  .readout{font-size:22px; font-weight:500; color:var(--primary); height:26px; overflow:hidden; position:relative; width:70px;}
+  .readout .col{display:flex; flex-direction:column; transition:transform .3s cubic-bezier(.3,.9,.3,1.08);}
+  .readout .col span{height:26px; line-height:26px;}
+  .lab{font-size:8px; letter-spacing:1.4px; color:var(--muted); margin-bottom:2px;}
+  #d3 .cells{display:flex; gap:6px; margin-top:12px;}
+  #d3 .cell{width:26px; height:26px; border:1px solid rgba(95,221,255,.5); position:relative;
+    clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);}
+  #d3 .cell.done{border-color:var(--logged); background:rgba(151,240,74,.18);}
+  #d3 .cell .dot{position:absolute; inset:0; margin:auto; width:5px; height:5px; border-radius:50%;
+    background:var(--logged); box-shadow:0 0 6px var(--logged); transform:scale(0);}
+  #d3 .cell.done .dot{animation:dotPop .3s cubic-bezier(.3,1.4,.4,1) .16s forwards;}
+  @keyframes dotPop{0%{transform:scale(0);} 70%{transform:scale(1.35);} 100%{transform:scale(1);}}
+  #d3 .orb{width:84px; height:84px; position:relative; flex:none; margin-top:6px;}
+  #d3 .orb .core{position:absolute; inset:14px; border-radius:50%;
+    background:radial-gradient(circle at 40% 34%, #0B0F1C, #05070E 60%, #000);
+    box-shadow:0 0 14px rgba(0,0,0,.9);}
+  #d3 .orb .rim{position:absolute; inset:13px; border-radius:50%; border:1.6px solid rgba(255,207,87,.65);
+    filter:blur(.4px);}
+  #d3 .orb svg{position:absolute; inset:0; transform:rotate(-90deg);}
+  #d3 .orb .arc{fill:none; stroke:var(--earned); stroke-width:2.4; stroke-linecap:round;
+    transition:stroke-dashoffset .6s ease-in-out;}
+  #d3 .orb .track{fill:none; stroke:rgba(58,90,130,.5); stroke-width:2;}
+  #d3 .orb.flare .rim{animation:flare .5s ease-out;}
+  @keyframes flare{0%{box-shadow:0 0 0 rgba(255,207,87,0);} 30%{box-shadow:0 0 22px rgba(255,207,87,.8);} 100%{box-shadow:0 0 0 rgba(255,207,87,0);}}
+  #logbtn.antic{animation:fourBeat .34s cubic-bezier(.3,.9,.35,1.1);}
+  @keyframes fourBeat{
+    0%{transform:scale(1);} 18%{transform:scale(.965);}
+    62%{transform:scale(1.035);} 100%{transform:scale(1);}
+  }
+
+  /* ---------- 4 · impact ---------- */
+  #d4 .stage{position:relative;}
+  #d4 .item{display:flex; align-items:center; gap:10px; padding:8px 10px; background:rgba(24,38,63,.4);
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);}
+  #d4 .mark{width:14px; height:14px; border-radius:50%; border:1.6px solid var(--muted); position:relative; flex:none;}
+  #d4 .mark::after{content:""; position:absolute; inset:2px; border-radius:50%; background:var(--logged);
+    transform:scale(0); transition:transform .22s cubic-bezier(.3,1.3,.4,1);}
+  #d4 .label{position:relative; font-size:10.5px; color:var(--text);}
+  #d4 .label::after{content:""; position:absolute; left:0; top:55%; height:1px; width:0; background:var(--muted);}
+  #d4 .state{margin-left:auto; font-size:8px; letter-spacing:1.4px; color:var(--muted);}
+  #d4.done .mark{border-color:var(--logged);}
+  #d4.done .mark::after{transform:scale(1);}
+  #d4.done .label{color:var(--muted); transition:color .3s .12s;}
+  #d4.done .label::after{animation:strike .24s ease-out .10s forwards;}
+  @keyframes strike{to{width:100%;}}
+  #d4.done .item{animation:exhale .4s ease-out .12s;}
+  @keyframes exhale{30%{transform:translateY(1.5px);} 100%{transform:translateY(0);}}
+  #d4 .flashWhite,#d4 .flashDark{position:absolute; inset:0; opacity:0; pointer-events:none;}
+  #d4 .flashWhite{background:#fff;}
+  #d4 .flashDark{background:#0A0E16;}
+  #d4.done .flashWhite{animation:f1 .05s linear;}
+  #d4.done .flashDark{animation:f1 .05s linear .05s;}
+  @keyframes f1{0%,100%{opacity:0;} 10%,90%{opacity:1;}}
+  #d4.done .item{box-shadow:0 0 0 rgba(255,207,87,0);}
+  #d4.done .glow{position:absolute; inset:0; pointer-events:none;
+    box-shadow:inset 0 0 26px rgba(255,207,87,.0); animation:goldGlow .7s ease-out .10s;}
+  @keyframes goldGlow{15%{box-shadow:inset 0 0 26px rgba(255,207,87,.5);} 100%{box-shadow:inset 0 0 26px rgba(255,207,87,0);}}
+  #d4 .ledger{margin-top:12px; font-size:8.5px; color:var(--faint); letter-spacing:1px;}
+  #d4 .ledger b{color:var(--alert); font-weight:600;}
+
+  /* ---------- 5 · tone dial ---------- */
+  #d5 .lane{position:relative; height:44px; margin-top:6px; border:1px dashed rgba(58,90,130,.5);}
+  #d5 .slotA,#d5 .slotB{position:absolute; top:6px; width:88px; height:30px; border:1px solid rgba(58,90,130,.7);}
+  #d5 .slotA{left:8px;} #d5 .slotB{right:8px;}
+  #d5 .chip{position:absolute; top:8px; left:10px; width:84px; height:26px; background:rgba(95,221,255,.16);
+    border:1px solid var(--primary); color:var(--primary); font-size:8px; letter-spacing:1.4px;
+    display:flex; align-items:center; justify-content:center;
+    clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);}
+  #d5 .ghost{opacity:0;}
+  #d5 .chip.mDeliberate{transition:left .26s cubic-bezier(.4,0,.3,1);}
+  #d5 .chip.mStandard{transition:left .3s cubic-bezier(.3,.9,.32,1.12);}
+  #d5 .chip.mFast{transition:left .13s cubic-bezier(.2,.7,.3,1);}
+  #d5 .ghost.show{opacity:.35; transform:scaleX(2.4) skewX(-14deg); filter:blur(1px);
+    transition:none; animation:ghostFade .12s ease-out forwards;}
+  @keyframes ghostFade{to{opacity:0;}}
+
+  /* ---------- 6 · torch ---------- */
+  #d6 .field{position:relative; height:170px; overflow:hidden; border:1px solid rgba(58,90,130,.6);
+    background:rgba(13,21,38,.7); cursor:none;}
+  #d6 .pool{position:absolute; width:340px; height:340px; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, rgba(95,221,255,.10), rgba(95,221,255,.035) 40%, transparent 70%);
+    transform:translate(-50%,-50%); left:50%; top:50%; opacity:0; transition:opacity .3s;}
+  #d6 .field:hover .pool{opacity:1;}
+  #d6 .cursorDot{position:absolute; width:5px; height:5px; border-radius:50%; background:var(--text);
+    box-shadow:0 0 8px var(--primary); transform:translate(-50%,-50%); pointer-events:none; opacity:0;}
+  #d6 .field:hover .cursorDot{opacity:1;}
+  #d6 .frow{position:relative; margin:12px 14px; padding:8px 10px; border:1px solid rgba(58,90,130,.55);
+    font-size:9.5px; color:var(--muted); transition:border-color .18s, color .18s;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);}
+  #d6 .frow.lit{border-color:rgba(95,221,255,.85); color:var(--text);}
+
+  footer{margin-top:26px; font-size:9px; color:var(--faint); letter-spacing:1px; line-height:1.9; max-width:900px;}
+  footer b{color:var(--muted); font-weight:600;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+    body::before{content:"REDUCE MOTION IS ON — every demo renders its settled frame, which is the law the overhaul ships with.";
+      display:block; color:var(--earned); font-size:10px; letter-spacing:1.5px; margin-bottom:18px;}
+  }
+</style>
+</head>
+<body>
+  <h1>HUD — MOTION GRAMMAR</h1>
+  <div class="sub">
+    Interactive mockup for <b>Design/MOTION-OVERHAUL.md</b> · 2026-08-19 · palette, cut corners and type are the shipping values.<br>
+    Timings here are the spec's numbers. Everything below is compositor-class motion — transform, opacity, trim — nothing a Canvas would redraw.
+  </div>
+
+  <div class="grid">
+
+    <!-- 1 · destination switch -->
+    <section class="card" id="d1">
+      <h2>1 · DESTINATION CHANGE <span class="why">§4.2 — the cut becomes a slide</span></h2>
+      <div class="stage">
+        <div class="win">
+          <div class="side" id="d1side"></div>
+          <div class="content"><div class="scene" id="d1scene"></div></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="mut" onclick="d1go(false)">TODAY — CUT</button>
+        <button onclick="d1go(true)">OVERHAUL — SMEAR OUT · CASCADE IN</button>
+      </div>
+      <div class="note">Exit 110ms along the sky's 25° grain, entrance staggered 50ms per panel with overshoot. The sidebar indicator slides instead of repainting.</div>
+    </section>
+
+    <!-- 2 · materialise -->
+    <section class="card">
+      <h2>2 · PANEL MATERIALISE <span class="why">§4.3 — animateIn / animateOut</span></h2>
+      <div class="stagebox stage" >
+        <div class="wrap" id="d2">
+          <svg width="300" height="118">
+            <path class="outline" d="M8 1 H299 V109 L291 117 H1 V9 Z"/>
+          </svg>
+          <div class="body">
+            <div class="t">NEXT ACTION</div>
+            <div class="row dotrow">One item. Nothing else competes.</div>
+            <div class="row dotrow">5 — next item → link</div>
+            <div class="row dotrow">OPEN LINK</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button onclick="d2enter()">ENTER</button>
+        <button class="mut" onclick="d2exit()">EXIT</button>
+      </div>
+      <div class="note">Stroke draws in 160ms (trim), fill wipes behind it, rows cascade 18–28ms apart with a 1.5px settle. Exit is the reverse at half time — fill first, stroke last.</div>
+    </section>
+
+    <!-- 3 · log event -->
+    <section class="card" id="d3c">
+      <h2>3 · THE LOG EVENT <span class="why">§3.1 + §3.4 — four beats, then the splash</span></h2>
+      <div class="stage" id="d3">
+        <div class="left">
+          <div class="lab">MINUTES THIS WEEK</div>
+          <div class="readout"><div class="col" id="mincol"></div></div>
+          <div class="cells" id="cells"></div>
+          <div class="note" style="padding:10px 0 0">WEEK · SUN–SAT · ADHERENCE</div>
+        </div>
+        <div class="orb" id="orb">
+          <svg width="84" height="84">
+            <circle class="track" cx="42" cy="42" r="39"/>
+            <circle class="arc" id="arc" cx="42" cy="42" r="39" stroke-dasharray="245" stroke-dashoffset="140"/>
+          </svg>
+          <div class="core"></div><div class="rim"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="gold" id="logbtn" onclick="d3log()">LOG 10 MIN</button>
+        <button class="mut" onclick="d3reset()">RESET</button>
+      </div>
+      <div class="note">Button: antic 0.965 → overshoot 1.035 → settle. Then one step of secondary action: numerals roll, today's cell pops its dot, the battery arc eases, the orb flares once. Four surfaces, one act, under 400ms.</div>
+    </section>
+
+    <!-- 4 · impact -->
+    <section class="card">
+      <h2>4 · RESERVED IMPACT <span class="why">§3.3 — white frame · dark frame · gold decay</span></h2>
+      <div class="stage" id="d4">
+        <div class="item">
+          <div class="mark"></div>
+          <div class="label">6 — write the announcement</div>
+          <div class="state" id="d4state">IN PROGRESS</div>
+        </div>
+        <div class="glow"></div>
+        <div class="flashWhite"></div><div class="flashDark"></div>
+        <div class="ledger" id="ledger">FLASH LEDGER · 0 this second · ceiling 3/s (WCAG 2.2) · budget 2</div>
+      </div>
+      <div class="controls">
+        <button class="gold" onclick="d4done()">COMPLETE THE ITEM</button>
+        <button class="mut" onclick="d4reset()">RESET</button>
+      </div>
+      <div class="note">The clip-6 recipe at interface scale: one white frame, one dark frame, back to normal under a gold glow decay while the strike draws. Earned events only — the ledger refuses a third flash in any second, so this can never stack with the fight.</div>
+    </section>
+
+    <!-- 5 · tone dial -->
+    <section class="card" id="d5">
+      <h2>5 · THE TONE DIAL <span class="why">§3.2 — one event, three characters</span></h2>
+      <div class="stage">
+        <div class="lab">SAME MOVE, EDITED PER CLIP 2 — REMOVE BEATS TO CHANGE THE SENTENCE</div>
+        <div class="lane">
+          <div class="slotA"></div><div class="slotB"></div>
+          <div class="chip ghost" id="ghost">MODE</div>
+          <div class="chip" id="chip">MODE</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="mut" onclick="d5run('Deliberate')">DELIBERATE — NO OVERSHOOT</button>
+        <button onclick="d5run('Standard')">STANDARD — FULL FOUR BEATS</button>
+        <button onclick="d5run('Fast')">FAST — SMEAR, NO ANTIC</button>
+      </div>
+      <div class="note">Deliberate for Undo and anything serious. Standard for the mouse. Fast for the keyboard — ⌘K, ⌘1–⌘8 — where the smear carries the speed a dropped in-between would fake.</div>
+    </section>
+
+    <!-- 6 · torch -->
+    <section class="card" id="d6">
+      <h2>6 · POINTER AS TORCH <span class="why">§3.7 — light is the hover language</span></h2>
+      <div class="stage">
+        <div class="field" id="field">
+          <div class="pool" id="pool"></div>
+          <div class="cursorDot" id="cdot"></div>
+          <div class="frow">ROW A · TUE THU 9:30</div>
+          <div class="frow">ROW B · TUE THU 14:00</div>
+          <div class="frow">ROW C · MON WED FRI 12:00</div>
+        </div>
+      </div>
+      <div class="controls"></div>
+      <div class="note">One 340pt radial pool at 4–6% cyan follows the pointer on the hovered panel; rows inside it lift one stroke step. One gradient moved by transform — no blur, no Canvas, off in Low Power, absent under Reduce Motion.</div>
+    </section>
+
+  </div>
+
+  <footer>
+    <b>The laws this demo obeys, from the spec:</b> compositor-only motion · idle runs on duty cycles and dormant is free ·
+    every flash asks the ledger (≤3/s, budget 2, counted at the fight's own criterion) · secondary action is one step, never a chain ·
+    Reduce Motion renders the settled frame — flip it on and reload to see the whole page hold still ·
+    tones per clip 2: deliberate / standard / fast · cut corners, hairlines and the cyan/orange/gold discipline unchanged.
+  </footer>
+
+<script>
+  // ---------- 1 · destination switch ----------
+  const d1items=["DASHBOARD","CALENDAR","TARGETS"];
+  const d1scenes=[
+    ["REACTOR","COMMITMENT","NEXT ACTION","TRACKER"],
+    ["MONTH","SELECTED DAY","UP NEXT","ADHERENCE"],
+    ["TARGET","PROGRESS","HISTORY","NOTES"]
+  ];
+  let d1at=0;
+  const side=document.getElementById("d1side"), scene=document.getElementById("d1scene");
+  side.innerHTML='<div id="ind"></div>'+d1items.map((n,i)=>`<div class="it" data-i="${i}" onclick="d1click(${i})">${n}</div>`).join("");
+  const ind=document.getElementById("ind");
+  function d1paintSide(){
+    side.querySelectorAll(".it").forEach((el,i)=>el.classList.toggle("on",i===d1at));
+    const el=side.querySelectorAll(".it")[d1at];
+    ind.style.top=el.offsetTop+"px"; ind.style.height=el.offsetHeight+"px";
+  }
+  function d1paintScene(anim){
+    scene.className="scene"+(anim?" enterCascade":"");
+    scene.innerHTML=d1scenes[d1at].map(t=>`<div class="mini"><div class="t">${t}</div><div class="row dotrow">…</div></div>`).join("");
+  }
+  function d1go(anim){
+    const next=(d1at+1)%3;
+    if(!anim){ d1at=next; d1paintSide(); d1paintScene(false); return; }
+    scene.classList.add("exitSmear");
+    setTimeout(()=>{ d1at=next; d1paintSide(); d1paintScene(true); },110);
+  }
+  function d1click(i){ if(i===d1at) return; d1at=(i+2)%3; d1go(true); }
+  d1paintSide(); d1paintScene(false);
+
+  // ---------- 2 · materialise ----------
+  const d2=document.getElementById("d2");
+  function d2enter(){ d2.classList.remove("out"); void d2.offsetWidth; d2.classList.add("go"); }
+  function d2exit(){ d2.classList.remove("go"); void d2.offsetWidth; d2.classList.add("out"); }
+  d2enter();
+
+  // ---------- 3 · log event ----------
+  let minutes=225, cellsDone=2;
+  const mincol=document.getElementById("mincol"), cellbox=document.getElementById("cells"),
+        arc=document.getElementById("arc"), orb=document.getElementById("orb"),
+        logbtn=document.getElementById("logbtn");
+  function paintMinutes(){
+    mincol.style.transition="none";
+    mincol.innerHTML=`<span>${minutes}</span><span>${minutes+10}</span>`;
+    mincol.style.transform="translateY(0)";
+    void mincol.offsetWidth;
+    mincol.style.transition="";
+  }
+  function paintCells(){
+    cellbox.innerHTML=Array.from({length:7},(_,i)=>
+      `<div class="cell ${i<cellsDone?'done':''}"><div class="dot"></div></div>`).join("");
+    arc.style.strokeDashoffset=245-245*Math.min(1,cellsDone/7*2.4);
+  }
+  let rolling=false;
+  function d3log(){
+    if(cellsDone>=7||rolling) return;
+    rolling=true;
+    logbtn.classList.remove("antic"); void logbtn.offsetWidth; logbtn.classList.add("antic");
+    setTimeout(()=>{ mincol.style.transform="translateY(-26px)"; },120);
+    setTimeout(()=>{ cellsDone++; paintCells();
+      orb.classList.remove("flare"); void orb.offsetWidth; orb.classList.add("flare");
+    },200);
+    setTimeout(()=>{ minutes+=10; paintMinutes(); rolling=false; },460);
+  }
+  function d3reset(){ minutes=225; cellsDone=2; paintMinutes(); paintCells(); rolling=false; }
+  paintMinutes(); paintCells();
+
+  // ---------- 4 · impact ----------
+  const d4=document.getElementById("d4"), d4state=document.getElementById("d4state"),
+        ledger=document.getElementById("ledger");
+  let flashes=[];
+  function d4done(){
+    const now=Date.now();
+    flashes=flashes.filter(t=>now-t<1000);
+    if(flashes.length>=2){
+      ledger.innerHTML="FLASH LEDGER · <b>REFUSED</b> — 2 already inside this second; the event ships glow-only";
+      d4.classList.add("done"); d4.style.setProperty("--noflash","1");
+      d4.querySelector(".flashWhite").style.display="none";
+      d4.querySelector(".flashDark").style.display="none";
+      d4state.textContent="DONE"; return;
+    }
+    flashes.push(now,now);
+    d4.querySelector(".flashWhite").style.display="";
+    d4.querySelector(".flashDark").style.display="";
+    d4.classList.remove("done"); void d4.offsetWidth; d4.classList.add("done");
+    d4state.textContent="DONE";
+    ledger.textContent=`FLASH LEDGER · ${flashes.length} this second · ceiling 3/s (WCAG 2.2) · budget 2`;
+  }
+  function d4reset(){ d4.classList.remove("done"); d4state.textContent="IN PROGRESS";
+    d4.querySelector(".flashWhite").style.display="";
+    d4.querySelector(".flashDark").style.display="";
+    ledger.textContent="FLASH LEDGER · 0 this second · ceiling 3/s (WCAG 2.2) · budget 2"; }
+
+  // ---------- 5 · tone ----------
+  const chip=document.getElementById("chip"), ghost=document.getElementById("ghost");
+  let atA=true;
+  function d5run(mode){
+    const from=atA?10:document.querySelector("#d5 .lane").clientWidth-94;
+    const to=atA?document.querySelector("#d5 .lane").clientWidth-94:10;
+    chip.className="chip m"+mode;
+    if(mode==="Fast"){
+      ghost.style.left=(from+to)/2+"px"; ghost.className="chip ghost show";
+      setTimeout(()=>ghost.className="chip ghost",130);
+    }
+    chip.style.left=to+"px"; atA=!atA;
+  }
+  chip.style.left="10px";
+
+  // ---------- 6 · torch ----------
+  const field=document.getElementById("field"), pool=document.getElementById("pool"),
+        cdot=document.getElementById("cdot");
+  field.addEventListener("mousemove",e=>{
+    const r=field.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    pool.style.left=x+"px"; pool.style.top=y+"px";
+    cdot.style.left=x+"px"; cdot.style.top=y+"px";
+    document.querySelectorAll("#d6 .frow, #field .frow").forEach(row=>{
+      const rr=row.getBoundingClientRect();
+      const cx=rr.left-r.left+rr.width/2, cy=rr.top-r.top+rr.height/2;
+      row.classList.toggle("lit", Math.hypot(x-cx,y-cy)<150);
+    });
+  });
+</script>
+</body>
+</html>
