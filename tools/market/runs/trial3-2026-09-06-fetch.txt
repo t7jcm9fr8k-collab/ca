@@ -1,0 +1,5 @@
+HTTP 429 — waiting 2 s, retry 1 of 3
+HTTP 429 — waiting 5 s, retry 2 of 3
+HTTP 429 — waiting 12 s, retry 3 of 3
+NETWORK  HTTP 429 after 3 retries
+Nothing was written. No bars means no bars, not zero bars.

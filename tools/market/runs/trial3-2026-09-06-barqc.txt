@@ -1,0 +1,24 @@
+
+========================================================================
+BAR INSPECTION — SPY 1d: 1553 bars, 2020-07-01 → 2026-09-04, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       1553 bars, 1554 sessions, 1 missing     <= 15 missing   
+       └─ missing 2025-01-09; up to 15 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-09-06T23:16:06+00:00
+ok    volume         1 zero/negative                         0                 (reported, not blocking)
+       └─ halts and thin names produce real zero-volume bars; look, do not assume
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ adjustment NOT stated
+ok    staleness      last bar 3.0 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           1553 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv bars/SPY-1d-raw.csv --symbol SPY

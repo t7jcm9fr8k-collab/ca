@@ -1,0 +1,29 @@
+
+========================================================================
+INTRADAY — SPY · sign of the 09:30–10:00 return (Gao, Han, Li & Zhou 2018) · exit at the official close
+========================================================================
+exit: official close from nasdaq (trial 3); median gap to this feed's last print 0.010%
+data 2020-07-27 → 2026-09-01: sessions 1518, skipped 14 (1 202 bars, 1 185 bars, 1 300 bars, 1 233 bars, 1 214 bars, 1 206 bars, 1 212 bars, 1 207 bars, 2 204 bars, 1 47 bars, 1 215 bars, 2 213 bars, 0 no official close for the date), cost 2 bp round trip
+NOTE  the published samples end in 2020; this feed begins 2020-07-27. The '< 2021-01-01' row is NOT a reproduction of the papers — it is 109 sessions of the same post-publication period.
+
+window             n  gross bp   ± se  net bp hit(gross) t(gross)  ann. net
+------------------------------------------------------------------------------
+all             1512     -0.32   0.67   -2.32      49.9%    -0.47     -5.8%
+< 2021-01-01     109     -0.40   3.03   -2.40      48.6%    -0.13     -6.0%
+>= 2021-01-01   1403     -0.31   0.69   -2.31      50.0%    -0.45     -5.8%
+
+year               n  gross bp   ± se  net bp hit(gross)
+--------------------------------------------------------
+2020             109     -0.40   3.03   -2.40      48.6%
+2021             249     -0.67   1.44   -2.67      46.6%
+2022             249     -1.97   2.34   -3.97      52.2%
+2023             248      1.63   1.37   -0.37      54.4%
+2024             248     -1.42   1.44   -3.42      47.6%
+2025             242      1.21   1.72   -0.79      49.6%
+2026             167     -0.74   1.29   -2.74      49.1%
+
+gross -0.32 ± 0.67 bp/session (95% CI -1.64 to +1.00); the published effect of about +2.7 bp/session is EXCLUDED by this sample
+3 session(s) had no 15:30 bar; the fill moved to the next bar's open (later, never earlier)
+permutation null, 1000 shuffles: p = 0.669 (all), p = 0.641 (holdout)
+not modelled: partial fills, intraday slippage beyond the flat cost, borrow for the short side; entry on this feed's 15:30 print, exit on the official close from another feed — the two can differ by about a cent at any instant (~0.2 bp)
+pre-registered: the published rule, nothing searched

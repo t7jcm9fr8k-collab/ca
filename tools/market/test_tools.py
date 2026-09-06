@@ -1610,6 +1610,38 @@ _cli4 = subprocess.run([sys.executable, "bars.py", "--nasdaq-export", _plain, "-
 check("a plain CSV handed to --nasdaq-export is REFUSED, not converted",
       _cli4.returncode != 0 and "REFUSED" in _cli4.stderr and not os.path.exists(_nqo + ".x"))
 
+# ---------------------------------------------------------------- bars, round 3: nasdaq JSON
+
+print("\nnasdaq_json — the historical JSON endpoint")
+
+import nasdaq_json as NJ
+
+NASDAQ_JSON = json.dumps({
+    "data": {"symbol": "T", "totalRecords": 3, "tradesTable": {"asOf": None, "headers": {}, "rows": [
+        {"date": "01/07/2026", "close": "$102.50", "volume": "3,000", "open": "$101.00", "high": "$103.00", "low": "$100.50"},
+        {"date": "01/06/2026", "close": "101.00", "volume": "2,000", "open": "100.00", "high": "101.50", "low": "99.75"},
+        {"date": "01/05/2026", "close": "$100.00", "volume": "1,000", "open": "$99.00", "high": "$100.25", "low": "$98.50"},
+    ]}}, "message": None, "status": {"rCode": 200, "bCodeMessage": None, "developerMessage": None}})
+_nj = NJ.parse_nasdaq_json(NASDAQ_JSON, "T")
+check("nasdaq JSON parses to the same bars as the CSV export: dollar signs and commas gone, "
+      "reversed to oldest-first, source nasdaq, unadjusted, official close",
+      [(b.ts, b.open, b.high, b.low, b.close, b.volume) for b in _nj]
+      == [(b.ts, b.open, b.high, b.low, b.close, b.volume) for b in _nq]
+      and _nj.provenance["source"] == "nasdaq" and _nj.provenance["adjusted"] is False
+      and "official" in _nj.provenance["close_is"]
+      and _nj.provenance["order"].startswith("export was newest-first"))
+check("a nasdaq JSON row with no close is Unparseable, not skipped",
+      _raises(B.Unparseable, NJ.parse_nasdaq_json,
+              NASDAQ_JSON.replace('"close": "101.00"', '"close": "N/A"'), "T")
+      and _raises(B.Unparseable, NJ.parse_nasdaq_json,
+                  NASDAQ_JSON.replace('"date": "01/06/2026"', '"date": "2026-01-06"'), "T"))
+check("a body that is not the trades table is Unparseable, never zero bars",
+      _raises(B.Unparseable, NJ.parse_nasdaq_json, "<html>Access Denied</html>", "T")
+      and _raises(B.Unparseable, NJ.parse_nasdaq_json,
+                  '{"data": null, "status": {"rCode": 400, "bCodeMessage": [{"code": 1001}]}}', "T")
+      and _raises(B.Unparseable, NJ.parse_nasdaq_json,
+                  '{"data": {"tradesTable": {"rows": []}}}', "T"))
+
 # ---------------------------------------------------------------- cleanup
 
 ledger.LEDGER = _real_ledger
