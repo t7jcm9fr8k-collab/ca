@@ -1,7 +1,7 @@
 {
   "id": "orchid-skull",
   "title": "Orchid Skull",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-06 from each file's own page or API record; see the credit on each layer. compose.py refuses to render a layer whose url, licence or traced is blank. See SOURCING.md.",
   "palette": {
     "inks": {
       "ink0": "#1A1A1A",
@@ -23,12 +23,12 @@
       "lift": {
         "enabled": true
       },
-      "_wanted": "Vesalius / Wellcome \u2014 anatomical skull, front or three-quarter",
+      "_wanted": "Vesalius / Wellcome — anatomical skull, front or three-quarter",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://wellcomecollection.org/works/zs6gser7",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-06",
+        "credit": "Wellcome Collection, Skull: anterior view. Line engraving (reference 560840i, IIIF image V0007916)"
       }
     },
     {
@@ -36,10 +36,10 @@
       "ink": "ink1",
       "gamma": 0.85,
       "transform": {
-        "scale": 0.34,
+        "scale": 0.48,
         "offset": [
-          -0.17,
-          -0.24
+          -0.2,
+          -0.22
         ],
         "rotate": -14
       },
@@ -48,10 +48,10 @@
       },
       "_wanted": "Redoute or Bateman orchid plate",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://commons.wikimedia.org/wiki/File:The_Orchidaceae_of_Mexico_and_Guatemala_(Tab._XIII)_BHL769175.jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-06",
+        "credit": "Biodiversity Heritage Library via Wikimedia Commons: James Bateman, The Orchidaceae of Mexico and Guatemala, Tab. XIII (Cattleya skinneri), 1837–1843 (Commons licence template PD-scan / PD-old-70-1923)"
       },
       "mask": {
         "from_layer": 0,
@@ -64,10 +64,10 @@
       "ink": "ink1",
       "gamma": 0.85,
       "transform": {
-        "scale": 0.3,
+        "scale": 0.42,
         "offset": [
-          0.19,
-          -0.2
+          0.21,
+          -0.19
         ],
         "rotate": 11
       },
@@ -76,10 +76,10 @@
       },
       "_wanted": "second orchid, different species",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://commons.wikimedia.org/wiki/File:Cattleya_mossiae_-_Curtis%27_65_(N.S._12)_pl._3669_(1839).jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-06",
+        "credit": "Curtis's Botanical Magazine vol. 65 (N.S. 12), plate 3669, Cattleya mossiae, 1839, via Wikimedia Commons (licence template PD-Art / PD-old-auto-expired)"
       },
       "mask": {
         "from_layer": 0,
