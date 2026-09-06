@@ -1555,6 +1555,61 @@ _kept, _dropped = fetch.regular_session(_ext)
 check("regular_session keeps 09:30-16:00 New York only", len(_kept) == 1 and _dropped == 2)
 check("barqc passes the kept bar", barqc.check_calendar(_series(_kept, tf="1m"))["ok"] is not False)
 
+# ---------------------------------------------------------------- bars, round 2: nasdaq export
+
+print("\nbars — nasdaq.com export")
+
+NASDAQ = ("\ufeffDate,Close/Last,Volume,Open,High,Low\n"
+          "01/07/2026,$102.50,3000,$101.00,$103.00,$100.50\n"
+          "01/06/2026,$101.00,2000,$100.00,$101.50,$99.75\n"
+          "01/05/2026,$100.00,1000,$99.00,$100.25,$98.50\n")
+_nq = B.parse_nasdaq(NASDAQ, "T")
+check("nasdaq export parses with the dollar signs and the BOM gone",
+      len(_nq) == 3 and _nq[0].close == 100.0 and _nq[2].high == 103.0 and _nq[1].volume == 2000)
+check("nasdaq export is reversed to oldest-first, and says so",
+      [b.ts for b in _nq] == [_d(2026, 1, 5), _d(2026, 1, 6), _d(2026, 1, 7)]
+      and _nq.provenance["order"].startswith("export was newest-first"))
+check("nasdaq provenance: source nasdaq, unadjusted, official close",
+      _nq.provenance["source"] == "nasdaq" and _nq.provenance["adjusted"] is False
+      and "official" in _nq.provenance["close_is"])
+check("an oldest-first export is left alone",
+      B.parse_nasdaq("Date,Close/Last,Volume,Open,High,Low\n01/05/2026,$1,1,$1,$1,$1\n"
+                     "01/06/2026,$2,1,$2,$2,$2\n", "T").provenance["order"].startswith("export was already"))
+check("a stooq-shaped file is not mistaken for a nasdaq export",
+      _raises(B.Unparseable, B.parse_nasdaq, STOOQ, "T"))
+check("a nasdaq row with no price is Unparseable, not skipped",
+      _raises(B.Unparseable, B.parse_nasdaq, NASDAQ + "01/02/2026,N/A,10,$1,$1,$1\n", "T"))
+check("a nasdaq row with a bad date is Unparseable, not skipped",
+      _raises(B.Unparseable, B.parse_nasdaq, NASDAQ + "2026-01-02,$1,10,$1,$1,$1\n", "T"))
+check("a nasdaq header missing a column is Unparseable",
+      _raises(B.Unparseable, B.parse_nasdaq,
+              "Date,Close/Last,Volume,Open,High\n01/05/2026,$1,1,$1,$1\n", "T"))
+_nqp = os.path.join(_tmp, "HistoricalData_1.csv")
+with open(_nqp, "w", encoding="utf-8") as _f:
+    _f.write(NASDAQ)
+_nqo = os.path.join(_tmp, "T-1d-raw.csv")
+_cli = subprocess.run([sys.executable, "bars.py", "--nasdaq-export", _nqp, "--symbol", "T", "--out", _nqo],
+                      cwd=HERE, capture_output=True, text=True)
+_nqr = B.load_csv(_nqo, "T", "1d", "nasdaq") if os.path.exists(_nqo) else None
+check("bars.py --nasdaq-export writes the plain file every tool reads, oldest first, same closes",
+      _cli.returncode == 0 and _nqr is not None
+      and [b.close for b in _nqr] == [100.0, 101.0, 102.5] and _nqr[0].ts == _d(2026, 1, 5),
+      _cli.stderr[-300:])
+check("the converter points at trial 3 with --close-source nasdaq",
+      "--close-source nasdaq" in _cli.stdout and "official" in _cli.stdout)
+_cli2 = subprocess.run([sys.executable, "bars.py", "--nasdaq-export", _nqp, "--symbol", "T"],
+                       cwd=HERE, capture_output=True, text=True)
+check("--nasdaq-export without --out is refused", _cli2.returncode != 0 and "--out" in _cli2.stderr)
+_cli3 = subprocess.run([sys.executable, "bars.py", "--symbol", "T"], cwd=HERE, capture_output=True, text=True)
+check("bars.py with neither --csv nor --nasdaq-export is refused", _cli3.returncode != 0)
+_plain = os.path.join(_tmp, "plain.csv")
+with open(_plain, "w") as _f:
+    _f.write(STOOQ)
+_cli4 = subprocess.run([sys.executable, "bars.py", "--nasdaq-export", _plain, "--symbol", "T", "--out", _nqo + ".x"],
+                       cwd=HERE, capture_output=True, text=True)
+check("a plain CSV handed to --nasdaq-export is REFUSED, not converted",
+      _cli4.returncode != 0 and "REFUSED" in _cli4.stderr and not os.path.exists(_nqo + ".x"))
+
 # ---------------------------------------------------------------- cleanup
 
 ledger.LEDGER = _real_ledger

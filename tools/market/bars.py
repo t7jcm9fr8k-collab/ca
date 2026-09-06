@@ -30,6 +30,7 @@ WHAT THIS FILE DOES NOT DO
 USAGE
     python3 bars.py --csv bars/AAPL-1d.csv --symbol AAPL --timeframe 1d
     python3 bars.py --csv x.csv --symbol AAPL --timeframe 1d --source stooq --show 5
+    python3 bars.py --nasdaq-export ~/Downloads/HistoricalData_x.csv --symbol SPY --out bars/SPY-1d-raw.csv
 """
 
 import argparse
@@ -242,6 +243,82 @@ def parse_csv(text, symbol, timeframe, source, fetched_at=None,
     return Series(symbol, timeframe, bars, prov)
 
 
+# Nasdaq.com's "Download historical data" export — the browser route for
+# official closes when Yahoo answers HTTP 429 and Stooq's file is
+# dividend-adjusted. Columns are Date, Close/Last, Volume, Open, High, Low;
+# prices carry a dollar sign; dates are MM/DD/YYYY; the NEWEST row comes first.
+# That order is a property of the export, not disorder, so it is reversed here
+# and only here — nothing else in this file reorders anything.
+_NASDAQ_COLS = {"close": "close/last", "open": "open", "high": "high",
+                "low": "low", "volume": "volume"}
+
+
+def _money(text):
+    s = text.strip().replace("$", "").replace(",", "")
+    if s in ("", "--", "N/A", "n/a"):
+        raise ValueError(f"no price in {text!r}")
+    return float(s)
+
+
+def parse_nasdaq(text, symbol, fetched_at=None):
+    """
+    nasdaq.com historical export → daily Series, oldest first, source
+    "nasdaq", adjusted False, close_is the official consolidated close.
+    Raises Unparseable; a row it cannot read is never skipped.
+    """
+    rdr = csv.reader(io.StringIO(text.lstrip("\ufeff")))
+    try:
+        header = next(rdr)
+    except StopIteration:
+        raise Unparseable("empty file — not even a header")
+    cols = [h.strip().lower() for h in header]
+    if "close/last" not in cols or "date" not in cols:
+        raise Unparseable(f"header {header} is not a nasdaq.com export "
+                          f"(expected Date, Close/Last, Volume, Open, High, Low)")
+    idx = {k: (cols.index(n) if n in cols else None) for k, n in _NASDAQ_COLS.items()}
+    missing = [k for k, v in idx.items() if v is None]
+    if missing:
+        raise Unparseable(f"header {header} is missing {', '.join(missing)}")
+    ts_i = cols.index("date")
+
+    bars = []
+    for n, row in enumerate(rdr, start=2):
+        if not row or all(not c.strip() for c in row):
+            continue
+        try:
+            d = dt.datetime.strptime(row[ts_i].strip(), "%m/%d/%Y")
+            vol = row[idx["volume"]].strip().replace(",", "")
+            bars.append(Bar(
+                ts=dt.datetime(d.year, d.month, d.day, tzinfo=UTC),
+                open=_money(row[idx["open"]]), high=_money(row[idx["high"]]),
+                low=_money(row[idx["low"]]), close=_money(row[idx["close"]]),
+                volume=float(vol) if vol not in ("", "--", "N/A", "n/a") else 0.0))
+        except (ValueError, IndexError) as e:
+            raise Unparseable(f"row {n}: {e} — {row}")
+
+    newest_first = len(bars) >= 2 and bars[0].ts > bars[-1].ts
+    if newest_first:
+        bars.reverse()
+    prov = {"source": "nasdaq",
+            "fetched_at": fetched_at or dt.datetime.now(UTC).isoformat(timespec="seconds"),
+            "adjusted": False,
+            "close_is": "official consolidated close (nasdaq.com historical export)",
+            "order": ("export was newest-first; reversed to oldest-first" if newest_first
+                      else "export was already oldest-first")}
+    return Series(symbol, "1d", bars, prov)
+
+
+def load_nasdaq(path, symbol):
+    """The offline door for a browser download; see parse_nasdaq."""
+    if not os.path.exists(path):
+        raise Unparseable(f"no such file: {path}")
+    fetched = dt.datetime.fromtimestamp(os.path.getmtime(path), UTC)
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        s = parse_nasdaq(f.read(), symbol, fetched.isoformat(timespec="seconds"))
+    s.provenance["path"] = os.path.abspath(path)
+    return s
+
+
 def load_csv(path, symbol, timeframe="1d", source=None, adjusted=None):
     """
     The offline door. Everything downstream can be tested against a file, which
@@ -284,7 +361,10 @@ def bars_path(symbol, timeframe, root=None):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--csv", required=True)
+    ap.add_argument("--csv", help="a bars CSV in the plain / Stooq / Yahoo / Alpaca form")
+    ap.add_argument("--nasdaq-export", metavar="PATH",
+                    help="a nasdaq.com 'Download historical data' file; converted to --out")
+    ap.add_argument("--out", help="with --nasdaq-export: the plain CSV to write")
     ap.add_argument("--symbol", required=True)
     ap.add_argument("--timeframe", default="1d", choices=sorted(TIMEFRAMES))
     ap.add_argument("--source", help="where the file came from; recorded")
@@ -292,6 +372,25 @@ def main():
                     help="whether prices are split/dividend adjusted; recorded")
     ap.add_argument("--show", type=int, default=3, help="print the last N bars")
     a = ap.parse_args()
+
+    if bool(a.csv) == bool(a.nasdaq_export):
+        ap.error("give exactly one of --csv or --nasdaq-export")
+
+    if a.nasdaq_export:
+        if not a.out:
+            ap.error("--nasdaq-export needs --out, the plain CSV to write")
+        try:
+            s = load_nasdaq(a.nasdaq_export, a.symbol)
+        except (Unparseable, NoProvenance) as e:
+            sys.exit(f"REFUSED: {e}")
+        to_csv(s, a.out)
+        print(s.describe())
+        print(f"provenance: {s.provenance}")
+        print(f"wrote {a.out}: {len(s)} bars, oldest first, unadjusted official closes")
+        print(f"\nnext:  python3 barqc.py --csv {a.out} --symbol {a.symbol} --source nasdaq")
+        print(f"       python3 intraday.py --sessions-from bars/{a.symbol.upper()}-sessions.csv "
+              f"--rule first30 --close-from {a.out} --close-source nasdaq")
+        return
 
     adj = {"yes": True, "no": False}.get(a.adjusted)
     try:

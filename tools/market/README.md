@@ -30,7 +30,7 @@ out/              the ledger and its report (gitignored)
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
 | `autopilot.py` (reviewed 2026-09-04 by four finders and three refuters per finding; the six confirmed defects are fixed and pinned — see EVIDENCE.md "Day run" §I) | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions (whole shares or `--notional` fractions of an allocation), order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it, and a 15% equity drawdown from the recorded peak writes one. `universe.txt` is its list. |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
-| `test_tools.py` | 481 checks. `python3 test_tools.py` |
+| `test_tools.py` | 494 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
@@ -89,6 +89,16 @@ said. Two ways on:
   `--close-from`: `intraday.py` refuses a file whose closes sit more than 1%
   from the minute feed's own last print, which is what an adjusted series
   looks like, and it refused Stooq's on exactly that test.
+- **Yahoo still answering 429? The browser route for raw closes.** Open
+  `nasdaq.com/market-activity/etf/spy/historical`, set the range to MAX,
+  click Download. That file is newest-first with dollar signs, so it is
+  converted rather than read: `python3 bars.py --nasdaq-export
+  ~/Downloads/HistoricalData_*.csv --symbol SPY --out bars/SPY-1d-raw.csv`
+  writes the plain file every tool reads (oldest first, source `nasdaq`,
+  unadjusted, official consolidated close). Then trial 3 with `--close-from
+  bars/SPY-1d-raw.csv --close-source nasdaq`; the basis guard still runs on
+  it, and `barqc.py` says whether the download reaches back to 2020-07-27,
+  where the sessions file starts.
 
 ## Candles or the data?
 
@@ -194,7 +204,8 @@ python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule fi
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule open_to_1530
 #     trial 3, pre-registered 2026-09-02: same rule, exit at the OFFICIAL close, which closes
 #     the IEX closing-auction caveat. Needs RAW closes: Stooq's are dividend-adjusted and were
-#     REFUSED by the basis guard (2.3% median gap). fetch.py --source yahoo, no --adjusted-close.
+#     REFUSED by the basis guard (2.3% median gap). fetch.py --source yahoo, no --adjusted-close;
+#     or, when Yahoo answers 429, bars.py --nasdaq-export on the nasdaq.com download (--close-source nasdaq).
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d-raw.csv --close-source yahoo
 #     measure here, analyse anywhere: the minute file is 35 MB, the per-session measurement is
 #     100 KB. Export on the machine with the bars; run the rules, the null and trial 3 from the
