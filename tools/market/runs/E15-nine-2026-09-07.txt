@@ -1,0 +1,21 @@
+$ python3 nulltest.py --rule rsi_oversold --horizon 5 --csv bars/DIA-1d-long.csv bars/EEM-1d-long.csv bars/EFA-1d-long.csv bars/GLD-1d-long.csv bars/IWM-1d-long.csv bars/QQQ-1d-long.csv bars/TLT-1d-long.csv bars/XLE-1d-long.csv bars/XLF-1d-long.csv --symbol DIA EEM EFA GLD IWM QQQ TLT XLE XLF --source stooq --adjusted yes --no-record
+
+================================================================================================
+rsi_oversold ACROSS SYMBOLS · hold 5 bar(s) · 5 bp · vol-matched null · pre-registered universe
+================================================================================================
+symbol span                        n epis  mean bp   sd bp    hit      t   t_ep  null bp      p
+------------------------------------------------------------------------------------------------
+DIA    2005-02-25 → 2026-09-04   104   34    121.0     428  69.2%   2.88   5.23     13.9  0.000
+EEM    2005-02-25 → 2026-09-04   120   35     71.5     443  60.8%   1.77   2.07      4.2  0.014
+EFA    2005-02-25 → 2026-09-04   152   44     50.6     431  58.6%   1.45   4.05     12.7  0.055
+GLD    2005-02-25 → 2026-09-04   186   34     46.8     236  54.3%   2.71   3.72     12.9  0.024
+IWM    2005-02-25 → 2026-09-04   131   37     78.8     599  60.3%   1.51   3.82     15.9  0.018
+QQQ    1999-03-10 → 2026-09-04   107   37    177.4     525  63.6%   3.49   4.62     12.1  0.001
+TLT    2005-02-25 → 2026-09-04   122   32     15.1     181  56.6%   0.92   4.36     -0.3  0.173
+XLE    2005-02-25 → 2026-09-04   137   31      1.3     771  63.5%   0.02   3.19     19.1  0.690
+XLF    2005-02-25 → 2026-09-04   112   35    106.6     751  54.5%   1.50   2.43      2.5  0.003
+------------------------------------------------------------------------------------------------
+REPLICATES: 9 of 9 symbols show t_ep > 2 with a positive mean
+The reading rule was written before the data: a majority with t_ep > 2 and a positive mean replicates;
+fewer than three does not; anything else is mixed and is reported as mixed.
+exit=0

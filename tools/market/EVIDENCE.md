@@ -1097,6 +1097,32 @@ statement about witnesses, which is what the reading rule was written to
 count; it is not a statement about a trade. No new rule was built from it.
 EEM is the one open item.
 
+**EEM landed** (2026-09-07, `E15-nine-2026-09-07-barqc.txt`,
+`E15-nine-2026-09-07.txt`). The ninth file arrived by the same route as the
+other eight, a Stooq browser download, `bars/EEM-1d-long.csv`, 5,415 bars,
+2005-02-25 → 2026-09-04, the same six missing sessions as the seven, barqc
+`VERDICT: PASS`. The nine-file run, same command as above with EEM in its
+pre-registered place, `--no-record`; the tool's verdict, verbatim:
+
+> REPLICATES: 9 of 9 symbols show t_ep > 2 with a positive mean
+
+EEM's row as printed:
+
+| symbol | span | events | episodes | mean net | sd | hit | t | t_ep | vol-matched null | p |
+|---|---|---|---|---|---|---|---|---|---|---|
+| EEM | 2005-02-25 → 2026-09-04 | 120 | 35 | +71.5 bp | 443 | 60.8% | 1.77 | 2.07 | +4.2 | 0.014 |
+
+The other eight rows reproduced digit for digit, Monte-Carlo columns
+included (same seed). Read EEM the way the bullets above read the others:
+t_ep 2.07 is the lowest of the nine and clears the line by 0.07, the
+event-weighted t of 1.77 does not clear 2, and against its own vol-matched
+null it is p = 0.014. So it is a witness on the reading rule's terms and not
+on a trader's, like IWM, XLF and EFA — and, like every other line, it came
+in below its six-year number (+231.6 bp, t 3.35, t_ep 3.83 on 27 events in
+§E), which is the same shrinkage the longer window produced everywhere. The
+count is nine of nine on the pre-registered rule; on the event-weighted t it
+stays three of nine (QQQ, DIA, GLD). Nothing in the money reading moves.
+
 ## Trial 3 — the official close (2026-09-06)
 
 Pre-registered 2026-09-02 (Day run, method #1): the `first30` rule exactly as

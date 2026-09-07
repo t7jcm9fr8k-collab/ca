@@ -1,0 +1,26 @@
+$ python3 barqc.py --csv bars/EEM-1d-long.csv --symbol EEM --source stooq --adjusted yes
+
+========================================================================
+BAR INSPECTION — EEM 1d: 5415 bars, 2005-02-25 → 2026-09-04, source stooq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       5415 bars, 5421 sessions, 6 missing     <= 54 missing   
+       └─ missing 2007-01-02, 2011-02-17, 2012-10-29, 2012-10-30, 2018-12-05 …; up to 54 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ stooq @ 2026-09-07T05:24:26+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ adjusted
+ok    staleness      last bar 3.2 period(s) old              <= 3 for live     (reported, not blocking)
+       └─ fine for a backtest; a live decision on this would be trading the past
+ok    span           5415 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv bars/EEM-1d-long.csv --symbol EEM
+exit=0
