@@ -103,7 +103,11 @@ said. Two ways on:
   unadjusted, official consolidated close). Then trial 3 with `--close-from
   bars/SPY-1d-raw.csv --close-source nasdaq`; the basis guard still runs on
   it, and `barqc.py` says whether the download reaches back to 2020-07-27,
-  where the sessions file starts.
+  where the sessions file starts. From a machine that can reach
+  `api.nasdaq.com`, `python3 nasdaq_json.py --symbol SPY --out bars/SPY-1d-raw.csv`
+  fetches the same table as JSON (browser User-Agent, `Accept:
+  application/json`) and writes the same plain file; that is how trial 3 ran
+  on 2026-09-06.
 
 ## Candles or the data?
 
@@ -211,6 +215,11 @@ python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule op
 #     the IEX closing-auction caveat. Needs RAW closes: Stooq's are dividend-adjusted and were
 #     REFUSED by the basis guard (2.3% median gap). fetch.py --source yahoo, no --adjusted-close;
 #     or, when Yahoo answers 429, bars.py --nasdaq-export on the nasdaq.com download (--close-source nasdaq).
+#     RAN 2026-09-06 (EVIDENCE "Trial 3 — the official close"): Yahoo answered 429 to fetch.py, the
+#     nasdaq.com JSON endpoint answered, nasdaq_json.py wrote bars/SPY-1d-raw.csv (1,553 bars, barqc
+#     PASS), the basis guard measured a 0.010% median gap and let it through. gross -0.32 ± 0.67 bp,
+#     p = 0.669, the published +2.7 bp EXCLUDED — the same verdict as trials 1 and 2. Saved outputs:
+#     runs/trial3-2026-09-06-barqc.txt and runs/trial3-2026-09-06.txt.
 python3 intraday.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --rule first30 --close-from bars/SPY-1d-raw.csv --close-source yahoo
 #     measure here, analyse anywhere: the minute file is 35 MB, the per-session measurement is
 #     100 KB. Export on the machine with the bars; run the rules, the null and trial 3 from the

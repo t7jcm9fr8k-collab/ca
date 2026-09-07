@@ -1,18 +1,18 @@
 {
   "id": "marigold-calavera",
   "title": "Marigold Calavera",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-06 from each file's own page or API record; see the credit on each layer. compose.py refuses to render a layer whose url, licence or traced is blank. See SOURCING.md.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#C4661F"
+      "ink0": "#4A4A4A",
+      "ink1": "#E8A94A"
     }
   },
   "layers": [
     {
       "source": "posada-calavera.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.7,
       "transform": {
         "scale": 0.58,
         "offset": [
@@ -23,23 +23,23 @@
       "lift": {
         "enabled": true
       },
-      "_wanted": "Posada calavera broadside \u2014 skull or full skeleton",
+      "_wanted": "Posada calavera broadside — skull or full skeleton",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://www.metmuseum.org/art/collection/search/735936",
+        "licence": "CC0",
+        "traced": "2026-09-06",
+        "credit": "The Metropolitan Museum of Art, Open Access (accession 60.678.50): José Guadalupe Posada, A skeleton holding a bone and leaping over a pile of skulls while people flee, from the broadside 'Las bravisimas calaveras Guatemaltecas', zincograph, ca. 1907 (a later impression); API record isPublicDomain true, primaryImage DP869423; cropped to the print"
       }
     },
     {
       "source": "marigold-wreath.jpg",
       "ink": "ink1",
-      "gamma": 0.8,
+      "gamma": 0.7,
       "transform": {
-        "scale": 0.86,
+        "scale": 0.78,
         "offset": [
           0,
-          0.02
+          0.0
         ]
       },
       "lift": {
@@ -47,10 +47,10 @@
       },
       "_wanted": "marigold / Tagetes botanical plate",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://commons.wikimedia.org/wiki/File:Tagetes_erecta001.png",
+        "licence": "Public domain",
+        "traced": "2026-09-06",
+        "credit": "Step & Watson, Favourite Flowers of Garden and Greenhouse, vol. 2, plate 144, African marigold (Tagetes erecta), Frederick Warne, 1897, via Wikimedia Commons (licence template PD-old); source PNG converted to JPEG, not resized"
       },
       "mask": {
         "from_layer": 0,

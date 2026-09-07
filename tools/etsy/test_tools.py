@@ -96,6 +96,22 @@ check("gamma<1 thickens ink",
       > sum(compose.map_to_ink(g, (0, 0, 0), gamma=2.0, autolevel=False)
             .getchannel("A").getdata()))
 
+# thicken: a hairline that gamma cannot widen. One-pixel line on a 100x100 slot.
+_hair = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+ImageDraw.Draw(_hair).line([(10, 50), (90, 50)], fill=(114, 114, 114, 255), width=1)
+_ink = lambda im: sum(1 for v in im.getchannel("A").getdata() if v > 96)
+_thick = compose.thicken(_hair, 2, compose.CANVAS)
+check("thicken widens a hairline: 1 px becomes 5 px (and 2 px longer at each end)",
+      _ink(_thick) == 5 * (_ink(_hair) + 4), f"{_ink(_hair)} -> {_ink(_thick)}")
+check("the grown pixels carry the ink colour, not transparent black",
+      _thick.getpixel((50, 48)) == (114, 114, 114, 255), str(_thick.getpixel((50, 48))))
+check("thicken 0 / absent leaves the layer untouched",
+      compose.thicken(_hair, 0, compose.CANVAS) is _hair
+      and compose.thicken(_hair, None, compose.CANVAS) is _hair)
+_draft = (compose.CANVAS[0] // compose.DRAFT_DIVISOR, compose.CANVAS[1] // compose.DRAFT_DIVISOR)
+check("in --draft the kernel scales down with the canvas (2 px -> 1 px at 1/5)",
+      _ink(compose.thicken(_hair, 2, _draft)) == 3 * (_ink(_hair) + 2))
+
 # ---------------------------------------------------------------- provenance
 
 print("\nprovenance gate")

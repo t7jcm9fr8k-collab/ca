@@ -1096,3 +1096,71 @@ each carry one or two episodes doing most of the work. "REPLICATES" is a
 statement about witnesses, which is what the reading rule was written to
 count; it is not a statement about a trade. No new rule was built from it.
 EEM is the one open item.
+
+## Trial 3 — the official close (2026-09-06)
+
+Pre-registered 2026-09-02 (Day run, method #1): the `first30` rule exactly as
+in trials 1 and 2, but the exit priced at the **official consolidated close**
+instead of the last IEX print before 16:00, which closes the closing-auction
+caveat both earlier trials carried. It needed an unadjusted daily file, and
+the Stooq file was refused for that on 2026-09-04. Today, from a cloud
+session whose network had been widened: `fetch.py --source yahoo` answered
+HTTP 429 three times and wrote nothing (`runs/trial3-2026-09-06-fetch.txt`);
+the nasdaq.com historical endpoint answered as JSON, and a new converter,
+`nasdaq_json.py`, wrote it to the plain file with the same semantics as
+`bars.parse_nasdaq` gives the browser download (oldest first, source
+`nasdaq`, adjusted False; `runs/trial3-2026-09-06-nasdaq-fetch.txt`):
+
+```
+python3 nasdaq_json.py --symbol SPY --out bars/SPY-1d-raw.csv
+python3 barqc.py --csv bars/SPY-1d-raw.csv --symbol SPY --source nasdaq
+python3 intraday.py --sessions-from bars/SPY-sessions.csv --rule first30 --close-from bars/SPY-1d-raw.csv --close-source nasdaq --no-record
+```
+
+`barqc` (`runs/trial3-2026-09-06-barqc.txt`): `SPY 1d: 1553 bars, 2020-07-01
+→ 2026-09-04, source nasdaq`; `1553 bars, 1554 sessions, 1 missing` (the
+2025-01-09 Carter closure); `0 off-calendar bar(s)`; one zero-volume bar
+reported, not blocking (2026-04-20 in the file, volume 0.0, close 710.14 — a
+hole in nasdaq.com's volume column, the prices are present, and the join
+uses only the close); `adjustment NOT stated`
+because the flag was not passed on the command line, while the file's own
+provenance records `adjusted False`. **`VERDICT: PASS`.**
+
+The tool's verdict lines, verbatim (`runs/trial3-2026-09-06.txt`):
+
+> exit: official close from nasdaq (trial 3); median gap to this feed's last print 0.010%
+
+> gross -0.32 ± 0.67 bp/session (95% CI -1.64 to +1.00); the published effect of about +2.7 bp/session is EXCLUDED by this sample
+
+> permutation null, 1000 shuffles: p = 0.669 (all), p = 0.641 (holdout)
+
+So the basis guard, which refused Stooq's closes at a 2.30% median gap, let
+these through at 0.010%: the file is on the same price basis as the minute
+feed, which is what an unadjusted official close should look like. The
+numbers as printed: sessions 1518, skipped 14, cost 2 bp round trip; all
+windows n = 1,512, gross −0.32 ± 0.67 bp, net −2.32 bp, hit 49.9%, t −0.47,
+annualised net −5.8%; before 2021-01-01 n = 109, gross −0.40 ± 3.03; from
+2021-01-01 n = 1,403, gross −0.31 ± 0.69. By year, gross: 2020 −0.40, 2021
+−0.67, 2022 −1.97, 2023 +1.63, 2024 −1.42, 2025 +1.21, 2026 −0.74 bp, every
+one within two standard errors of zero. Three sessions had no 15:30 bar and
+filled at the next bar's open, later never earlier. The tool notes the one
+thing the join cannot remove: entry on the IEX 15:30 print and exit on the
+consolidated close from another feed can differ by about a cent at any
+instant, roughly 0.2 bp.
+
+**Read against trials 1 and 2.** Trial 1 ("First real data", IEX exit):
+gross −0.5 ± 0.67 bp per session, 95% CI [−1.8, +0.8], n = 1,513. Trial 2
+("Second and third runs", open-to-15:30 predictor): gross −0.22 ± 0.67 bp,
+95% CI [−1.52, +1.09], permutation p = 0.63. Trial 3 sits between them:
+−0.32 ± 0.67 bp, CI [−1.64, +1.00], p = 0.669. Changing the exit from the
+last IEX print to the official close moved the mean by about 0.2 bp and
+changed nothing else; the closing-auction leg the papers include was the
+last unmeasured piece of this method on this instrument, and measuring it
+did not find the effect. The published +2.7 bp/session is excluded at about
+four and a half standard errors on the exact instrument, bar size and rule,
+now with the exit the papers used. Method #1 stays where trials 1 and 2 put
+it: a powered null, post-publication, on 2020-07 → 2026-09. **Do not trade
+it.** Nothing was searched, the sample was read once, and `--no-record` was
+set so the ledger carries only the pre-registered runs; this is the trial 3
+the pre-registration described, and the queue this ran from is
+`tools/QUEUE-RUNNER.md`.

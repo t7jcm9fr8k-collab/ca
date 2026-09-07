@@ -1,0 +1,523 @@
+# v2 and v3, 2026-09-07, same container as the v1 ledger entries (tools/etsy/out/, gitignored). Verbatim printouts.
+
+## marigold-calavera: file QC tries
+$ try 1: inks #4A4A4A/#E8A94A, gamma 0.8/0.8
+
+========================================================================
+INSPECTION — marigold-calavera-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         21.3%                     8%-55%              
+FAIL  stroke width         35% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 51% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.97:1                    >=3.0:1             
+ok    contrast on black    3.77:1                    >=3.0:1             
+ok    contrast on sport grey1.76:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (136, 106, 62) against sport grey — it will not read
+ok    contrast on navy     2.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (136, 106, 62) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ try 2: gamma 0.7/0.7
+
+========================================================================
+INSPECTION — marigold-calavera-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         23.1%                     8%-55%              
+ok    stroke width         32% lost                  <=35%               
+ok    edge halo            ring 49% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.77:1                    >=3.0:1             
+ok    contrast on black    3.93:1                    >=3.0:1             
+ok    contrast on sport grey1.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (140, 109, 62) against sport grey — it will not read
+ok    contrast on navy     2.98:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (140, 109, 62) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+## marigold-calavera: mockup v2 and inspection
+$ python3 mockup.py --design marigold-calavera --version 2 --print out/marigold-calavera-onlight.png --change ... --note ...
+gate: v1 inspected 2026-09-06 23:41:19 — blocked, failed stroke width, contrast on black
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v2-white.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v2-black.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ python3 qc.py --design marigold-calavera --version 2
+
+========================================================================
+INSPECTION — marigold-calavera-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         23.1%                     8%-55%              
+ok    stroke width         32% lost                  <=35%               
+ok    edge halo            ring 49% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.77:1                    >=3.0:1             
+ok    contrast on black    3.93:1                    >=3.0:1             
+ok    contrast on sport grey1.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (140, 109, 62) against sport grey — it will not read
+ok    contrast on navy     2.98:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (140, 109, 62) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+## orchid-skull v2: file QC tries (gamma and scale only)
+$ v2 try 1
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         25.3%                     8%-55%              
+FAIL  stroke width         55% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 44% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    6.35:1                    >=3.0:1             
+FAIL  contrast on black    2.95:1                    >=3.0:1             
+       └─ average ink (103, 93, 86) against black — it will not read
+ok    contrast on sport grey2.26:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (103, 93, 86) against sport grey — it will not read
+ok    contrast on navy     2.24:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (103, 93, 86) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, contrast on black
+
+$ v2 try 2
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         32.3%                     8%-55%              
+FAIL  stroke width         44% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 47% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.65:1                    >=3.0:1             
+ok    contrast on black    3.32:1                    >=3.0:1             
+ok    contrast on sport grey2.01:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (110, 101, 95) against sport grey — it will not read
+ok    contrast on navy     2.52:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (110, 101, 95) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ v2 try 3
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         37.6%                     8%-55%              
+FAIL  stroke width         39% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 51% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.64:1                    >=3.0:1             
+ok    contrast on black    3.32:1                    >=3.0:1             
+ok    contrast on sport grey2.00:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against sport grey — it will not read
+ok    contrast on navy     2.52:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ v2 try 4
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         43.5%                     8%-55%              
+ok    stroke width         31% lost                  <=35%               
+ok    edge halo            ring 53% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.61:1                    >=3.0:1             
+ok    contrast on black    3.34:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+## orchid-skull: mockup v2 and inspection (PASSED the gate; the mockup showed the plate's paper lifted into a grey slab, which no check measures)
+$ python3 mockup.py --design orchid-skull --version 2 --print out/orchid-skull-onlight.png --change ... --note ...
+gate: v1 inspected 2026-09-06 23:37:13 — blocked, failed stroke width, contrast on black
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v2-white.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v2-black.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ python3 qc.py --design orchid-skull --version 2
+
+========================================================================
+INSPECTION — orchid-skull-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         43.5%                     8%-55%              
+ok    stroke width         31% lost                  <=35%               
+ok    edge halo            ring 53% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.61:1                    >=3.0:1             
+ok    contrast on black    3.34:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 102, 97) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+## orchid-skull v3: file QC tries (floor/ceil, then the new thicken option)
+$ v3 try 1
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         14.9%                     8%-55%              
+ok    stroke width         35% lost                  <=35%               
+ok    edge halo            ring 13% filled           <=22% on isolated shapes  (reported, not blocking)
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.63:1                    >=3.0:1             
+ok    contrast on black    3.33:1                    >=3.0:1             
+ok    contrast on sport grey2.00:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (127, 97, 75) against sport grey — it will not read
+ok    contrast on navy     2.53:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (127, 97, 75) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+$ v3 try 2
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         36.5%                     8%-55%              
+FAIL  stroke width         47% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 22% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.45:1                    >=3.0:1             
+ok    contrast on black    3.44:1                    >=3.0:1             
+ok    contrast on sport grey1.94:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 104, 98) against sport grey — it will not read
+ok    contrast on navy     2.61:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 104, 98) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ v3 try 3
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         38.5%                     8%-55%              
+FAIL  stroke width         44% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 22% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.43:1                    >=3.0:1             
+ok    contrast on black    3.45:1                    >=3.0:1             
+ok    contrast on sport grey1.93:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 104, 99) against sport grey — it will not read
+ok    contrast on navy     2.62:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 104, 99) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ v3 try 4
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         48.5%                     8%-55%              
+FAIL  stroke width         40% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 19% filled           <=22% on isolated shapes  (reported, not blocking)
+FAIL  edge bleed           93428 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.41:1                    >=3.0:1             
+ok    contrast on black    3.46:1                    >=3.0:1             
+ok    contrast on sport grey1.92:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 104, 100) against sport grey — it will not read
+ok    contrast on navy     2.63:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 104, 100) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, edge bleed
+
+$ v3 try 5
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         44.1%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    6.74:1                    >=3.0:1             
+FAIL  contrast on black    2.78:1                    >=3.0:1             
+       └─ average ink (96, 90, 86) against black — it will not read
+ok    contrast on sport grey2.40:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (96, 90, 86) against sport grey — it will not read
+ok    contrast on navy     2.11:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (96, 90, 86) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: contrast on black
+
+$ v3 try 6
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         44.1%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.26:1                    >=3.0:1             
+ok    contrast on black    3.56:1                    >=3.0:1             
+ok    contrast on sport grey1.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against sport grey — it will not read
+ok    contrast on navy     2.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+$ v3 try 7
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         45.5%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 34% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           16309 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.27:1                    >=3.0:1             
+ok    contrast on black    3.55:1                    >=3.0:1             
+ok    contrast on sport grey1.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against sport grey — it will not read
+ok    contrast on navy     2.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed
+
+$ v3 try 8
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         45.2%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 34% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           10513 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.27:1                    >=3.0:1             
+ok    contrast on black    3.55:1                    >=3.0:1             
+ok    contrast on sport grey1.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against sport grey — it will not read
+ok    contrast on navy     2.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed
+
+$ v3 try 9
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         44.4%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.27:1                    >=3.0:1             
+ok    contrast on black    3.56:1                    >=3.0:1             
+ok    contrast on sport grey1.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against sport grey — it will not read
+ok    contrast on navy     2.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+## orchid-skull: mockup v3 and inspection
+$ python3 mockup.py --design orchid-skull --version 3 --print out/orchid-skull-onlight.png --change ... --note ...
+gate: v2 inspected 2026-09-07 04:51:36 — pass
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v3-white.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v3-black.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v3-detail.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v3-sheet.png
+
+recorded v3 to the ledger
+       python3 history.py --report
+
+$ python3 qc.py --design orchid-skull --version 3
+
+========================================================================
+INSPECTION — orchid-skull-v3-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         44.4%                     8%-55%              
+ok    stroke width         29% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.27:1                    >=3.0:1             
+ok    contrast on black    3.56:1                    >=3.0:1             
+ok    contrast on sport grey1.87:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against sport grey — it will not read
+ok    contrast on navy     2.70:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (112, 106, 102) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v4 is now unblocked
+
+$ python3 history.py --report
+wrote /home/user/ca/tools/etsy/out/history.html
+  marigold-calavera      2 version(s), 2 inspection(s)
+  orchid-skull           3 version(s), 3 inspection(s)
+
+$ python3 test_tools.py (tail)
+  ok   the real ledger was never touched by the force tests
+
+1 FAILED: demo ledger present (run ./demo.sh first)
