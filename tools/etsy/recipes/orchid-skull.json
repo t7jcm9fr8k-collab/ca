@@ -4,17 +4,17 @@
   "_note": "Provenance filled 2026-09-06 from each file's own page or API record; see the credit on each layer. compose.py refuses to render a layer whose url, licence or traced is blank. See SOURCING.md.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#5C4033"
+      "ink0": "#727272",
+      "ink1": "#9A7357"
     }
   },
   "layers": [
     {
       "source": "anatomy-skull.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.4,
       "transform": {
-        "scale": 0.62,
+        "scale": 0.8,
         "offset": [
           0,
           0.02
@@ -29,17 +29,20 @@
         "licence": "Public Domain Mark",
         "traced": "2026-09-06",
         "credit": "Wellcome Collection, Skull: anterior view. Line engraving (reference 560840i, IIIF image V0007916)"
-      }
+      },
+      "floor": 20,
+      "ceil": 165,
+      "thicken": 2
     },
     {
       "source": "orchid-a.jpg",
       "ink": "ink1",
-      "gamma": 0.85,
+      "gamma": 0.4,
       "transform": {
         "scale": 0.48,
         "offset": [
           -0.2,
-          -0.22
+          -0.23
         ],
         "rotate": -14
       },
@@ -62,11 +65,11 @@
     {
       "source": "orchid-b.jpg",
       "ink": "ink1",
-      "gamma": 0.85,
+      "gamma": 0.4,
       "transform": {
         "scale": 0.42,
         "offset": [
-          0.21,
+          0.22,
           -0.19
         ],
         "rotate": 11

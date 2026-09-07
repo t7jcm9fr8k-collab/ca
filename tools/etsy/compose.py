@@ -213,6 +213,29 @@ def place(layer_img, canvas_size, transform):
     return slot
 
 
+def thicken(slot, px, canvas_size):
+    """
+    Grow every stroke by `px` print pixels (at the full 4500x5400 canvas).
+
+    A line engraving's hatching is finer than the ~3 px DTG can hold at 300
+    DPI; qc.py's stroke check erodes by that much and reports what vanished.
+    Lowering gamma pushes mid-tones to full density but cannot widen a
+    hairline, and past a point it lifts the plate's paper tone into a grey
+    slab instead (orchid-skull v2, 2026-09-07). Dilation is the right tool:
+    a MaxFilter on the placed alpha, so the amount is stated in print pixels
+    and means the same thing whatever the source's resolution. In --draft the
+    kernel is scaled down with the canvas so the preview matches.
+    """
+    px = int(px or 0)
+    if px <= 0:
+        return slot
+    eff = max(1, int(round(px * canvas_size[0] / CANVAS[0])))
+    # All four channels, not alpha alone: the slot is flat ink colour where
+    # there is ink and transparent BLACK elsewhere, so growing only the alpha
+    # would paint the new pixels black and drag the contrast check down.
+    return slot.filter(ImageFilter.MaxFilter(eff * 2 + 1))
+
+
 def apply_mask(slot, built, spec):
     """
     Mask one layer against another already-built layer.
@@ -287,6 +310,10 @@ def build(recipe, root, canvas_size, draft=False):
                          autolevel=layer.get("autolevel", True))
 
         slot = place(img, canvas_size, layer.get("transform"))
+        if layer.get("thicken"):
+            slot = thicken(slot, layer["thicken"], canvas_size)
+            notes.append(f"layer {i}: strokes thickened by {int(layer['thicken'])} px "
+                         f"at 300 DPI (dilation, for DTG's minimum stroke)")
         slot = apply_mask(slot, built, layer.get("mask"))
 
         op = float(layer.get("opacity", 1.0))

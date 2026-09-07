@@ -4,15 +4,15 @@
   "_note": "Provenance filled 2026-09-06 from each file's own page or API record; see the credit on each layer. compose.py refuses to render a layer whose url, licence or traced is blank. See SOURCING.md.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#C4661F"
+      "ink0": "#4A4A4A",
+      "ink1": "#E8A94A"
     }
   },
   "layers": [
     {
       "source": "posada-calavera.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.7,
       "transform": {
         "scale": 0.58,
         "offset": [
@@ -34,7 +34,7 @@
     {
       "source": "marigold-wreath.jpg",
       "ink": "ink1",
-      "gamma": 0.8,
+      "gamma": 0.7,
       "transform": {
         "scale": 0.78,
         "offset": [
