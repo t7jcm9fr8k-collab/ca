@@ -1,89 +1,107 @@
 {
   "id": "fungi-codex",
   "title": "Fungi Codex",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-07 from each file's own page or API record; see the credit on each layer.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#7A4B2A"
+      "ink0": "#6E6E6E",
+      "ink1": "#B08050"
     }
   },
   "layers": [
     {
       "source": "fungi-plate-a.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.75,
       "transform": {
-        "scale": 0.42,
+        "scale": 0.6,
         "offset": [
-          -0.21,
-          -0.18
+          -0.17,
+          -0.19
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 95,
+        "key_enclosed": false,
+        "feather": 2.0
       },
-      "_wanted": "mycological plate \u2014 Millot, Bulliard or BHL",
+      "_wanted": "mycological plate — Millot, Bulliard or BHL",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://wellcomecollection.org/works/rsnu5sn5",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: The fly agaric fungus (Amanita muscaria), three fruiting bodies, watercolour by R. Baker; inscription cropped"
+      },
+      "floor": 20,
+      "ceil": 138,
+      "thicken": 2
     },
     {
       "source": "fungi-plate-b.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.75,
       "transform": {
-        "scale": 0.42,
+        "scale": 0.6,
         "offset": [
-          0.21,
-          -0.18
+          0.19,
+          -0.17
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 95,
+        "key_enclosed": false,
+        "feather": 2.0
       },
       "_wanted": "second species, similar scale",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://wellcomecollection.org/works/uk8wu5xy",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: A false morel fungus (Helvella crispa), six fruiting bodies, watercolour by R. Baker, 1892; inscription cropped"
+      },
+      "floor": 20,
+      "ceil": 138,
+      "thicken": 2
     },
     {
       "source": "fungi-plate-c.jpg",
       "ink": "ink0",
-      "gamma": 1.0,
+      "gamma": 0.75,
       "transform": {
-        "scale": 0.42,
+        "scale": 0.58,
         "offset": [
-          -0.21,
-          0.14
+          -0.19,
+          0.16
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 95,
+        "key_enclosed": false,
+        "feather": 2.0
       },
       "_wanted": "third species",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://wellcomecollection.org/works/hjg43pj6",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: An earth-star fungus (Geastrum fornicatum), two fruiting bodies, watercolour by R. Baker; inscription cropped"
+      },
+      "floor": 20,
+      "ceil": 138,
+      "thicken": 2
     },
     {
       "source": "moth-small.jpg",
       "ink": "ink1",
-      "gamma": 0.9,
+      "gamma": 0.8,
       "transform": {
-        "scale": 0.32,
+        "scale": 0.36,
         "offset": [
-          0.21,
-          0.16
+          0.23,
+          0.18
         ],
         "rotate": 9
       },
@@ -92,10 +110,10 @@
       },
       "_wanted": "a small moth to break the grid",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://wellcomecollection.org/works/j9wjm5u9",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: Seven insects of the order Lepidoptera, line engraving (IIIF image V0022528); cropped to the single large moth"
       }
     }
   ]

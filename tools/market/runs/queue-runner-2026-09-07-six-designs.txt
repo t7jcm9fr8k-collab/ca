@@ -1,0 +1,678 @@
+# Fungi Codex and Overgrown Prison, sourced and taken through the gate, 2026-09-07.
+# Container-local outputs live in tools/etsy/out/ (gitignored); these are the tools' own printouts.
+
+## fungi-codex
+### drafts
+$ draft try 1
+ink coverage 7.3%
+  layer 0: ground lifted (27%)
+  layer 1: ground lifted (13%)
+  layer 2: ground lifted (70%)
+  layer 3: ground lifted (46%)
+$ draft try 2
+ink coverage 8.5%
+  layer 0: ground lifted (27%)
+  layer 1: ground lifted (20%)
+  layer 2: ground lifted (81%)
+  layer 3: ground lifted (46%)
+$ draft try 3
+ink coverage 8.4%
+  layer 0: ground lifted (66%)
+  layer 1: ground lifted (68%)
+  layer 2: ground lifted (67%)
+  layer 3: ground lifted (46%)
+$ draft try 4
+ink coverage 11.1%
+  layer 0: ground lifted (66%)
+  layer 1: ground lifted (68%)
+  layer 2: ground lifted (67%)
+  layer 3: ground lifted (46%)
+
+### v1 (full compose, file QC, mockup, inspection)
+=== fungi-codex: full compose
+wrote /home/user/ca/tools/etsy/out/fungi-codex-onlight.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-ondark.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-silhouette.png
+
+ink coverage 11.1%
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (66%)
+  layer 1: ground lifted (68%)
+  layer 2: ground lifted (67%)
+  layer 3: ground lifted (46%)
+  4 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 4 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== fungi-codex: qc on the file
+
+========================================================================
+INSPECTION — fungi-codex-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         11.1%                     8%-55%              
+FAIL  stroke width         44% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 39% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    15.02:1                   >=3.0:1             
+FAIL  contrast on black    1.25:1                    >=3.0:1             
+       └─ average ink (49, 35, 26) against black — it will not read
+ok    contrast on sport grey5.34:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.06:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (49, 35, 26) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, contrast on black
+
+=== fungi-codex: mockup v1
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v1-white.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v1-black.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design fungi-codex --version 1
+       python3 history.py --report
+
+=== fungi-codex: inspection v1
+
+========================================================================
+INSPECTION — fungi-codex-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         11.1%                     8%-55%              
+FAIL  stroke width         44% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 39% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    15.02:1                   >=3.0:1             
+FAIL  contrast on black    1.25:1                    >=3.0:1             
+       └─ average ink (49, 35, 26) against black — it will not read
+ok    contrast on sport grey5.34:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.06:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (49, 35, 26) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+### v2 file QC
+
+========================================================================
+INSPECTION — fungi-codex-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         14.2%                     8%-55%              
+ok    stroke width         24% lost                  <=35%               
+ok    edge halo            ring 58% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.30:1                    >=3.0:1             
+ok    contrast on black    3.54:1                    >=3.0:1             
+ok    contrast on sport grey1.88:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 105, 91) against sport grey — it will not read
+ok    contrast on navy     2.69:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 105, 91) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v2 mockup and inspection
+$ mockup.py --design fungi-codex --version 2
+gate: v1 inspected 2026-09-07 16:59:22 — blocked, failed stroke width, contrast on black
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v2-white.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v2-black.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ qc.py --design fungi-codex --version 2
+
+========================================================================
+INSPECTION — fungi-codex-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         14.2%                     8%-55%              
+ok    stroke width         24% lost                  <=35%               
+ok    edge halo            ring 58% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.30:1                    >=3.0:1             
+ok    contrast on black    3.54:1                    >=3.0:1             
+ok    contrast on sport grey1.88:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 105, 91) against sport grey — it will not read
+ok    contrast on navy     2.69:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 105, 91) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+### v3 file QC tries
+$ v3 try 1
+
+========================================================================
+INSPECTION — fungi-codex-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         12.9%                     8%-55%              
+FAIL  stroke width         40% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 42% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.80:1                    >=3.0:1             
+ok    contrast on black    3.23:1                    >=3.0:1             
+ok    contrast on sport grey2.06:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (110, 99, 89) against sport grey — it will not read
+ok    contrast on navy     2.45:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (110, 99, 89) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ v3 try 2
+
+========================================================================
+INSPECTION — fungi-codex-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         13.2%                     8%-55%              
+ok    stroke width         34% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           15 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.61:1                    >=3.0:1             
+ok    contrast on black    3.34:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed
+
+$ v3 try 3
+
+========================================================================
+INSPECTION — fungi-codex-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         13.2%                     8%-55%              
+ok    stroke width         34% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.61:1                    >=3.0:1             
+ok    contrast on black    3.34:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v3 mockup and inspection
+$ mockup.py --design fungi-codex --version 3
+gate: v2 inspected 2026-09-07 17:03:50 — pass
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v3-white.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v3-black.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v3-detail.png
+wrote /home/user/ca/tools/etsy/out/fungi-codex-v3-sheet.png
+
+recorded v3 to the ledger
+       python3 history.py --report
+
+$ qc.py --design fungi-codex --version 3
+
+========================================================================
+INSPECTION — fungi-codex-v3-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         13.2%                     8%-55%              
+ok    stroke width         34% lost                  <=35%               
+ok    edge halo            ring 35% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.61:1                    >=3.0:1             
+ok    contrast on black    3.34:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 102, 92) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v4 is now unblocked
+
+## overgrown-prison
+### drafts
+$ draft try 1
+ink coverage 33.0%
+  layer 0: ground lifted (16%)
+  layer 1: ground lifted (79%)
+  layer 2: ground lifted (71%)
+$ draft try 2
+ink coverage 35.3%
+  layer 0: ground lifted (16%)
+  layer 1: ground lifted (79%)
+  layer 2: ground lifted (71%)
+$ draft try 3
+ink coverage 11.6%
+  layer 0: ground lifted (66%)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+$ draft try 4
+ink coverage 12.2%
+  layer 0: ground lifted (16%)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+$ draft try 5
+ink coverage 17.9%
+  layer 0: ground lifted (16%)
+  layer 0: strokes thickened by 1 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+$ draft try 6
+ink coverage 7.7%
+  layer 0: ground lifted (16%)
+  layer 0: strokes thickened by 1 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+$ draft try 7
+ink coverage 13.8%
+  layer 0: ground lifted (16%)
+  layer 0: strokes thickened by 3 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+
+### v1
+=== overgrown-prison: full compose
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-onlight.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-ondark.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-silhouette.png
+
+ink coverage 32.8%
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (16%)
+  layer 0: strokes thickened by 3 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (85%)
+  layer 2: ground lifted (73%)
+  3 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 3 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== overgrown-prison: qc on the file
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         32.8%                     8%-55%              
+ok    stroke width         27% lost                  <=35%               
+ok    edge halo            ring 48% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           6546 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    17.33:1                   >=3.0:1             
+FAIL  contrast on black    1.08:1                    >=3.0:1             
+       └─ average ink (23, 27, 24) against black — it will not read
+ok    contrast on sport grey6.16:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.22:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (23, 27, 24) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed, contrast on black
+
+=== overgrown-prison: mockup v1
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v1-white.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v1-black.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design overgrown-prison --version 1
+       python3 history.py --report
+
+=== overgrown-prison: inspection v1
+
+========================================================================
+INSPECTION — overgrown-prison-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         32.8%                     8%-55%              
+ok    stroke width         27% lost                  <=35%               
+ok    edge halo            ring 48% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           6546 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    17.33:1                   >=3.0:1             
+FAIL  contrast on black    1.08:1                    >=3.0:1             
+       └─ average ink (23, 27, 24) against black — it will not read
+ok    contrast on sport grey6.16:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.22:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (23, 27, 24) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+### v2 file QC tries
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         31.7%                     8%-55%              
+ok    stroke width         25% lost                  <=35%               
+ok    edge halo            ring 49% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           1348 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    6.55:1                    >=3.0:1             
+FAIL  contrast on black    2.86:1                    >=3.0:1             
+       └─ average ink (90, 94, 90) against black — it will not read
+ok    contrast on sport grey2.33:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (90, 94, 90) against sport grey — it will not read
+ok    contrast on navy     2.17:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (90, 94, 90) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed, contrast on black
+
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         28.1%                     8%-55%              
+ok    stroke width         26% lost                  <=35%               
+ok    edge halo            ring 49% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.51:1                    >=3.0:1             
+ok    contrast on black    3.40:1                    >=3.0:1             
+ok    contrast on sport grey1.96:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (101, 106, 101) against sport grey — it will not read
+ok    contrast on navy     2.58:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (101, 106, 101) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v2 mockup and inspection
+$ mockup.py --design overgrown-prison --version 2
+gate: v1 inspected 2026-09-07 16:57:15 — blocked, failed edge bleed, contrast on black
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v2-white.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v2-black.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ qc.py --design overgrown-prison --version 2
+
+========================================================================
+INSPECTION — overgrown-prison-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         28.1%                     8%-55%              
+ok    stroke width         26% lost                  <=35%               
+ok    edge halo            ring 49% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.51:1                    >=3.0:1             
+ok    contrast on black    3.40:1                    >=3.0:1             
+ok    contrast on sport grey1.96:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (101, 106, 101) against sport grey — it will not read
+ok    contrast on navy     2.58:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (101, 106, 101) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+### v3 file QC tries (new plate)
+$ v3 try 1
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+FAIL  ink coverage         6.5%                      8%-55%              
+       └─ too light — this disappears on a shirt from across a room
+FAIL  stroke width         76% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.60:1                    >=3.0:1             
+ok    contrast on black    5.20:1                    >=3.0:1             
+ok    contrast on sport grey1.28:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (116, 141, 116) against sport grey — it will not read
+ok    contrast on navy     3.95:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ink coverage, stroke width
+
+$ v3 try 3
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         19.7%                     8%-55%              
+FAIL  stroke width         87% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 15% filled           <=22% on isolated shapes  (reported, not blocking)
+FAIL  edge bleed           1268 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.71:1                    >=3.0:1             
+ok    contrast on black    3.98:1                    >=3.0:1             
+ok    contrast on sport grey1.67:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (111, 117, 111) against sport grey — it will not read
+ok    contrast on navy     3.02:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, edge bleed
+
+$ v3 try 4
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         28.7%                     8%-55%              
+ok    stroke width         17% lost                  <=35%               
+ok    edge halo            ring 25% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           724 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.30:1                    >=3.0:1             
+ok    contrast on black    4.36:1                    >=3.0:1             
+ok    contrast on sport grey1.53:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 122, 119) against sport grey — it will not read
+ok    contrast on navy     3.31:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: edge bleed
+
+$ v3 try 5
+
+========================================================================
+INSPECTION — overgrown-prison-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         28.0%                     8%-55%              
+ok    stroke width         15% lost                  <=35%               
+ok    edge halo            ring 26% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.32:1                    >=3.0:1             
+ok    contrast on black    4.34:1                    >=3.0:1             
+ok    contrast on sport grey1.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 122, 119) against sport grey — it will not read
+ok    contrast on navy     3.29:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v3 mockup and inspection
+$ mockup.py --design overgrown-prison --version 3
+gate: v2 inspected 2026-09-07 17:06:16 — pass
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v3-white.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v3-black.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v3-detail.png
+wrote /home/user/ca/tools/etsy/out/overgrown-prison-v3-sheet.png
+
+recorded v3 to the ledger
+       python3 history.py --report
+
+$ qc.py --design overgrown-prison --version 3
+
+========================================================================
+INSPECTION — overgrown-prison-v3-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         28.0%                     8%-55%              
+ok    stroke width         15% lost                  <=35%               
+ok    edge halo            ring 26% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.32:1                    >=3.0:1             
+ok    contrast on black    4.34:1                    >=3.0:1             
+ok    contrast on sport grey1.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (119, 122, 119) against sport grey — it will not read
+ok    contrast on navy     3.29:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v4 is now unblocked
+
+$ python3 history.py --report
+wrote /home/user/ca/tools/etsy/out/history.html
+  fungi-codex            3 version(s), 3 inspection(s)
+  marigold-calavera      2 version(s), 2 inspection(s)
+  orchid-skull           3 version(s), 3 inspection(s)
+  overgrown-prison       3 version(s), 3 inspection(s)
+
+$ python3 test_tools.py (tail)
+  ok   the real ledger was never touched by the force tests
+
+1 FAILED: demo ledger present (run ./demo.sh first)

@@ -112,6 +112,18 @@ _draft = (compose.CANVAS[0] // compose.DRAFT_DIVISOR, compose.CANVAS[1] // compo
 check("in --draft the kernel scales down with the canvas (2 px -> 1 px at 1/5)",
       _ink(compose.thicken(_hair, 2, _draft)) == 3 * (_ink(_hair) + 2))
 
+# place() records whether a layer was enlarged past its own pixels. A source
+# narrower than its place on the canvas invents detail; the recipe must say so.
+_small = Image.new("RGBA", (900, 900), (0, 0, 0, 255))
+compose.place(_small, compose.CANVAS, {"scale": 0.8})
+check("place reports an upscale when the source is smaller than its slot",
+      compose.place.last_upscale > compose.UPSCALE_TOLERANCE,
+      f"{compose.place.last_upscale:.2f}x")
+_big = Image.new("RGBA", (4000, 4000), (0, 0, 0, 255))
+compose.place(_big, compose.CANVAS, {"scale": 0.8})
+check("place reports no upscale when the source is bigger than its slot",
+      compose.place.last_upscale < 1.0, f"{compose.place.last_upscale:.2f}x")
+
 # ---------------------------------------------------------------- provenance
 
 print("\nprovenance gate")

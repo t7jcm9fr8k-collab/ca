@@ -66,6 +66,7 @@ CANVAS = (4500, 5400)      # Printify front print, 15 x 18 in at 300 DPI
 DPI = 300
 DRAFT_DIVISOR = 5          # --draft renders at 1/5 scale for fast iteration
 MIN_SOURCE_PX = 1500       # short edge; below this a plate goes soft at chest size
+UPSCALE_TOLERANCE = 1.02   # above this a layer is being enlarged past its own pixels
 
 REQUIRED_PROVENANCE = ("url", "licence", "traced")
 
@@ -199,6 +200,7 @@ def place(layer_img, canvas_size, transform):
     ratio = target_w / layer_img.width
     layer_img = layer_img.resize(
         (target_w, max(1, int(layer_img.height * ratio))), Image.LANCZOS)
+    place.last_upscale = ratio                 # > 1 means the source was enlarged
 
     rot = float(t.get("rotate", 0))
     if rot:
@@ -310,6 +312,19 @@ def build(recipe, root, canvas_size, draft=False):
                          autolevel=layer.get("autolevel", True))
 
         slot = place(img, canvas_size, layer.get("transform"))
+        # Enlarging a source past its own pixels invents detail that was never
+        # scanned: SOURCING.md's "crop, never stretch", measured. It is silent
+        # in the code and obvious in the silhouette — a Piranesi etching placed
+        # at 1.35x came apart into speckle (2026-09-07) — so it is reported
+        # here, in the same breath as the transformations that did happen.
+        up = getattr(place, "last_upscale", 1.0)
+        if up > UPSCALE_TOLERANCE:
+            notes.append(f"layer {i}: UPSCALED {up:.2f}x — {layer['source']} is "
+                         f"smaller than the place the recipe gives it; detail here "
+                         f"is invented, not scanned. Lower this layer's scale to "
+                         f"{(img.width / canvas_size[0]):.2f} or find a bigger file.")
+            print(f"⚠ layer {i}: {layer['source']} is being enlarged {up:.2f}x. "
+                  f"Crop, never stretch.", file=sys.stderr)
         if layer.get("thicken"):
             slot = thicken(slot, layer["thicken"], canvas_size)
             notes.append(f"layer {i}: strokes thickened by {int(layer['thicken'])} px "

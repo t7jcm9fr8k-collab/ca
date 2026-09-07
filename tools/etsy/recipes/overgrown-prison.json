@@ -1,57 +1,62 @@
 {
   "id": "overgrown-prison",
   "title": "Overgrown Prison",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-07 from each file's own page or API record; see the credit on each layer.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#2F4F3A"
+      "ink0": "#7C7C7C",
+      "ink1": "#8AA88A"
     }
   },
   "layers": [
     {
       "source": "piranesi-carceri.jpg",
       "ink": "ink0",
-      "gamma": 1.05,
+      "gamma": 0.95,
       "transform": {
-        "scale": 0.82,
+        "scale": 0.48,
         "offset": [
-          0,
-          -0.02
+          0.0,
+          -0.06
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 55,
+        "sat_max": 65,
+        "val_min": 175
       },
-      "_wanted": "Piranesi, Carceri d'Invenzione \u2014 any plate with a clear stair",
+      "_wanted": "Piranesi, Carceri d'Invenzione — any plate with a clear stair",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://www.metmuseum.org/art/collection/search/365474",
+        "licence": "CC0",
+        "traced": "2026-09-07",
+        "credit": "The Metropolitan Museum of Art, Open Access (accession 37.45.3(5), Harris Brisbane Dick Fund, 1937): Giovanni Battista Piranesi, Dark prison with a courtyard for the punishment of criminals (Carcere oscura con Antenna pel suplizio de' malfatori), etching, ca. 1750; API record isPublicDomain true, primaryImage; plate border and letterpress caption cropped"
+      },
+      "thicken": 2
     },
     {
       "source": "ivy-climbing.jpg",
       "ink": "ink1",
       "gamma": 0.9,
       "transform": {
-        "scale": 0.44,
+        "scale": 0.38,
         "offset": [
-          -0.26,
-          0.18
+          -0.22,
+          0.08
         ],
         "rotate": -6
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 60
       },
-      "_wanted": "BHL climbing plant \u2014 ivy, vine or creeper",
+      "_wanted": "BHL climbing plant — ivy, vine or creeper",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://wellcomecollection.org/works/zhqbj6dz",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: Passion flower (Passiflora suberosa L.), flowering and fruiting stem, coloured engraving (IIIF image V0044624); caption cropped"
       }
     },
     {
@@ -61,20 +66,21 @@
       "transform": {
         "scale": 0.3,
         "offset": [
-          0.28,
-          0.26
+          0.24,
+          0.17
         ],
         "flip": true
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 60
       },
       "_wanted": "fern frond, botanical plate",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://wellcomecollection.org/works/ww99tar2",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: A fern frond, possibly of the male fern (Dryopteris filix-mas), colour nature print, c. 1860 (IIIF image V0043910); caption cropped"
       }
     }
   ]
