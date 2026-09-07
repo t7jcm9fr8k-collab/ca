@@ -1,58 +1,66 @@
 {
   "id": "metamorphosis",
   "title": "Metamorphosis",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-07 from each file's own page or API record.",
   "palette": {
     "inks": {
-      "ink0": "#1A1A1A",
-      "ink1": "#6B4423"
+      "ink0": "#6E6E6E",
+      "ink1": "#A8794E"
     }
   },
   "layers": [
     {
       "source": "merian-plate.jpg",
       "ink": "ink0",
-      "gamma": 0.95,
+      "gamma": 0.5,
       "transform": {
-        "scale": 0.74,
+        "scale": 0.32,
         "offset": [
           0,
-          0.0
+          0.04
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 110,
+        "sat_max": 70,
+        "val_min": 175
       },
-      "_wanted": "Merian, Metamorphosis Insectorum \u2014 plant with full life cycle",
+      "_wanted": "Merian, Metamorphosis Insectorum — plant with full life cycle",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://commons.wikimedia.org/wiki/File:Surinaamse_cattoen_boom_Maria_Sibylla_Merian_1705_plate_X.png",
+        "licence": "Public domain",
+        "traced": "2026-09-07",
+        "credit": "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium (Veranderingen der Surinaamsche Insecten), 1705, plate X, the Surinamese cotton tree with caterpillar, chrysalis and moth; engraved by Pieter Sluyter; via Wikimedia Commons (licence template PD-old-100-1923, file page states 'Public domain'); downloaded at the 1920 px thumbnail Wikimedia's rate limit allows"
+      },
+      "thicken": 4
     },
     {
       "source": "merian-moth.jpg",
       "ink": "ink1",
-      "gamma": 0.9,
+      "gamma": 0.55,
       "transform": {
-        "scale": 0.26,
+        "scale": 0.24,
         "offset": [
           0.24,
-          -0.26
+          -0.28
         ],
-        "rotate": -18
+        "rotate": -14
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 140,
+        "sat_max": 80,
+        "val_min": 160
       },
       "_wanted": "a second Merian moth, for the upper corner",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://commons.wikimedia.org/wiki/File:Banana_Maria_Sibylla_Merian_1705_plate_XII.png",
+        "licence": "Public domain",
+        "traced": "2026-09-07",
+        "credit": "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium, 1705, plate XII, banana flower with moth and caterpillar; engraved by Pieter Sluyter; via Wikimedia Commons (licence template PD-old-100-1923, file page states 'Public domain'); cropped to the flower and moth"
+      },
+      "thicken": 3
     }
   ]
 }

@@ -676,3 +676,647 @@ $ python3 test_tools.py (tail)
   ok   the real ledger was never touched by the force tests
 
 1 FAILED: demo ledger present (run ./demo.sh first)
+
+# ---- 2026-09-07, later: upscale re-fix on the two shipped designs, and Moonlit Ghost
+
+## the upscale check applied to every ready recipe
+# marigold-calavera
+   layer 0 posada-calavera.jpg    src  2464  placed  2430  ok
+   layer 1 marigold-wreath.jpg    src  4726  placed  3150  ok
+# orchid-skull
+   layer 0 anatomy-skull.jpg      src  2183  placed  2160  ok
+   layer 1 orchid-a.jpg           src  3529  placed  1620  ok
+   layer 2 orchid-b.jpg           src  3011  placed  1440  ok
+# fungi-codex
+   layer 0 fungi-plate-a.jpg      src  3038  placed  2700  ok
+   layer 1 fungi-plate-b.jpg      src  3307  placed  2700  ok
+   layer 2 fungi-plate-c.jpg      src  2880  placed  2610  ok
+   layer 3 moth-small.jpg         src  2250  placed  1620  ok
+# overgrown-prison
+   layer 0 piranesi-carceri.jpg   src  2184  placed  2160  ok
+   layer 1 ivy-climbing.jpg       src  2001  placed  1710  ok
+   layer 2 fern-frond.jpg         src  1556  placed  1350  ok
+# moonlit-ghost
+   layer 0 cellarius-chart.jpg    src  2538  placed  2520  ok
+   layer 1 yoshitoshi-figure.jpg  src  4319  placed  2340  ok
+
+## orchid-skull v4 and marigold-calavera v3 (the upscale fix)
+
+========================================================================
+INSPECTION — orchid-skull-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         19.8%                     8%-55%              
+ok    stroke width         31% lost                  <=35%               
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.29:1                    >=3.0:1             
+ok    contrast on black    3.54:1                    >=3.0:1             
+ok    contrast on sport grey1.88:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (116, 105, 98) against sport grey — it will not read
+ok    contrast on navy     2.69:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (116, 105, 98) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+
+========================================================================
+INSPECTION — marigold-calavera-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         15.1%                     8%-55%              
+ok    stroke width         33% lost                  <=35%               
+ok    edge halo            ring 62% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.42:1                    >=3.0:1             
+ok    contrast on black    5.47:1                    >=3.0:1             
+ok    contrast on sport grey1.22:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (175, 130, 61) against sport grey — it will not read
+ok    contrast on navy     4.16:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+$ mockup.py --design orchid-skull --version 4
+gate: v3 inspected 2026-09-07 05:09:41 — pass
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v4-white.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v4-black.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v4-detail.png
+wrote /home/user/ca/tools/etsy/out/orchid-skull-v4-sheet.png
+
+recorded v4 to the ledger
+       python3 history.py --report
+
+$ qc.py --design orchid-skull --version 4
+
+========================================================================
+INSPECTION — orchid-skull-v4-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         19.8%                     8%-55%              
+ok    stroke width         31% lost                  <=35%               
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.29:1                    >=3.0:1             
+ok    contrast on black    3.54:1                    >=3.0:1             
+ok    contrast on sport grey1.88:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (116, 105, 98) against sport grey — it will not read
+ok    contrast on navy     2.69:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (116, 105, 98) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v5 is now unblocked
+
+$ mockup.py --design marigold-calavera --version 3
+gate: v2 inspected 2026-09-07 04:48:13 — pass
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v3-white.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v3-black.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v3-detail.png
+wrote /home/user/ca/tools/etsy/out/marigold-calavera-v3-sheet.png
+
+recorded v3 to the ledger
+       python3 history.py --report
+
+$ qc.py --design marigold-calavera --version 3
+
+========================================================================
+INSPECTION — marigold-calavera-v3-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         15.1%                     8%-55%              
+ok    stroke width         33% lost                  <=35%               
+ok    edge halo            ring 62% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.42:1                    >=3.0:1             
+ok    contrast on black    5.47:1                    >=3.0:1             
+ok    contrast on sport grey1.22:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (175, 130, 61) against sport grey — it will not read
+ok    contrast on navy     4.16:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v4 is now unblocked
+
+## moonlit-ghost
+### drafts
+$ draft try 1
+ink coverage 3.9%
+  layer 0: ground lifted (45%)
+  layer 1: ground lifted (80%)
+$ draft try 2
+ink coverage 11.3%
+  layer 0: ground lifted (45%)
+  layer 0: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (87%)
+  layer 1: strokes thickened by 1 px at 300 DPI (dilation, for DTG's minimum stroke)
+$ draft try 3
+ink coverage 14.4%
+  layer 0: ground lifted (45%)
+  layer 0: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (64%)
+
+### v1
+=== moonlit-ghost: full compose
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-onlight.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-ondark.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-silhouette.png
+
+ink coverage 16.0%
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (45%)
+  layer 0: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: ground lifted (57%)
+  2 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 2 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== qc on the file
+
+========================================================================
+INSPECTION — moonlit-ghost-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         16.0%                     8%-55%              
+FAIL  stroke width         39% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 38% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              2 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    12.96:1                   >=3.0:1             
+FAIL  contrast on black    1.45:1                    >=3.0:1             
+       └─ average ink (39, 49, 70) against black — it will not read
+ok    contrast on sport grey4.61:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.10:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (39, 49, 70) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, contrast on black
+
+=== mockup v1
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v1-white.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v1-black.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design moonlit-ghost --version 1
+       python3 history.py --report
+
+=== inspection v1
+
+========================================================================
+INSPECTION — moonlit-ghost-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         16.0%                     8%-55%              
+FAIL  stroke width         39% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 38% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              2 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    12.96:1                   >=3.0:1             
+FAIL  contrast on black    1.45:1                    >=3.0:1             
+       └─ average ink (39, 49, 70) against black — it will not read
+ok    contrast on sport grey4.61:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.10:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (39, 49, 70) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+### v2 file QC
+
+========================================================================
+INSPECTION — moonlit-ghost-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         17.6%                     8%-55%              
+ok    stroke width         30% lost                  <=35%               
+ok    edge halo            ring 39% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.90:1                    >=3.0:1             
+ok    contrast on black    3.82:1                    >=3.0:1             
+ok    contrast on sport grey1.74:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (104, 112, 133) against sport grey — it will not read
+ok    contrast on navy     2.90:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (104, 112, 133) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v2 mockup and inspection
+$ mockup.py --design moonlit-ghost --version 2
+gate: v1 inspected 2026-09-07 17:47:49 — blocked, failed stroke width, contrast on black
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v2-white.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v2-black.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/moonlit-ghost-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ qc.py --design moonlit-ghost --version 2
+
+========================================================================
+INSPECTION — moonlit-ghost-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         17.6%                     8%-55%              
+ok    stroke width         30% lost                  <=35%               
+ok    edge halo            ring 39% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    4.90:1                    >=3.0:1             
+ok    contrast on black    3.82:1                    >=3.0:1             
+ok    contrast on sport grey1.74:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (104, 112, 133) against sport grey — it will not read
+ok    contrast on navy     2.90:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (104, 112, 133) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+$ python3 history.py --report
+wrote /home/user/ca/tools/etsy/out/history.html
+  fungi-codex            3 version(s), 3 inspection(s)
+  marigold-calavera      3 version(s), 3 inspection(s)
+  moonlit-ghost          2 version(s), 2 inspection(s)
+  orchid-skull           4 version(s), 4 inspection(s)
+  overgrown-prison       3 version(s), 3 inspection(s)
+
+# ---- 2026-09-07, last block: Kraken Chart and Metamorphosis
+
+## kraken-chart
+### v1
+=== full compose
+⚠ layer 1: montfort-octopus.jpg is 1920x1354 — too small to print sharply. Get the full-resolution file.
+⚠ layer 1: montfort-octopus.jpg is being enlarged 1.03x. Crop, never stretch.
+wrote /home/user/ca/tools/etsy/out/kraken-chart-onlight.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-ondark.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-silhouette.png
+
+ink coverage 11.4%
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (25%)
+  layer 0: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: SOFT — montfort-octopus.jpg is 1920x1354; under 1500px on the short edge goes soft at chest size
+  layer 1: ground lifted (56%)
+  layer 1: UPSCALED 1.03x — montfort-octopus.jpg is smaller than the place the recipe gives it; detail here is invented, not scanned. Lower this layer's scale to 0.43 or find a bigger file.
+  layer 1: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  2 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 2 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== qc on the file
+
+========================================================================
+INSPECTION — kraken-chart-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         11.4%                     8%-55%              
+FAIL  stroke width         50% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 65% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+FAIL  palette              3 hue cluster(s)          <=2 (recipe declares 2)
+       └─ more distinct inks than the recipe declares — the collage tell
+ok    contrast on white    12.47:1                   >=3.0:1             
+FAIL  contrast on black    1.50:1                    >=3.0:1             
+       └─ average ink (31, 54, 66) against black — it will not read
+ok    contrast on sport grey4.43:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.14:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (31, 54, 66) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, palette, contrast on black
+
+=== mockup v1
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v1-white.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v1-black.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design kraken-chart --version 1
+       python3 history.py --report
+
+=== inspection v1
+
+========================================================================
+INSPECTION — kraken-chart-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         11.4%                     8%-55%              
+FAIL  stroke width         50% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 65% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+FAIL  palette              3 hue cluster(s)          <=2 (recipe declares 2)
+       └─ more distinct inks than the recipe declares — the collage tell
+ok    contrast on white    12.47:1                   >=3.0:1             
+FAIL  contrast on black    1.50:1                    >=3.0:1             
+       └─ average ink (31, 54, 66) against black — it will not read
+ok    contrast on sport grey4.43:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.14:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (31, 54, 66) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, palette, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+### v2 file QC tries
+
+========================================================================
+INSPECTION — kraken-chart-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         12.7%                     8%-55%              
+FAIL  stroke width         38% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 71% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.81:1                    >=3.0:1             
+ok    contrast on black    4.92:1                    >=3.0:1             
+ok    contrast on sport grey1.35:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (114, 133, 143) against sport grey — it will not read
+ok    contrast on navy     3.74:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+
+========================================================================
+INSPECTION — kraken-chart-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         14.2%                     8%-55%              
+ok    stroke width         28% lost                  <=35%               
+ok    edge halo            ring 74% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.71:1                    >=3.0:1             
+ok    contrast on black    5.04:1                    >=3.0:1             
+ok    contrast on sport grey1.32:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (115, 135, 145) against sport grey — it will not read
+ok    contrast on navy     3.83:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+### v2 mockup and inspection
+$ mockup.py --design kraken-chart --version 2
+gate: v1 inspected 2026-09-07 18:11:56 — blocked, failed stroke width, palette, contrast on black
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v2-white.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v2-black.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/kraken-chart-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ qc.py --design kraken-chart --version 2
+
+========================================================================
+INSPECTION — kraken-chart-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         14.2%                     8%-55%              
+ok    stroke width         28% lost                  <=35%               
+ok    edge halo            ring 74% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    3.71:1                    >=3.0:1             
+ok    contrast on black    5.04:1                    >=3.0:1             
+ok    contrast on sport grey1.32:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (115, 135, 145) against sport grey — it will not read
+ok    contrast on navy     3.83:1                    >=3.0:1               (reported, not blocking)
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+## metamorphosis
+### v1
+=== full compose
+⚠ layer 1: merian-moth.jpg is 1439x1810 — too small to print sharply. Get the full-resolution file.
+wrote /home/user/ca/tools/etsy/out/metamorphosis-onlight.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-ondark.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-silhouette.png
+
+ink coverage 4.9%
+⚠ under 8% — this will disappear on a shirt from across a room. Scale the subject up or add weight.
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (80%)
+  layer 0: strokes thickened by 3 px at 300 DPI (dilation, for DTG's minimum stroke)
+  layer 1: SOFT — merian-moth.jpg is 1439x1810; under 1500px on the short edge goes soft at chest size
+  layer 1: ground lifted (84%)
+  layer 1: strokes thickened by 2 px at 300 DPI (dilation, for DTG's minimum stroke)
+  2 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 2 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== qc on the file
+
+========================================================================
+INSPECTION — metamorphosis-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+FAIL  ink coverage         4.9%                      8%-55%              
+       └─ too light — this disappears on a shirt from across a room
+ok    stroke width         21% lost                  <=35%               
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    15.73:1                   >=3.0:1             
+FAIL  contrast on black    1.19:1                    >=3.0:1             
+       └─ average ink (42, 33, 25) against black — it will not read
+ok    contrast on sport grey5.59:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.11:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (42, 33, 25) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ink coverage, contrast on black
+
+=== mockup v1
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v1-white.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v1-black.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design metamorphosis --version 1
+       python3 history.py --report
+
+=== inspection v1
+
+========================================================================
+INSPECTION — metamorphosis-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+FAIL  ink coverage         4.9%                      8%-55%              
+       └─ too light — this disappears on a shirt from across a room
+ok    stroke width         21% lost                  <=35%               
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    15.73:1                   >=3.0:1             
+FAIL  contrast on black    1.19:1                    >=3.0:1             
+       └─ average ink (42, 33, 25) against black — it will not read
+ok    contrast on sport grey5.59:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.11:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (42, 33, 25) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ink coverage, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+### v2 candidate file QC (still blocked)
+
+========================================================================
+INSPECTION — metamorphosis-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+FAIL  ink coverage         5.2%                      8%-55%              
+       └─ too light — this disappears on a shirt from across a room
+ok    stroke width         17% lost                  <=35%               
+ok    edge halo            ring 38% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.56:1                    >=3.0:1             
+ok    contrast on black    3.37:1                    >=3.0:1             
+ok    contrast on sport grey1.98:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (113, 102, 91) against sport grey — it will not read
+ok    contrast on navy     2.56:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (113, 102, 91) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ink coverage
+
+$ python3 history.py --report
+wrote /home/user/ca/tools/etsy/out/history.html
+  fungi-codex            3 version(s), 3 inspection(s)
+  kraken-chart           2 version(s), 2 inspection(s)
+  marigold-calavera      3 version(s), 3 inspection(s)
+  metamorphosis          1 version(s), 1 inspection(s)
+  moonlit-ghost          2 version(s), 2 inspection(s)
+  orchid-skull           4 version(s), 4 inspection(s)
+  overgrown-prison       3 version(s), 3 inspection(s)

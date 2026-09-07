@@ -1,45 +1,46 @@
 {
   "id": "kraken-chart",
   "title": "Kraken Chart",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-07 from each file's own page or API record.",
   "palette": {
     "inks": {
-      "ink0": "#14161C",
-      "ink1": "#2E5A6B"
+      "ink0": "#6E6E6E",
+      "ink1": "#7FA3B4"
     }
   },
   "layers": [
     {
       "source": "nautical-chart.jpg",
       "ink": "ink1",
-      "gamma": 1.3,
+      "gamma": 0.75,
       "transform": {
-        "scale": 0.92,
+        "scale": 0.64,
         "offset": [
           0,
-          0.0
+          -0.15
         ]
       },
       "lift": {
         "enabled": true
       },
-      "_wanted": "antique sea chart \u2014 NYPL or Rijksmuseum",
+      "_wanted": "antique sea chart — NYPL or Rijksmuseum",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://wellcomecollection.org/works/kps39egx",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: North and Central America and the Pacific and Atlantic Oceans, map, engraving, ca. 1777; sheet margins cropped"
+      },
+      "thicken": 4
     },
     {
       "source": "montfort-octopus.jpg",
       "ink": "ink0",
-      "gamma": 0.95,
+      "gamma": 0.7,
       "transform": {
-        "scale": 0.66,
+        "scale": 0.42,
         "offset": [
           0,
-          0.04
+          0.07
         ]
       },
       "lift": {
@@ -47,11 +48,12 @@
       },
       "_wanted": "Denys de Montfort colossal octopus, 1801",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://commons.wikimedia.org/wiki/File:Denys_de_Montfort_Poulpe_Colossal.jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-07",
+        "credit": "Pierre Denys de Montfort (d. 1820), the colossal poulpe attacking a ship, engraving, 1810, via Wikimedia Commons (licence template PD-old, file page states 'Public domain'); the file page names Ellis, Monsters of the Sea (1994) as the scan's source; downloaded at the 1920 px thumbnail Wikimedia's rate limit allows"
+      },
+      "thicken": 4
     }
   ]
 }

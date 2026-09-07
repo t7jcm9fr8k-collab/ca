@@ -1,57 +1,60 @@
 {
   "id": "moonlit-ghost",
   "title": "Moonlit Ghost",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-07 from each file's own page or API record.",
   "palette": {
     "inks": {
-      "ink0": "#14161C",
-      "ink1": "#3B4A6B"
+      "ink0": "#6E6E6E",
+      "ink1": "#7C8EB8"
     }
   },
   "layers": [
     {
       "source": "cellarius-chart.jpg",
       "ink": "ink1",
-      "gamma": 1.25,
+      "gamma": 0.6,
       "transform": {
-        "scale": 0.9,
+        "scale": 0.56,
         "offset": [
           0,
-          -0.03
+          -0.13
         ]
       },
       "lift": {
         "enabled": true
       },
-      "_wanted": "Cellarius, Harmonia Macrocosmica \u2014 a constellation plate",
+      "_wanted": "Cellarius, Harmonia Macrocosmica — a constellation plate",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://wellcomecollection.org/works/phqktgbw",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-07",
+        "credit": "Wellcome Collection: Astronomy, a star map of the night sky in the northern hemisphere with the names of the constellations, coloured engraving (IIIF image, celestial hemisphere plate); sheet margins cropped to the plate"
+      },
+      "thicken": 2
     },
     {
       "source": "yoshitoshi-figure.jpg",
       "ink": "ink0",
-      "gamma": 0.95,
+      "gamma": 0.85,
       "transform": {
         "scale": 0.52,
         "offset": [
           0,
-          0.06
+          0.12
         ]
       },
       "lift": {
-        "enabled": true
+        "enabled": true,
+        "thresh": 60
       },
-      "_wanted": "Yoshitoshi, One Hundred Aspects of the Moon \u2014 a single figure",
+      "_wanted": "Yoshitoshi, One Hundred Aspects of the Moon — a single figure",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
-      }
+        "url": "https://commons.wikimedia.org/wiki/File:Tsukioka_Yoshitoshi_(188%3F)_Tsuki_hyaku_shi_-_Goj%C5%8Dbashi_no_tsuki-.jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-07",
+        "credit": "Library of Congress via Wikimedia Commons (licence template PD-Art, file page states 'Public domain'): Tsukioka Yoshitoshi, Gojobashi no tsuki (The Moon at Gojo Bridge), from Tsuki hyakushi (One Hundred Aspects of the Moon), 1880s; sheet edges cropped"
+      },
+      "thicken": 2
     }
   ]
 }

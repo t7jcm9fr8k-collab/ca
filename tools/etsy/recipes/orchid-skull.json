@@ -12,12 +12,12 @@
     {
       "source": "anatomy-skull.jpg",
       "ink": "ink0",
-      "gamma": 0.4,
+      "gamma": 0.5,
       "transform": {
-        "scale": 0.8,
+        "scale": 0.48,
         "offset": [
           0,
-          0.02
+          0.05
         ]
       },
       "lift": {
@@ -31,7 +31,7 @@
         "credit": "Wellcome Collection, Skull: anterior view. Line engraving (reference 560840i, IIIF image V0007916)"
       },
       "floor": 20,
-      "ceil": 165,
+      "ceil": 170,
       "thicken": 2
     },
     {
@@ -39,10 +39,10 @@
       "ink": "ink1",
       "gamma": 0.4,
       "transform": {
-        "scale": 0.48,
+        "scale": 0.36,
         "offset": [
-          -0.2,
-          -0.23
+          -0.19,
+          -0.2
         ],
         "rotate": -14
       },
@@ -67,10 +67,10 @@
       "ink": "ink1",
       "gamma": 0.4,
       "transform": {
-        "scale": 0.42,
+        "scale": 0.32,
         "offset": [
-          0.22,
-          -0.19
+          0.2,
+          -0.17
         ],
         "rotate": 11
       },

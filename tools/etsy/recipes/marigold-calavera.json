@@ -14,10 +14,10 @@
       "ink": "ink0",
       "gamma": 0.7,
       "transform": {
-        "scale": 0.58,
+        "scale": 0.54,
         "offset": [
           0,
-          0.0
+          0.06
         ]
       },
       "lift": {
@@ -25,10 +25,10 @@
       },
       "_wanted": "Posada calavera broadside — skull or full skeleton",
       "provenance": {
-        "url": "https://www.metmuseum.org/art/collection/search/735936",
+        "url": "https://www.metmuseum.org/art/collection/search/729584",
         "licence": "CC0",
-        "traced": "2026-09-06",
-        "credit": "The Metropolitan Museum of Art, Open Access (accession 60.678.50): José Guadalupe Posada, A skeleton holding a bone and leaping over a pile of skulls while people flee, from the broadside 'Las bravisimas calaveras Guatemaltecas', zincograph, ca. 1907 (a later impression); API record isPublicDomain true, primaryImage DP869423; cropped to the print"
+        "traced": "2026-09-07",
+        "credit": "The Metropolitan Museum of Art, Open Access (accession 46.46.294, The Elisha Whittelsey Collection, 1900): Jose Guadalupe Posada, Gran Calavera Electrica ('The grand electric skeleton'), zincograph and type-metal engraving with letterpress, 1900; API record isPublicDomain true, primaryImage; cropped to the printed image band, letterpress removed"
       }
     },
     {
@@ -36,10 +36,10 @@
       "ink": "ink1",
       "gamma": 0.7,
       "transform": {
-        "scale": 0.78,
+        "scale": 0.7,
         "offset": [
           0,
-          0.0
+          -0.05
         ]
       },
       "lift": {
