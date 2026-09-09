@@ -12,55 +12,53 @@
     {
       "source": "merian-plate.jpg",
       "ink": "ink0",
-      "gamma": 0.5,
+      "gamma": 0.7,
       "transform": {
-        "scale": 0.32,
+        "scale": 0.74,
         "offset": [
           0,
-          0.04
+          0.03
         ]
       },
       "lift": {
-        "enabled": true,
-        "thresh": 110,
-        "sat_max": 70,
-        "val_min": 175
+        "enabled": true
       },
       "_wanted": "Merian, Metamorphosis Insectorum — plant with full life cycle",
       "provenance": {
-        "url": "https://commons.wikimedia.org/wiki/File:Surinaamse_cattoen_boom_Maria_Sibylla_Merian_1705_plate_X.png",
-        "licence": "Public domain",
-        "traced": "2026-09-07",
-        "credit": "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium (Veranderingen der Surinaamsche Insecten), 1705, plate X, the Surinamese cotton tree with caterpillar, chrysalis and moth; engraved by Pieter Sluyter; via Wikimedia Commons (licence template PD-old-100-1923, file page states 'Public domain'); downloaded at the 1920 px thumbnail Wikimedia's rate limit allows"
+        "url": "https://api.wellcomecollection.org/catalogue/v2/works/aqtv92wm",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-09",
+        "credit": "Wellcome Collection, Public Domain Mark: Maria Sibylla Merian, Dissertatio de generatione et metamorphosibus insectorum Surinamensium, P. Gosse, La Haye, 1726 (Wellcome work aqtv92wm); the cacao branch with its moth, caterpillar and chrysalis, line engraving (IIIF image cw7fnpju); plate margins cropped"
       },
-      "thicken": 4
+      "thicken": 3,
+      "floor": 10,
+      "ceil": 205
     },
     {
       "source": "merian-moth.jpg",
       "ink": "ink1",
-      "gamma": 0.55,
+      "gamma": 0.7,
       "transform": {
-        "scale": 0.24,
+        "scale": 0.26,
         "offset": [
-          0.24,
-          -0.28
+          0.28,
+          -0.3
         ],
-        "rotate": -14
+        "rotate": -12
       },
       "lift": {
-        "enabled": true,
-        "thresh": 140,
-        "sat_max": 80,
-        "val_min": 160
+        "enabled": true
       },
       "_wanted": "a second Merian moth, for the upper corner",
       "provenance": {
-        "url": "https://commons.wikimedia.org/wiki/File:Banana_Maria_Sibylla_Merian_1705_plate_XII.png",
-        "licence": "Public domain",
-        "traced": "2026-09-07",
-        "credit": "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium, 1705, plate XII, banana flower with moth and caterpillar; engraved by Pieter Sluyter; via Wikimedia Commons (licence template PD-old-100-1923, file page states 'Public domain'); cropped to the flower and moth"
+        "url": "https://api.wellcomecollection.org/catalogue/v2/works/aqtv92wm",
+        "licence": "Public Domain Mark",
+        "traced": "2026-09-09",
+        "credit": "Wellcome Collection, Public Domain Mark: Maria Sibylla Merian, Dissertatio de generatione et metamorphosibus insectorum Surinamensium, P. Gosse, La Haye, 1726 (Wellcome work aqtv92wm); the jasmine plate's moth, line engraving (IIIF image hh6d7pks); cropped to the moth in the upper left of the plate"
       },
-      "thicken": 3
+      "thicken": 3,
+      "floor": 10,
+      "ceil": 200
     }
   ]
 }

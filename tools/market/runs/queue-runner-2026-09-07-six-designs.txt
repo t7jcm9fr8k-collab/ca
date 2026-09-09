@@ -1320,3 +1320,300 @@ wrote /home/user/ca/tools/etsy/out/history.html
   moonlit-ghost          2 version(s), 2 inspection(s)
   orchid-skull           4 version(s), 4 inspection(s)
   overgrown-prison       3 version(s), 3 inspection(s)
+
+# ---- 2026-09-09: Metamorphosis unblocked, Dore's Descent sourced and blocked
+
+## metamorphosis: re-sourced from Wellcome's Merian at full resolution
+$ draft with the new plates
+⚠ layer 1: merian-moth.jpg is 1311x1421 — too small to print sharply. Get the full-resolution file.
+ink coverage 4.1%
+⚠ under 8% — this will disappear on a shirt from across a room. Scale the subject up or add weight.
+  layer 0: ground lifted (75%)
+  layer 1: ground lifted (73%)
+
+$ file QC, gamma 0.5 + thicken 2
+
+========================================================================
+INSPECTION — metamorphosis-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         17.1%                     8%-55%              
+FAIL  stroke width         38% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 53% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.68:1                    >=3.0:1             
+ok    contrast on black    3.30:1                    >=3.0:1             
+ok    contrast on sport grey2.02:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (106, 101, 97) against sport grey — it will not read
+ok    contrast on navy     2.50:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (106, 101, 97) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width
+
+$ file QC, thicken 3
+
+========================================================================
+INSPECTION — metamorphosis-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         19.0%                     8%-55%              
+ok    stroke width         25% lost                  <=35%               
+ok    edge halo            ring 56% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.59:1                    >=3.0:1             
+ok    contrast on black    3.35:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (107, 103, 98) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (107, 103, 98) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+## metamorphosis v2 mockup and inspection
+$ mockup.py --design metamorphosis --version 2
+gate: v1 inspected 2026-09-07 18:10:09 — blocked, failed ink coverage, contrast on black
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v2-white.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v2-black.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v2-detail.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v2-sheet.png
+
+recorded v2 to the ledger
+       python3 history.py --report
+
+$ qc.py --design metamorphosis --version 2
+
+========================================================================
+INSPECTION — metamorphosis-v2-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         19.0%                     8%-55%              
+ok    stroke width         25% lost                  <=35%               
+ok    edge halo            ring 56% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.59:1                    >=3.0:1             
+ok    contrast on black    3.35:1                    >=3.0:1             
+ok    contrast on sport grey1.99:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (107, 103, 98) against sport grey — it will not read
+ok    contrast on navy     2.54:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (107, 103, 98) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v3 is now unblocked
+
+$ v3 file QC (explicit ink ceiling)
+
+========================================================================
+INSPECTION — metamorphosis-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         18.3%                     8%-55%              
+ok    stroke width         28% lost                  <=35%               
+ok    edge halo            ring 53% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.49:1                    >=3.0:1             
+ok    contrast on black    3.41:1                    >=3.0:1             
+ok    contrast on sport grey1.95:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 104, 99) against sport grey — it will not read
+ok    contrast on navy     2.59:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 104, 99) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+## metamorphosis v3 mockup and inspection
+$ mockup.py --design metamorphosis --version 3
+gate: v2 inspected 2026-09-09 04:34:35 — pass
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v3-white.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v3-black.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v3-detail.png
+wrote /home/user/ca/tools/etsy/out/metamorphosis-v3-sheet.png
+
+recorded v3 to the ledger
+       python3 history.py --report
+
+$ qc.py --design metamorphosis --version 3
+
+========================================================================
+INSPECTION — metamorphosis-v3-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         18.3%                     8%-55%              
+ok    stroke width         28% lost                  <=35%               
+ok    edge halo            ring 53% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+ok    edge bleed           0 px within 40px of the edge0                   
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    5.49:1                    >=3.0:1             
+ok    contrast on black    3.41:1                    >=3.0:1             
+ok    contrast on sport grey1.95:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 104, 99) against sport grey — it will not read
+ok    contrast on navy     2.59:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (108, 104, 99) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: PASS
+
+recorded to the ledger — v4 is now unblocked
+
+## dore-descent: sourced, and BLOCKED by the gate
+=== full compose
+⚠ layer 1: thorn-branch.jpg is 1306x2108 — too small to print sharply. Get the full-resolution file.
+⚠ layer 1: thorn-branch.jpg is being enlarged 1.44x. Crop, never stretch.
+wrote /home/user/ca/tools/etsy/out/dore-descent-onlight.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-onlight-preview.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-ondark.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-ondark-preview.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-silhouette.png
+
+ink coverage 9.6%
+
+Look at the previews and the silhouette before you print. The grey shows what is transparent; the silhouette is the arm's-length test.
+
+--- internal ---
+  layer 0: ground lifted (1%)
+  layer 1: SOFT — thorn-branch.jpg is 1306x2108; under 1500px on the short edge goes soft at chest size
+  layer 1: ground lifted (73%)
+  layer 1: UPSCALED 1.44x — thorn-branch.jpg is smaller than the place the recipe gives it; detail here is invented, not scanned. Lower this layer's scale to 0.28 or find a bigger file.
+  2 sources composited into one design
+  unified to a single ink palette
+
+--- listing copy: only what was actually applied ---
+Suggested design paragraph closer:
+  Built from 2 public-domain plates, cut out, unified to one ink and composed for the print area. Made after you order it.
+
+Verify every clause against the file you upload.
+
+=== qc on the file
+
+========================================================================
+INSPECTION — dore-descent-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         9.6%                      8%-55%              
+FAIL  stroke width         99% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           62 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    17.17:1                   >=3.0:1             
+FAIL  contrast on black    1.09:1                    >=3.0:1             
+       └─ average ink (24, 28, 24) against black — it will not read
+ok    contrast on sport grey6.10:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.21:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (24, 28, 24) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, edge bleed, contrast on black
+
+=== mockup v1
+wrote /home/user/ca/tools/etsy/out/dore-descent-v1-white.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-v1-black.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-v1-detail.png
+wrote /home/user/ca/tools/etsy/out/dore-descent-v1-sheet.png
+
+recorded v1 to the ledger
+next:  python3 qc.py --design dore-descent --version 1
+       python3 history.py --report
+
+=== inspection v1
+
+========================================================================
+INSPECTION — dore-descent-v1-onlight.png
+========================================================================
+
+check                 value                     want                
+------------------------------------------------------------------------
+ok    file spec            4500x5400, RGBA, 299.9994 DPI4500x5400, RGBA, 300 DPI
+ok    ink coverage         9.6%                      8%-55%              
+FAIL  stroke width         99% lost                  <=35%               
+       └─ much of this is finer than 3px at 300 DPI; DTG will break it up
+ok    edge halo            ring 37% filled           <=22% on isolated shapes  (reported, not blocking)
+       └─ high — check the preview for a grey ring around the silhouette. On dense linework this is usually neighbouring lines, not a fringe.
+FAIL  edge bleed           62 px within 40px of the edge0                   
+       └─ ink at the boundary gets clipped by the platen
+ok    palette              1 hue cluster(s)          <=2 (recipe declares 2)
+ok    contrast on white    17.17:1                   >=3.0:1             
+FAIL  contrast on black    1.09:1                    >=3.0:1             
+       └─ average ink (24, 28, 24) against black — it will not read
+ok    contrast on sport grey6.10:1                    >=3.0:1               (reported, not blocking)
+ok    contrast on navy     1.21:1                    >=3.0:1               (reported, not blocking)
+       └─ average ink (24, 28, 24) against navy — it will not read
+ok    provenance           0 problem(s)              0                   
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: stroke width, edge bleed, contrast on black
+
+recorded to the ledger — v2 may proceed and must answer the failures above
+
+## why the Dore plate cannot print: the halftone measurement
+The Paradise Lost plate is a continuous tonal wash, not linework. Measured on
+2026-09-09 in the same container: a clustered-dot screen (the thing a press
+would use) loses this much of its ink area under the 3 px erosion qc.py
+applies, at three tones, before any dilation:
+
+  pitch   8 px  (38 lpi)   80: 100%   128: 100%   190:  99%
+  pitch  12 px  (25 lpi)   80: 100%   128:  97%   190:  86%
+  pitch  16 px  (19 lpi)   80:  97%   128:  89%   190:  72%
+  pitch  20 px  (15 lpi)   80:  89%   128:  76%   190:  64%
+  pitch  26 px  (12 lpi)   80:  75%   128:  63%   190:  51%
+  pitch  32 px  ( 9 lpi)   80:  65%   128:  53%   190:  44%
+  pitch  40 px  ( 8 lpi)   80:  52%   128:  43%   190:  37%
+
+No pitch clears the 35% ceiling. Dilating the screen does clear it, and fills
+the tone in: pitch 16 + thicken 4 gives 34% loss at tone 80 but 94% ink
+coverage, over the 55% ceiling — a slab again. So the screen was written,
+measured, and removed rather than shipped: a DTG printer rasterises tone
+itself, so pre-screening the file is a screen-print step this pipeline does
+not take, and the honest reading is that a tonal wash has no marks that
+survive at 15 inches on fabric. Dore's Descent needs a line-engraved plate.
+
+$ python3 history.py --report
+wrote /home/user/ca/tools/etsy/out/history.html
+  dore-descent           1 version(s), 1 inspection(s)
+  fungi-codex            3 version(s), 3 inspection(s)
+  kraken-chart           2 version(s), 2 inspection(s)
+  marigold-calavera      3 version(s), 3 inspection(s)
+  metamorphosis          3 version(s), 3 inspection(s)
+  moonlit-ghost          2 version(s), 2 inspection(s)
+  orchid-skull           4 version(s), 4 inspection(s)
+  overgrown-prison       3 version(s), 3 inspection(s)
+
+$ python3 test_tools.py (tail)
+  ok   the real ledger was never touched by the force tests
+
+1 FAILED: demo ledger present (run ./demo.sh first)

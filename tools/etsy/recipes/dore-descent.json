@@ -1,7 +1,7 @@
 {
   "id": "dore-descent",
   "title": "Dore's Descent",
-  "_note": "Provenance is blank on purpose. compose.py refuses to render until every layer has url, licence and traced filled from the actual file page. See SOURCING.md.",
+  "_note": "Provenance filled 2026-09-09 from each file's own page.",
   "palette": {
     "inks": {
       "ink0": "#141414",
@@ -14,21 +14,21 @@
       "ink": "ink0",
       "gamma": 1.1,
       "transform": {
-        "scale": 0.76,
+        "scale": 0.4,
         "offset": [
           0,
-          -0.02
+          -0.1
         ]
       },
       "lift": {
         "enabled": true
       },
-      "_wanted": "Dore engraving \u2014 Paradise Lost or Inferno, a falling figure",
+      "_wanted": "Dore engraving — Paradise Lost or Inferno, a falling figure",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://commons.wikimedia.org/wiki/File:Paradise_Lost_12.jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-09",
+        "credit": "Gustave Dore, illustration for John Milton's Paradise Lost, wood engraving, 1866, via Wikimedia Commons (licence template PD-Art, file page states 'Public domain'); downloaded at the 1920 px thumbnail Wikimedia's rate limit allows; plate margin and signature line cropped"
       }
     },
     {
@@ -36,10 +36,10 @@
       "ink": "ink1",
       "gamma": 0.9,
       "transform": {
-        "scale": 0.52,
+        "scale": 0.4,
         "offset": [
           -0.2,
-          0.26
+          0.24
         ],
         "rotate": -22
       },
@@ -48,10 +48,10 @@
       },
       "_wanted": "thorned branch or bramble, botanical plate",
       "provenance": {
-        "url": "",
-        "licence": "",
-        "traced": "",
-        "credit": ""
+        "url": "https://commons.wikimedia.org/wiki/File:Rubus_fruticosus_-_La_flore_et_la_pomone_francaises_-_T.6_-_Plate_529.jpg",
+        "licence": "Public domain",
+        "traced": "2026-09-09",
+        "credit": "Jean Henri Jaume Saint-Hilaire, Rubus fruticosus (ronce commune), from La flore et la pomone francaises, vol. 6, plate 529, 1833, via Wikimedia Commons (licence template PD-old-70-1923, file page states 'Public domain'); downloaded at the 1920 px thumbnail; caption and dissection figures cropped"
       }
     }
   ]
