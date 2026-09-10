@@ -28,8 +28,8 @@ public enum Theme {
         public static let earned    = SwiftUI.Color(hex: 0xFFCF57)  // gold — achieved (was FFC53D)
 
         /// Calendar irregularity. **The one colour outside the cyan-resting /
-        /// orange-attention / gold-earned discipline**, added 2026-08-17 at
-        /// the owner's call after seeing the alternatives rendered.
+        /// orange-attention / gold-earned discipline**, added because every
+        /// alternative read worse once it was rendered.
         ///
         /// Checked numerically, not by eye: **5.14:1 on `panel`, 4.27:1 on
         /// `panelHi`, 5.59:1 on `void`.** That clears WCAG 2.2 SC 1.4.11, which
@@ -54,8 +54,8 @@ public enum Theme {
         /// This reads as a traffic light on purpose, and it fits the design
         /// rather than fighting it: the whole premise is that one miss is noise
         /// worth one point, not a catastrophe. Yellow understates a miss
-        /// correctly and leaves `alert` orange reserved for Never Miss Twice —
-        /// the single thing this app is meant to raise its voice about.
+        /// correctly and leaves `alert` orange reserved for the single thing
+        /// the host app is meant to raise its voice about.
         ///
         /// Hues 92° and 52°, 40° apart, both clearing 11:1 against `panelHi`.
         ///
@@ -88,8 +88,8 @@ public enum Theme {
         ///
         /// It is not fine for anything load-bearing. The Next Action row used it
         /// for the line naming the link's destination, at 2.7:1, and the row read
-        /// as decoration rather than a control — the owner reported it as "link
-        /// isn't intuitive" twice before the cause was measured. If a user must
+        /// as decoration rather than a control — it was reported twice as "link
+        /// isn't intuitive" before the cause was measured. If a user must
         /// read it to act, use `textMuted` or brighter.
         public static let textFaint = SwiftUI.Color(hex: 0x4A5F7A)
     }
@@ -102,19 +102,19 @@ public enum Theme {
         case neutral, happy, sad, angry, disgust, worried
 
         /// Canonical values, lifted verbatim from `EMOTION_COLORS` in the
-        /// original castle build. These were previously guessed from the
-        /// written spec; these are the real ones.
+        /// original build. These were previously guessed from the written spec;
+        /// these are the real ones.
         ///
-        /// Name mapping: the castle calls them `mad` and `grossed`. The backend
-        /// and this app use `angry` and `disgust`. Same six states, and the
-        /// backend's vocabulary wins because it's already wired end to end.
+        /// Name mapping: the original spec calls them `mad` and `grossed`. The
+        /// backend and this app use `angry` and `disgust`. Same six states, and
+        /// the backend's vocabulary wins because it's already wired end to end.
         public var color: SwiftUI.Color {
             switch self {
             case .neutral: return SwiftUI.Color(hex: 0xE8ECFF)   // white
             case .happy:   return SwiftUI.Color(hex: 0xFFD84A)   // yellow
             case .sad:     return SwiftUI.Color(hex: 0x4A9EFF)   // blue
-            case .angry:   return SwiftUI.Color(hex: 0xFF4A4A)   // red   (castle: mad)
-            case .disgust: return SwiftUI.Color(hex: 0x57FF8A)   // green (castle: grossed)
+            case .angry:   return SwiftUI.Color(hex: 0xFF4A4A)   // red   (original: mad)
+            case .disgust: return SwiftUI.Color(hex: 0x57FF8A)   // green (original: grossed)
             case .worried: return SwiftUI.Color(hex: 0xFF7AD9)   // pink
             }
         }
@@ -137,7 +137,7 @@ public enum Theme {
         public static let railWidth: CGFloat   = 28    // edge tick rails
         public static let cut: CGFloat         = 10    // corner clip — cut, not rounded
         public static let hairline: CGFloat    = 1
-        // 2026-08-15: global density tighten (~20%), the owner's call.
+        // 2026-08-15: global density tighten (~20%).
         public static let gutter: CGFloat      = 13    // was 16
         public static let panelPad: CGFloat    = 14    // was 18
     }
@@ -156,8 +156,8 @@ public enum Theme {
         /// once and stays a single number to tune later.
         ///
         /// ⚠ Raising this can clip fixed-width columns. The ones that were
-        /// widened for 1.2 are in DashboardView, StudyLibrary and
-        /// DiagnosticsPanel; check them again if you push it further.
+        /// widened for 1.2 are other fixed-width tables in the host app;
+        /// check them again if the scale is pushed further.
         /// Read from storage **once at launch**, not per call.
         ///
         /// A computed `static var` would hit `UserDefaults` on every one of the

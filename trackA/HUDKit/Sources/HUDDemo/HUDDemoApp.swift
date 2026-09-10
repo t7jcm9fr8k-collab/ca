@@ -50,22 +50,22 @@ enum DemoData {
     /// Three kinds on the agenda strip, so every tint appears.
     static func agenda(for offset: Int) -> [ScheduledItem] {
         switch offset {
-        case -1: return [ScheduledItem(letter: "C", label: "Ten-minute session", hour: 7, minute: 50, kind: .commitment)]
+        case -1: return [ScheduledItem(letter: "C", label: "Focus block", hour: 15, minute: 0, kind: .commitment)]
         case 0:  return [
-            ScheduledItem(letter: "C", label: "Ten-minute session", hour: 7, minute: 50, kind: .commitment),
-            ScheduledItem(letter: "P", label: "Punch item 5", hour: 12, minute: 0, kind: .punchList),
+            ScheduledItem(letter: "P", label: "Punch item 2", hour: 12, minute: 0, kind: .punchList),
             ScheduledItem(letter: "E", label: "Standing meeting", hour: 14, minute: 0, kind: .calendar),
+            ScheduledItem(letter: "C", label: "Focus block", hour: 15, minute: 0, kind: .commitment),
         ]
         case 2:  return [ScheduledItem(letter: "E", label: "Review", hour: 9, minute: 30, kind: .calendar)]
         case 3:  return [
-            ScheduledItem(letter: "C", label: "Ten-minute session", hour: 7, minute: 50, kind: .commitment),
-            ScheduledItem(letter: "P", label: "Punch item 6", hour: 16, minute: 15, kind: .punchList),
+            ScheduledItem(letter: "C", label: "Focus block", hour: 15, minute: 0, kind: .commitment),
+            ScheduledItem(letter: "P", label: "Punch item 3", hour: 16, minute: 0, kind: .punchList),
         ]
         default: return []
         }
     }
 
-    /// A month laid out Sunday→Saturday with Mon/Wed/Fri scheduled, most
+    /// A month laid out Sunday→Saturday with two scheduled days a week, most
     /// hit, a few missed, and the odd off-day session — the shape the grid is
     /// built to show.
     static func month(offset: Int) -> MonthView {
@@ -87,7 +87,7 @@ enum DemoData {
         for n in range {
             guard let date = cal.date(byAdding: .day, value: n - 1, to: first) else { continue }
             let weekday = cal.component(.weekday, from: date)
-            let scheduled = [2, 4, 6].contains(weekday)
+            let scheduled = [3, 6].contains(weekday)
             let inFuture = date > today
             let isToday = cal.isDate(date, inSameDayAs: today)
             let didLog = !inFuture && (scheduled ? n % 5 != 0 : n % 9 == 0)
@@ -108,9 +108,9 @@ enum DemoData {
     }
 
     static let punchItems: [(String, PunchState)] = [
-        ("4 — draft the announcement", .done),
-        ("5 — photograph the new items", .inProgress),
-        ("6 — publish and verify", .todo),
+        ("1 — draft the announcement", .done),
+        ("2 — photograph the new items", .inProgress),
+        ("3 — publish and verify", .todo),
     ]
 }
 
@@ -121,7 +121,7 @@ struct DemoRoot: View {
 
     @State private var mood: Theme.Mood = .neutral
     @State private var charge: Double = 0.66
-    @State private var minutes: Double = 225
+    @State private var minutes: Double = 180
     @State private var streak: Double = 12
     @State private var week: [DayState] = DemoData.week
     @State private var monthOffset = 0
@@ -191,7 +191,7 @@ struct DemoRoot: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            StatusRibbon(items: ["tracker online", "term t−8", "10 days tracked"])
+            StatusRibbon(items: ["tracker online", "demo dataset", "sample values only"])
             HUDButton(title: "⌘1", filled: parallax == 0) { withAnimation { parallax = 0 } }
             HUDButton(title: "⌘2", filled: parallax == 1) { withAnimation { parallax = 1 } }
             HUDButton(title: "⌘3", filled: parallax == 2) { withAnimation { parallax = 2 } }
@@ -258,7 +258,7 @@ struct DemoRoot: View {
 
                 MeterRow(label: "Adherence", value: "\(week.filter { $0 == .done }.count)/5",
                          fraction: Double(week.filter { $0 == .done }.count) / 5)
-                MeterRow(label: "Punch list", value: "64%", fraction: 0.64, tint: Theme.Color.earned)
+                MeterRow(label: "Punch list", value: "60%", fraction: 0.60, tint: Theme.Color.earned)
 
                 HStack(spacing: 12) {
                     Text("00:10:00")

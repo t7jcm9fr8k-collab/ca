@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HUD — the starting page, four looks</title>
 <style>
-  /* Palette verbatim from Theme.swift (2026-08-15 AA pass). */
+  /* Palette verbatim from Theme.swift (AA pass). */
   :root{
     --void:#050A14; --panel:#0D1526; --panel-hi:#18263F;
     --primary:#5FDDFF; --structure:#3A5A82; --alert:#FF8A55; --earned:#FFCF57;
@@ -27,8 +27,9 @@
   .verdict{font-size:10.5px;color:var(--muted);margin:8px 0 12px;max-width:min(900px,100%)}
   .verdict b{color:var(--text)}
 
-  /* The window frame every look is drawn inside. 13.6" MBA at 1470×956,
-     scaled to 720 wide — the real proportion, so nothing lies about space. */
+  /* The window frame every look is drawn inside. A wide desktop window
+     scaled to 720 across — the same box under every look, so the four are
+     compared on their content and not on their size. */
   .win{width:720px;height:468px;background:var(--void);position:relative;
        border:1px solid var(--structure);overflow:hidden;cursor:pointer;
        user-select:none}
@@ -70,20 +71,20 @@
 </head>
 <body>
 <h1>HUD <span>· THE STARTING PAGE — FOUR LOOKS</span></h1>
-<div class="sub data">MOCK ONLY — NOTHING SHIPS UNTIL YOU PICK. Each frame is the real window
-proportion (1470×956 scaled to 720). <b>Click any frame</b> to see it enter — the 850ms power-on
-that follows is already built and identical in all four; what differs is the page you sit on
-before you click. The composite at the top is <b>what is now in the app</b>; S1–S4 below are the ingredients it was chosen from, kept for reference.</div>
+<div class="sub data">MOCK ONLY — NOTHING SHIPS UNTIL A LOOK IS PICKED. Each frame is the same wide desktop
+window, scaled to 720 across. <b>Click any frame</b> to see it enter — the 850ms power-on
+that follows is already built and identical in all four; what differs is the page being sat on
+before the click. The composite at the top is <b>what is now in the app</b>; S1–S4 below are the ingredients it was chosen from, kept for reference.</div>
 
 
 <!-- ===================== COMPOSITE ===================== -->
 <section>
-<h2>S2 + S3 + S4 · THE COMPOSITE <span class="code">THE OWNER'S PICK — BUILT 2026-08-24</span></h2>
+<h2>S2 + S3 + S4 · THE COMPOSITE <span class="code">THE PICK — BUILT 2026-06-08</span></h2>
 <div class="verdict"><b>One page with one logic: the machine wakes, checks itself, reports where
-you stand, and waits.</b> S2 is the substrate (the app's own skeleton, cold, at a third opacity).
+the user stands, and waits.</b> S2 is the substrate (the app's own skeleton, cold, at a third opacity).
 S4 is the sequence (five checks type out over ~600ms). S3 is the payload (the orb at its real
-charge, the week, the one next action) — it lands as the last check clears. Then it holds, with
-no clock running, until you click. The intro assembles in about a second; the page itself waits
+charge, the last seven days, the one next action) — it lands as the last check clears. Then it holds, with
+no clock running, until the click. The intro assembles in about a second; the page itself waits
 forever.</div>
 <div class="win" id="w0">
   <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
@@ -99,7 +100,7 @@ forever.</div>
                   background:radial-gradient(ellipse at 32% 42%,rgba(5,10,20,.93) 42%,rgba(5,10,20,.55))"></div>
       <div class="c-el" style="position:absolute;left:64px;top:34px">
         <div class="wordmark" style="font-size:25px">WORDMARK</div>
-        <div class="data" style="font-size:8px;letter-spacing:1.6px;color:var(--muted);margin-top:9px">MONDAY 24 AUGUST · 09:12</div>
+        <div class="data" style="font-size:8px;letter-spacing:1.6px;color:var(--muted);margin-top:9px">MONDAY 8 JUNE · 10:00</div>
       </div>
       <div class="data" id="c-boot" style="position:absolute;left:64px;top:100px;font-size:9.5px;
            line-height:1.92;letter-spacing:.3px"></div>
@@ -108,15 +109,15 @@ forever.</div>
         <div style="width:118px;height:118px;border-radius:50%;
              background:radial-gradient(circle at 42% 36%,rgba(95,221,255,.32),rgba(95,221,255,.06) 60%,transparent 72%);
              border:1px solid rgba(95,221,255,.34)"></div>
-        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--primary);text-align:center;margin-top:11px">STEADY · 2 OF 3</div>
+        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--primary);text-align:center;margin-top:11px">STEADY · ON TRACK</div>
       </div>
       <div class="c-state" style="position:absolute;left:64px;top:216px;opacity:0;transition:opacity .4s">
-        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--faint)">THIS WEEK</div>
+        <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--faint)">LAST 7 DAYS</div>
         <div style="display:flex;gap:6px;margin-top:8px" id="c-week"></div>
       </div>
       <div class="c-state" style="position:absolute;left:64px;top:290px;opacity:0;transition:opacity .4s">
         <div class="data" style="font-size:7.5px;letter-spacing:1.8px;color:var(--alert)">NEXT ACTION</div>
-        <div style="font-size:13.5px;color:var(--text);margin-top:6px">Photograph the four new items</div>
+        <div style="font-size:13.5px;color:var(--text);margin-top:6px">Log the first entry of the day</div>
       </div>
       <div class="c-intent" style="position:absolute;left:64px;top:352px;opacity:0;transition:opacity .4s">
         <div class="intent-label">TODAY'S INTENT</div>
@@ -134,15 +135,15 @@ forever.</div>
 <section>
 <h2>S1 · THE PLAQUE <span class="code">WHAT SHIPPED — BUILT WITHOUT A MOCK</span></h2>
 <div class="verdict"><b>Void, wordmark, one line.</b> Nothing on it moves and nothing on it
-reports. Honest and quiet, but it tells you nothing you did not already know — the app's name
-on the app you just opened. The intent field is the only thing earning its place.</div>
+reports. Honest and quiet, but it tells the user nothing they did not already know — the name of the
+app they have just opened. The intent field is the only thing earning its place.</div>
 <div class="win" id="w1">
   <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
   <div class="stage">
     <div class="startface fades" style="padding:96px 0 0 76px">
       <div class="wordmark" style="font-size:38px">WORDMARK</div>
       <div class="rule" style="width:520px;margin-top:20px;opacity:.6"></div>
-      <div class="data" style="font-size:9.5px;letter-spacing:1.5px;color:var(--muted);margin-top:11px">MONDAY 24 AUGUST · 09:12</div>
+      <div class="data" style="font-size:9.5px;letter-spacing:1.5px;color:var(--muted);margin-top:11px">MONDAY 8 JUNE · 10:00</div>
       <div style="margin-top:36px">
         <div class="intent-label">TODAY'S INTENT</div>
         <div class="intent-line" style="width:430px;margin-top:8px">one line — what today is for<span class="caret"></span></div>
@@ -157,11 +158,11 @@ on the app you just opened. The intent field is the only thing earning its place
 
 <!-- ===================== S2 ===================== -->
 <section>
-<h2>S2 · COLD FRAME <span class="code">THE L MOCK'S OWN LOOK, HELD</span></h2>
+<h2>S2 · COLD FRAME <span class="code">THE LAYOUT MOCK'S OWN LOOK, HELD</span></h2>
 <div class="verdict"><b>The app powered down, showing its own skeleton.</b> Exactly the frame
-the approved L mock assembled toward — panel outlines, no fill, no data — except it holds
-instead of racing past. Entering fills the frames you were already looking at, so the click
-lands you somewhere you have been standing. Closest thing to a mockup that was actually agreed on.</div>
+the approved layout mock assembled toward — panel outlines, no fill, no data — except it holds
+instead of racing past. Entering fills the frames already on screen, so the click lands in a
+room the user is already standing in. Closest thing to a mockup that was actually agreed on.</div>
 <div class="win" id="w2">
   <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
   <div class="stage">
@@ -185,7 +186,7 @@ lands you somewhere you have been standing. Closest thing to a mockup that was a
                   background:linear-gradient(90deg,rgba(5,10,20,.94) 62%,rgba(5,10,20,0))"></div>
       <div style="position:absolute;left:76px;top:150px">
         <div class="wordmark" style="font-size:30px">WORDMARK</div>
-        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:13px">MONDAY 24 AUGUST · 09:12 · <span style="color:var(--faint)">SYSTEMS COLD</span></div>
+        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:13px">MONDAY 8 JUNE · 10:00 · <span style="color:var(--faint)">SYSTEMS COLD</span></div>
         <div style="margin-top:28px">
           <div class="intent-label">TODAY'S INTENT</div>
           <div class="intent-line" style="width:400px;margin-top:8px">one line — what today is for<span class="caret"></span></div>
@@ -202,33 +203,33 @@ lands you somewhere you have been standing. Closest thing to a mockup that was a
 <!-- ===================== S3 ===================== -->
 <section>
 <h2>S3 · THE READY ROOM <span class="code">STATE BEFORE ENTRY</span></h2>
-<div class="verdict"><b>It answers the question you opened the app to ask, before you are in it.</b>
-The orb resting at its real charge, the week as seven marks, the streak, the one next action.
+<div class="verdict"><b>It answers the question the app was opened to ask, before entry.</b>
+The orb resting at its real charge, the last seven days as seven marks, the streak, the one next action.
 Most useful of the four, and the only one where the page is worth sitting on. Risk: it duplicates
-the dashboard, so entering can feel like arriving where you already were.</div>
+the dashboard, so entering can feel like arriving where the user already was.</div>
 <div class="win" id="w3">
   <div class="chrome"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div>
   <div class="stage">
     <div class="startface fades">
       <div style="position:absolute;left:70px;top:56px">
         <div class="wordmark" style="font-size:26px">WORDMARK</div>
-        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:12px">MONDAY 24 AUGUST · 09:12</div>
+        <div class="data" style="font-size:8.5px;letter-spacing:1.6px;color:var(--muted);margin-top:12px">MONDAY 8 JUNE · 10:00</div>
       </div>
       <!-- resting orb -->
       <div style="position:absolute;right:78px;top:52px;width:132px;height:132px;border-radius:50%;
                   background:radial-gradient(circle at 42% 38%,rgba(95,221,255,.30),rgba(95,221,255,.05) 62%,transparent 72%);
                   border:1px solid rgba(95,221,255,.34)"></div>
       <div class="data" style="position:absolute;right:78px;top:192px;width:132px;text-align:center;
-                  font-size:8px;letter-spacing:1.8px;color:var(--primary)">STEADY · 2 OF 3</div>
+                  font-size:8px;letter-spacing:1.8px;color:var(--primary)">STEADY · ON TRACK</div>
       <!-- week strip -->
       <div style="position:absolute;left:70px;top:176px">
-        <div class="data" style="font-size:8px;letter-spacing:1.8px;color:var(--faint)">THIS WEEK</div>
+        <div class="data" style="font-size:8px;letter-spacing:1.8px;color:var(--faint)">LAST 7 DAYS</div>
         <div style="display:flex;gap:7px;margin-top:9px" id="weekstrip"></div>
       </div>
       <!-- next action -->
       <div style="position:absolute;left:70px;top:250px">
         <div class="data" style="font-size:8px;letter-spacing:1.8px;color:var(--alert)">NEXT ACTION</div>
-        <div style="font-size:15px;color:var(--text);margin-top:7px">Photograph the four new items</div>
+        <div style="font-size:15px;color:var(--text);margin-top:7px">Log the first entry of the day</div>
       </div>
       <div style="position:absolute;left:70px;top:330px">
         <div class="intent-label">TODAY'S INTENT</div>
@@ -245,8 +246,8 @@ the dashboard, so entering can feel like arriving where you already were.</div>
 <!-- ===================== S4 ===================== -->
 <section>
 <h2>S4 · COLD BOOT <span class="code">THE TERMINAL</span></h2>
-<div class="verdict"><b>The machine checks itself in front of you, then waits.</b> Six lines type
-out over ~700ms and stop; the last one is a prompt that takes your intent. The only look where
+<div class="verdict"><b>The machine checks itself in front of the user, then waits.</b> Six lines type
+out over ~700ms and stop; the last one is a prompt that takes the intent. The only look where
 waiting is the point rather than the cost. Risk: it is the most theatrical, and theatre gets old
 on the four-hundredth launch — worth weighing against S2, which is quiet by construction.</div>
 <div class="win" id="w4">
@@ -269,11 +270,11 @@ on the four-hundredth launch — worth weighing against S2, which is quiet by co
 <section>
 <h2>PICKING <span class="code">THE READ</span></h2>
 <div class="verdict"><b>S2 is the one to build.</b> It is the only look descended from a mock
-you actually approved, it makes entering mean something (the frames you are staring at fill in),
-and it costs nothing per frame — outlines and text, no clock at all. <b>S3 is the one you may
-actually want</b> if the starting page should do a job rather than set a mood; say so and it is a
-straight swap. S4 is the best-looking and the first to wear out. S1 stays only if you like the
-silence. Any of them keeps the intent line and the 850ms power-on exactly as built.</div>
+that was actually approved, it makes entering mean something (the frames on screen fill in),
+and it costs nothing per frame — outlines and text, no clock at all. <b>S3 is the one that may
+actually be wanted</b> if the starting page should do a job rather than set a mood; say so and it is a
+straight swap. S4 is the best-looking and the first to wear out. S1 stays only if the silence
+appeals. Any of them keeps the intent line and the 850ms power-on exactly as built.</div>
 </section>
 
 <script>
@@ -294,8 +295,9 @@ silence. Any of them keeps the intent line and the 850ms power-on exactly as bui
   }catch(e){console.log('starfield failed:',e)}
 
   try{
-    // S3's week strip — the real DayState vocabulary: logged, missed, rest, today.
-    var marks=[['S','rest'],['M','done'],['T','rest'],['W','done'],['T','rest'],['F','today'],['S','rest']];
+    // S3's day strip — the real DayState vocabulary: logged, missed, rest,
+    // today. Seven marks ending on today, so today is the last cell.
+    var marks=[['T','done'],['W','done'],['T','rest'],['F','rest'],['S','done'],['S','rest'],['M','today']];
     var C={done:'#97F04A',missed:'#F2DC45',rest:'#3A5A82',today:'#5FDDFF'};
     var h='';
     marks.forEach(function(m){
@@ -313,9 +315,9 @@ silence. Any of them keeps the intent line and the 850ms power-on exactly as bui
       bootTimers.forEach(clearTimeout);bootTimers=[];
       var el=document.getElementById('boot');if(!el)return;
       var lines=[
-        ['SESSION STORE','214 SESSIONS','#97F04A'],
-        ['CALENDAR','5 EVENTS · 30-DAY HORIZON','#97F04A'],
-        ['REMINDERS','3 ARMED · MWF 07:50','#97F04A'],
+        ['SESSION STORE','200 SESSIONS','#97F04A'],
+        ['CALENDAR','12 EVENTS · 30-DAY HORIZON','#97F04A'],
+        ['REMINDERS','4 ARMED · NONE DUE','#97F04A'],
         ['AGENTS','SIMULATED — NO ROSTER FILE','#FFCF57'],
         ['OUTBOUND','WEATHER ONLY','#9AB2D0']
       ];
@@ -354,9 +356,9 @@ silence. Any of them keeps the intent line and the 850ms power-on exactly as bui
       cTimers.push(setTimeout(function(){frame.style.opacity='.34'},60));
 
       var checks=[
-        ['SESSION STORE','214 SESSIONS','#97F04A'],
-        ['CALENDAR','5 EVENTS · 30-DAY HORIZON','#97F04A'],
-        ['REMINDERS','3 ARMED · MWF 07:50','#97F04A'],
+        ['SESSION STORE','200 SESSIONS','#97F04A'],
+        ['CALENDAR','12 EVENTS · 30-DAY HORIZON','#97F04A'],
+        ['REMINDERS','4 ARMED · NONE DUE','#97F04A'],
         ['AGENTS','SIMULATED — NO ROSTER FILE','#FFCF57'],
         ['OUTBOUND','WEATHER ONLY','#9AB2D0']
       ];
@@ -383,7 +385,7 @@ silence. Any of them keeps the intent line and the 850ms power-on exactly as bui
   try{
     var cw=document.getElementById('c-week');
     if(cw){
-      var m=[['S','rest'],['M','done'],['T','rest'],['W','done'],['T','rest'],['F','today'],['S','rest']];
+      var m=[['T','done'],['W','done'],['T','rest'],['F','rest'],['S','done'],['S','rest'],['M','today']];
       var CC={done:'#97F04A',missed:'#F2DC45',rest:'#3A5A82',today:'#5FDDFF'};
       cw.innerHTML=m.map(function(x){
         var c=CC[x[1]],f=x[1]==='done'?'background:rgba(151,240,74,.20);':'';

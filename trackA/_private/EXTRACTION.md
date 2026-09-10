@@ -1,3 +1,10 @@
+> **PRIVATE — NEVER PUBLISH THIS FILE.**
+> It is the audit record for the extraction. It quotes no personal value, but it
+> enumerates, category by category, what kinds of personal material the original
+> app contained — which tells a reader what to go looking for and confirms who the
+> author is. It lives in `trackA/_private/` and is excluded from the published
+> package by `trackA/PUBLISHING.md`. Keep it; do not ship it.
+
 # EXTRACTION — HUDKit from the source app
 
 What was copied, what was changed, and what has not been checked. Source files are named

@@ -67,7 +67,7 @@
 <body>
 <div class="wrap">
   <div class="eyebrow">HUD · LAYOUT BEHAVIOUR</div>
-  <h1>What happens when you close a panel</h1>
+  <h1>What happens when a panel closes</h1>
   <p class="lede">
     Both grids below hold the same four panels. <b>Close one and watch what the other three do.</b>
     That difference is the entire decision — there is nothing else to it.
@@ -84,44 +84,44 @@
   <div class="cols">
     <div class="col colA">
       <h2>REFLOWING — what most apps do</h2>
-      <p class="sub">The survivors slide up to fill the gap. No wasted space, and nothing is where you left it.</p>
+      <p class="sub">The survivors slide up to fill the gap. No wasted space, and nothing is where it was left.</p>
       <div class="grid" id="gridA"></div>
     </div>
     <div class="col colB">
-      <h2>LOCKED — what Symphony does</h2>
-      <p class="sub">The slot stays empty. You look at a hole, and every other panel is exactly where it was.</p>
+      <h2>LOCKED — what this app does</h2>
+      <p class="sub">The slot stays empty. The gap stays visible, and every other panel is exactly where it was.</p>
       <div class="grid" id="gridB"></div>
     </div>
   </div>
 
   <div class="verdict">
     <div>
-      <h3 style="color:#F2DC45">Reflowing costs you muscle memory</h3>
-      <p>Every open and close reshuffles the screen, so you have to <b style="color:#ECF3FC">read</b> it to find
+      <h3 style="color:#F2DC45">Reflowing costs muscle memory</h3>
+      <p>Every open and close reshuffles the screen, so it has to be <b style="color:#ECF3FC">read</b> to find
       anything. The layout is never the same twice, which means it can never become automatic.
-      <span class="cost">You save space and pay for it in attention, every single time.</span></p>
+      <span class="cost">Space is saved and paid for in attention, every single time.</span></p>
     </div>
     <div>
-      <h3 style="color:#97F04A">Locked costs you space</h3>
-      <p>The punch list is top-left at 3am and top-left at noon. After a week you stop reading the screen
-      and just look. <span class="keep">You pay in holes and get back the thing that makes an instrument
-      an instrument — your hand knows where the dial is.</span></p>
+      <h3 style="color:#97F04A">Locked costs space</h3>
+      <p>The punch list is top-left at 3am and top-left at noon. After a week the screen no longer needs
+      reading &mdash; a glance finds it. <span class="keep">The cost is holes; what comes back is the thing
+      that makes an instrument an instrument &mdash; the hand knows where the dial is.</span></p>
     </div>
   </div>
 
   <p class="foot">
-    <b>Why this is a live question for you and not a preference:</b> ⌘1–⌘4 already gives you spatial
+    <b>Why this is a live question and not a preference:</b> ⌘1–⌘4 already gives spatial
     persistence at the <b>navigation</b> level — destination 2 is always destination 2. The grid question is
-    about what happens <b>inside</b> one destination. If panels there reflow, you have a stable outer shell
-    wrapped around a surface that rearranges itself, which is the worst of both — you learn where to go and
-    then have to search once you arrive.
+    about what happens <b>inside</b> one destination. If panels there reflow, a stable outer shell wraps
+    a surface that rearranges itself, which is the worst of both — the route is learnable, but the arrival
+    still has to be searched.
   </p>
 </div>
 
 <script>
   const PANELS = [
     { id:'next',    t:'NEXT ACTION', v:'5',     s:'next item' },
-    { id:'punch',   t:'PUNCH LIST',  v:'64%',   s:'7 of 11 closed' },
+    { id:'punch',   t:'PUNCH LIST',  v:'75%',   s:'9 of 12 closed' },
     { id:'weather', t:'WEATHER',     v:'23°',   s:'Clear · local' },
     { id:'diag',    t:'DIAGNOSTICS', v:'OK',    s:'store · reminders · calendar' },
   ];

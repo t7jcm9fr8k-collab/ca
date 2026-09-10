@@ -27,7 +27,7 @@ public final class ThermalWatch: ObservableObject {
 
     @Published public private(set) var state: ProcessInfo.ThermalState
 
-    /// LOW HEAT — the owner's manual floor under the ladder (2026-08-19, for
+    /// LOW HEAT — a manual floor under the ladder (2026-08-19, for
     /// long sessions on the lap). While on, `level` reports at least
     /// `.serious` regardless of the sensors: the sky freezes, the reactor
     /// rests on its honest frame, the planets park, the fight sheds to 30fps

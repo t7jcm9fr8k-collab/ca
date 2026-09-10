@@ -3,7 +3,7 @@ import SwiftUI
 /// A framed panel with cut corners and a label tab, as in the reference HUDs.
 ///
 /// With `enterOrder` set, the panel materialises on arrival instead of
-/// popping (MOTION-OVERHAUL §4.3): the outline draws itself in 160ms — the
+/// popping (the motion spec): the outline draws itself in 160ms — the
 /// FUI trim move — the body wipes in behind it, and the whole thing carries
 /// `order` × 50ms of stagger so a destination's panels arrive as a cascade
 /// rather than a block. Nil (the default) is exactly the old static panel;
@@ -45,7 +45,7 @@ public struct HUDPanel<Content: View>: View {
                     .foregroundStyle(Theme.Color.text)
                 Spacer(minLength: 8)
                 // Panel codes ("H4", "R4", "FN03") retired 2026-08-15 at
-                // the owner's request. The parameter survives so call sites
+                // a design decision. The parameter survives so call sites
                 // don't churn; nothing reads it.
             }
             .padding(.horizontal, Theme.Metric.panelPad)
@@ -107,9 +107,9 @@ public struct Readout: View {
         self.roll = roll
     }
 
-    /// L's third beat (launch power-on, RootView): until the launch clock
-    /// says live, the figure renders 0; the flip to the real value happens
-    /// inside the conductor's withAnimation, so numericText rolls it up.
+    /// L's third beat (launch power-on, the host's shell view): until the
+    /// launch clock says live, the figure renders 0; the flip to the real value
+    /// happens inside the conductor's withAnimation, so numericText rolls it up.
     /// Defaults true — only a tree mid-power-on ever zeros a figure.
     @Environment(\.launchReadoutsLive) private var launchLive
 
@@ -249,8 +249,8 @@ public struct DayCell: View {
 /// A day on the agenda strip: what is scheduled, not whether it was done.
 ///
 /// Same cut-corner grammar as `DayCell` so the two strips read as one family.
-/// 2026-08-20, owner feedback: "the weekly calendar tries shoving multiple
-/// letters into one box" — it did, three letters and a +n crammed into 30pt.
+/// 2026-08-20: the weekly calendar was shoving multiple letters into one
+/// box — three letters and a +n crammed into 30pt.
 /// The cell now carries a count and up to three kind-tinted ticks, and the
 /// detail moved to where detail fits: a hover card listing every item with its
 /// time. An empty day is drawn, not omitted — the shape of the week stays
@@ -439,7 +439,7 @@ public struct MonthGrid: View {
 
     /// Cell metrics. Defaults are the dashboard's peek size; the ⌘, Calendar
     /// destination passes something far larger, because a month grid occupying
-    /// 8% of a 1470-point screen reads as a widget that escaped.
+    /// 8% of a wide desktop window reads as a widget that escaped.
     public var cellWidth: CGFloat = 30
     public var cellHeight: CGFloat = 26
     public var cellSpacing: CGFloat = 6
@@ -713,7 +713,7 @@ public struct StateMark: View {
 
 /// Primary action button in the HUD language.
 ///
-/// Firing it plays the four beats (MOTION-OVERHAUL §3.1): a 60ms compress —
+/// Firing it plays the four beats (the motion spec): a 60ms compress —
 /// the lean-away — then a low-damped spring back to rest whose overshoot is
 /// the third beat. Nothing is hand-keyed past the antic; the spring does the
 /// rest. Reduce Motion presses flat.
@@ -828,8 +828,8 @@ public struct HUDPillToggle: View {
 // a Canvas.** Opacity, offset, scale and blur are handled by the render server
 // and cost almost nothing. A value a `Canvas` reads is different — changing it
 // forces a full redraw at 60fps, which is how a "subtle glow" turns into the
-// most expensive thing on screen. `SpaceBackdrop` and `StickFight` are Canvas.
-// Nothing here touches them.
+// most expensive thing on screen. `SpaceBackdrop` and the host's fight surface
+// are Canvas. Nothing here touches them.
 //
 // The second rule is borrowed from the fight, because it already proved itself:
 // **idle motion runs on a duty cycle.** A continuously repeating animation
@@ -1095,14 +1095,14 @@ public struct AdherenceRamp: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     // ⚠ The red→amber→green gradient was removed 2026-08-18 at
-                    // the owner's request, and it resolves the objection this
+                    // a design decision, and it resolves the objection this
                     // file already carried: a gradient is colour carrying
                     // meaning on its own, which nothing else in this app does.
                     // Track plus fill plus marker says the same thing and
                     // survives greyscale. **Do not reintroduce the ramp.**
                     //
-                    // 2026-08-20, owner feedback again: the 15pt solid-lime
-                    // slab was "too intrusive", and the point stands — it was
+                    // 2026-08-20: the 15pt solid-lime slab was too
+                    // intrusive, and the point stands — it was
                     // the loudest block of colour on the screen, saying
                     // something the marker and the number already say. The
                     // track is now a 4pt hairline, the fill a quarter-strength

@@ -84,14 +84,14 @@
 </head>
 <body>
 <h1>HUD <span>· GRAPH UPGRADES + TEXTURE + POWER-ON</span></h1>
-<div class="sub data">MOCKUPS ONLY — NOTHING SHIPS UNTIL YOU PICK. Every motion here is implementable
+<div class="sub data">MOCKUPS ONLY — NOTHING SHIPS UNTIL A LOOK IS PICKED. Every motion here is implementable
 as the app already draws: hand-rolled Paths on the compositor, no chart framework, Reduce Motion honored
-(this page honors yours). Charts follow the house discipline: one axis, thin marks, legends only where
+(this page honors it). Charts follow the house discipline: one axis, thin marks, legends only where
 two series exist, text in text colors, hover everywhere.</div>
 
 <!-- ============ G1 ============ -->
 <section>
-<h2>G1 · MINUTES LOGGED — THE RANGE CHART, GROWN UP <span class="code">REPLACES TrendsView.AreaChart</span></h2>
+<h2>G1 · MINUTES LOGGED — THE RANGE CHART, GROWN UP <span class="code">REPLACES THE AREA CHART ON THE HOST'S TRENDS SCREEN</span></h2>
 <div class="row">
 <div class="panel" style="flex:2 1 560px">
   <div class="ptitle">MINUTES LOGGED <span class="r" id="g1total"></span></div>
@@ -106,7 +106,7 @@ two series exist, text in text colors, hover everywhere.</div>
     <div class="tip" id="g1tip"></div>
   </div>
   <table class="dt data" id="g1table"></table>
-  <div class="note"><b>What changed:</b> a 420ms draw-in on arrival (trim 0→1, the fight's own trick);
+  <div class="note"><b>What changed:</b> a 420ms draw-in on arrival (trim 0→1, the same trick the panel outlines use);
   switching ranges keeps the old line as a fading ghost while the new one draws over it — the change is
   a move, not a re-deal. A hover crosshair snaps to the nearest day and reads date + minutes in a chip.
   The <b>60-minute win line</b> is a labeled hairline — the number the whole app is about, finally on the
@@ -118,7 +118,7 @@ two series exist, text in text colors, hover everywhere.</div>
 
 <!-- ============ G2 ============ -->
 <section>
-<h2>G2 · THIS WEEK vs LAST — COMPARISON WITH A CONTEXT LINE <span class="code">REPLACES TrendsView.TwoSeriesChart</span></h2>
+<h2>G2 · THIS WEEK vs LAST — COMPARISON WITH A CONTEXT LINE <span class="code">REPLACES THE TWO-SERIES CHART ON THE HOST'S TRENDS SCREEN</span></h2>
 <div class="row">
 <div class="panel" style="flex:2 1 560px">
   <div class="ptitle">THIS WEEK vs LAST <span class="r data" id="g2delta"></span></div>
@@ -187,7 +187,7 @@ text pair drops below its floor, the grain loses, not the text.</div>
 
 <!-- ============ L ============ -->
 <section>
-<h2>L · LAUNCH POWER-ON — 850ms, ONCE, SKIPPABLE <span class="code">§4.1 · MOCK PER YOUR CALL</span></h2>
+<h2>L · LAUNCH POWER-ON — 850ms, ONCE, SKIPPABLE <span class="code">MOTION SPEC · MOCK ONLY</span></h2>
 <div class="row">
 <div class="panel" style="flex:2 1 560px">
   <div class="ptitle">THE SEQUENCE <span class="r"><span class="chip" id="replayL">REPLAY</span></span></div>
@@ -207,7 +207,7 @@ text pair drops below its floor, the grain loses, not the text.</div>
   stroke themselves in, staggered along the 25° grain (160ms each) → readouts roll from zero (300ms)
   → the sky fades up beneath everything (250ms overlap). 850ms total, <b>once per launch</b>, any key or
   click skips to the finished frame, and Reduce Motion never sees it at all — the app simply appears.
-  Approve this and it ships in Swift as transitions + numericText, no Canvas.</div>
+  On approval it ships in Swift as transitions + numericText, no Canvas.</div>
 </div>
 </div>
 </section>
@@ -350,7 +350,7 @@ text pair drops below its floor, the grain loses, not the text.</div>
     const step=a=>'#'+[0,1,2].map(k=>mix(lime[k],pan[k],a).toString(16).padStart(2,'0')).join('');
     const ramp=[step(.16),step(.36),step(.62),step(1)];
     const lum = h=>{const n=parseInt(h.slice(1),16);return .2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255);}
-    // Some embedded viewers ship a console without .table — the owner hit
+    // Some embedded viewers ship a console without .table — this hit
     // exactly that, and the throw took out everything downstream. Guarded,
     // and every section is fenced below so one failure stays one failure.
     const rampReport = ramp.map(h=>({step:h,luma:lum(h).toFixed(1)}));

@@ -17,8 +17,8 @@ import SwiftUI
 /// Something the host app knows is scheduled, on a given day.
 public struct ScheduledItem: Identifiable, Equatable {
     /// `calendar` is somebody else's obligation rather than one of the
-    /// owner's own commitments, and the view colours it accordingly — the
-    /// owner's are tinted, the world's are muted. Context, not accountability.
+    /// user's own commitments, and the view colours it accordingly — the
+    /// user's are tinted, the world's are muted. Context, not accountability.
     public enum Kind: Equatable { case commitment, punchList, calendar }
 
     /// The single character that identifies the item in a strip cell.

@@ -48,7 +48,8 @@ compositor transforms. No chart framework, no assets, no custom fonts.
 **Wordmark** — `BlockLetters`
 - Letters cut from stone: solid slabs with an extruded side, a lit face, seeded stone texture, a
   silhouette bevel and a hard outline, drawn once into a `Canvas`. The glyph table (`Glyphs`)
-  currently covers A C D E I L M N O P R S T U Y and space; unknown characters render as a gap.
+  covers A-Z, 0-9 and space; unknown characters render as a gap. Zero is drawn a cell
+  narrower than O so the two never read alike.
 
 **Backdrop** — `SpaceBackdrop`
 - Nebula washes, a galactic plane, two spinning galaxies, three star layers at different depths,
@@ -124,7 +125,7 @@ import SwiftUI
 import HUDKit
 
 struct Dashboard: View {
-    @State private var minutes: Double = 225
+    @State private var minutes: Double = 180
 
     var body: some View {
         ZStack {
@@ -173,8 +174,9 @@ floor. It promotes itself to a regular app on launch, since a SwiftPM executable
 
 - The `#Preview` blocks in `ReactorOrb.swift` are kept for the Xcode canvas; they build with any
   Xcode 15+ toolchain (`swift build` included) and do nothing at runtime.
-- `BlockLetters` draws only the characters in `Glyphs.table`; extend the table (two-cell strokes
-  on a seven-row cap height) for a fuller alphabet.
+- `BlockLetters` draws the characters in `Glyphs.table` (A-Z, 0-9, space). To add
+  punctuation or lowercase, edit the table: two-cell strokes on a seven-row cap
+  height, widths free to vary per character.
 - `ThermalWatch`, `SpaceBackdrop` and `ReactorOrb` are macOS-only by construction (`NSCursor`,
   `NSColor`, `scenePhase`, `ProcessInfo.thermalState`).
 

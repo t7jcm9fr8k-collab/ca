@@ -552,7 +552,7 @@ private struct StarRNG: RandomNumberGenerator {
 /// That clip has **zero translation** between frames — it dollies forward at
 /// **+1.00% scale per second**, expanding radially from centre. Every previous
 /// version of this sky slid sideways at 1.6–4.2 px/s and reversed after 7–12%
-/// of the screen, which is why the owner reported it as not moving at all.
+/// of the screen, which is why it was reported as not moving at all.
 /// That report was right, and the fix was never "slide faster":
 ///
 /// - A uniform sideways slide of a random dot field is nearly invisible. Every

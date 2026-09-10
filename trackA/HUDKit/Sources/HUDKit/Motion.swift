@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// The shared motion vocabulary — `Design/MOTION-OVERHAUL.md` §3, standard
-/// tone. First build slice 2026-08-19 (the owner's pick: demos 1, 2, 3,
-/// 5-standard, 6).
+/// The shared motion vocabulary — the motion spec, standard tone. First build
+/// slice 2026-08-19 (demos 1, 2, 3, 5-standard, 6).
 ///
 /// One author for every timing, so the app moves as one instrument. Views ask
 /// for a plan and apply it on the compositor — opacity, offset, scale, trim.
 /// The Canvas surfaces (sky, orb, fight) never read these; their budgets are
-/// governed separately (`ThermalWatch`, CONTRACTS §12).
+/// governed separately (`ThermalWatch`, the thermal contract).
 ///
 /// 2026-08-20: menu item J landed, so the flash ledger below is no longer
 /// scaffolding — `ImpactFlash` asks it before every reserved impact frame.
@@ -63,7 +62,7 @@ public enum Motion {
         case deliberate, standard, fast
     }
 
-    /// The destination-change transition (Design/MOTION-OVERHAUL.md §4.2):
+    /// The destination-change transition (the motion spec):
     /// arrive along the grain with spring overshoot, leave fast and low.
     public static var destination: AnyTransition {
         .asymmetric(
@@ -80,8 +79,8 @@ public enum Motion {
     ///
     /// ⚠ Kept as a function beside the `destination` property rather than
     /// replacing it — `Motion.destination` is the standard tone and is already
-    /// referenced from `RootView`. One name, two spellings, would be the kind
-    /// of ambiguity this file exists to prevent.
+    /// referenced from the host's shell view. One name, two spellings, would
+    /// be the kind of ambiguity this file exists to prevent.
     public static func destinationTransition(_ tone: Tone) -> AnyTransition {
         switch tone {
         case .standard:
@@ -156,8 +155,9 @@ public struct Smear: ViewModifier, Animatable {
 /// travel along the grain, overshoot from the spring, `order` steps of delay.
 ///
 /// Fires on `onAppear`, which is exactly once per arrival — destination
-/// changes recreate the tree (`.id(destination)` in RootView), so every visit
-/// replays the entrance and an in-place data refresh replays nothing.
+/// changes recreate the tree (`.id(destination)` in the host's shell view), so
+/// every visit replays the entrance and an in-place data refresh replays
+/// nothing.
 public struct CascadeIn: ViewModifier {
     public var order: Int
     public var base: Double = 0
@@ -251,8 +251,8 @@ private struct FlareRingShot: View {
 
 /// One counter for every reserved impact frame in the app, so the WCAG 2.2
 /// SC 2.3.1 arithmetic stays app-wide rather than per-surface. The criterion
-/// is the fight's own (CONTRACTS §12.1): a flash is a luminance rise counted
-/// at threshold 0.80 with 0.12s merges, ceiling 3/s, house budget 2.
+/// is the fight's own (the thermal contract): a flash is a luminance rise
+/// counted at threshold 0.80 with 0.12s merges, ceiling 3/s, house budget 2.
 ///
 /// The fight already spends up to two inside its worst one-second window, so
 /// while a bout is live every other impact is downgraded to its glow-only
@@ -261,12 +261,13 @@ private struct FlareRingShot: View {
 /// impacts out of the same counting window by construction.
 ///
 /// Main-thread only — every caller is a view event or an `onAppear`, which is
-/// what the `nonisolated(unsafe)` asserts. Same discipline as `scriptCache`.
+/// what the `nonisolated(unsafe)` asserts. Same discipline as a cached script.
 public enum FlashLedger {
     nonisolated(unsafe) public static var lastGrant: TimeInterval = -1_000
-    /// Written by `StickFight`'s loop: true while a bout is running. The rest
-    /// windows inside a bout are not distinguished — a conservative reading
-    /// that costs a few downgrades a day and can never overspend the budget.
+    /// Written by the host's fight surface loop: true while a bout is running.
+    /// The rest windows inside a bout are not distinguished — a conservative
+    /// reading that costs a few downgrades a day and can never overspend the
+    /// budget.
     nonisolated(unsafe) public static var fightLive = false
 
     public enum Grade { case full, glow }

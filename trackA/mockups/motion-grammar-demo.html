@@ -110,7 +110,7 @@
   #d2.go .body .row:nth-child(4){animation-delay:.23s;}
   @keyframes rowIn{
     0%{opacity:0; transform:translateX(14px);}
-    64%{opacity:1; transform:translateX(-1.5px);}
+    65%{opacity:1; transform:translateX(-1.5px);}
     100%{opacity:1; transform:translateX(0);}
   }
   #d2.out .body{animation:fillOut .10s ease-in forwards;}
@@ -217,7 +217,7 @@
 
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important;}
-    body::before{content:"REDUCE MOTION IS ON — every demo renders its settled frame, which is the law the overhaul ships with.";
+    body::before{content:"REDUCE MOTION IS ON — every demo renders its settled frame, which is the law the spec ships with.";
       display:block; color:var(--earned); font-size:10px; letter-spacing:1.5px; margin-bottom:18px;}
   }
 </style>
@@ -225,7 +225,7 @@
 <body>
   <h1>HUD — MOTION GRAMMAR</h1>
   <div class="sub">
-    Interactive mockup for <b>Design/MOTION-OVERHAUL.md</b> · 2026-08-19 · palette, cut corners and type are the shipping values.<br>
+    Interactive mockup for <b>the motion spec</b> · 2026-06-08 · palette, cut corners and type are the shipping values.<br>
     Timings here are the spec's numbers. Everything below is compositor-class motion — transform, opacity, trim — nothing a Canvas would redraw.
   </div>
 
@@ -242,7 +242,7 @@
       </div>
       <div class="controls">
         <button class="mut" onclick="d1go(false)">TODAY — CUT</button>
-        <button onclick="d1go(true)">OVERHAUL — SMEAR OUT · CASCADE IN</button>
+        <button onclick="d1go(true)">PROPOSED — SMEAR OUT · CASCADE IN</button>
       </div>
       <div class="note">Exit 110ms along the sky's 25° grain, entrance staggered 50ms per panel with overshoot. The sidebar indicator slides instead of repainting.</div>
     </section>
@@ -258,7 +258,7 @@
           <div class="body">
             <div class="t">NEXT ACTION</div>
             <div class="row dotrow">One item. Nothing else competes.</div>
-            <div class="row dotrow">5 — next item → link</div>
+            <div class="row dotrow">1 — next item → link</div>
             <div class="row dotrow">OPEN LINK</div>
           </div>
         </div>
@@ -301,7 +301,7 @@
       <div class="stage" id="d4">
         <div class="item">
           <div class="mark"></div>
-          <div class="label">6 — write the announcement</div>
+          <div class="label">2 — sample punch item</div>
           <div class="state" id="d4state">IN PROGRESS</div>
         </div>
         <div class="glow"></div>
@@ -312,14 +312,14 @@
         <button class="gold" onclick="d4done()">COMPLETE THE ITEM</button>
         <button class="mut" onclick="d4reset()">RESET</button>
       </div>
-      <div class="note">The clip-6 recipe at interface scale: one white frame, one dark frame, back to normal under a gold glow decay while the strike draws. Earned events only — the ledger refuses a third flash in any second, so this can never stack with the fight.</div>
+      <div class="note">The impact recipe at interface scale: one white frame, one dark frame, back to normal under a gold glow decay while the strike draws. Earned events only — the ledger refuses a third flash in any second, so this can never stack with the fight.</div>
     </section>
 
     <!-- 5 · tone dial -->
     <section class="card" id="d5">
       <h2>5 · THE TONE DIAL <span class="why">§3.2 — one event, three characters</span></h2>
       <div class="stage">
-        <div class="lab">SAME MOVE, EDITED PER CLIP 2 — REMOVE BEATS TO CHANGE THE SENTENCE</div>
+        <div class="lab">SAME MOVE, EDITED DOWN — REMOVE BEATS TO CHANGE THE SENTENCE</div>
         <div class="lane">
           <div class="slotA"></div><div class="slotB"></div>
           <div class="chip ghost" id="ghost">MODE</div>
@@ -341,9 +341,9 @@
         <div class="field" id="field">
           <div class="pool" id="pool"></div>
           <div class="cursorDot" id="cdot"></div>
-          <div class="frow">ROW A · TUE THU 9:30</div>
-          <div class="frow">ROW B · TUE THU 14:00</div>
-          <div class="frow">ROW C · MON WED FRI 12:00</div>
+          <div class="frow">ROW A · SEMINAR A 10:00</div>
+          <div class="frow">ROW B · WORKSHOP B 12:00</div>
+          <div class="frow">ROW C · LECTURE C · ROOM 103 15:00</div>
         </div>
       </div>
       <div class="controls"></div>
@@ -354,9 +354,9 @@
 
   <footer>
     <b>The laws this demo obeys, from the spec:</b> compositor-only motion · idle runs on duty cycles and dormant is free ·
-    every flash asks the ledger (≤3/s, budget 2, counted at the fight's own criterion) · secondary action is one step, never a chain ·
+    every flash asks the ledger (≤3/s, budget 2, counted at the strictest criterion) · secondary action is one step, never a chain ·
     Reduce Motion renders the settled frame — flip it on and reload to see the whole page hold still ·
-    tones per clip 2: deliberate / standard / fast · cut corners, hairlines and the cyan/orange/gold discipline unchanged.
+    three tones: deliberate / standard / fast · cut corners, hairlines and the cyan/orange/gold discipline unchanged.
   </footer>
 
 <script>
@@ -396,7 +396,7 @@
   d2enter();
 
   // ---------- 3 · log event ----------
-  let minutes=225, cellsDone=2;
+  let minutes=120, cellsDone=2;
   const mincol=document.getElementById("mincol"), cellbox=document.getElementById("cells"),
         arc=document.getElementById("arc"), orb=document.getElementById("orb"),
         logbtn=document.getElementById("logbtn");
@@ -410,7 +410,7 @@
   function paintCells(){
     cellbox.innerHTML=Array.from({length:7},(_,i)=>
       `<div class="cell ${i<cellsDone?'done':''}"><div class="dot"></div></div>`).join("");
-    arc.style.strokeDashoffset=245-245*Math.min(1,cellsDone/7*2.4);
+    arc.style.strokeDashoffset=245-245*Math.min(1,cellsDone/7);
   }
   let rolling=false;
   function d3log(){
@@ -423,7 +423,7 @@
     },200);
     setTimeout(()=>{ minutes+=10; paintMinutes(); rolling=false; },460);
   }
-  function d3reset(){ minutes=225; cellsDone=2; paintMinutes(); paintCells(); rolling=false; }
+  function d3reset(){ minutes=120; cellsDone=2; paintMinutes(); paintCells(); rolling=false; }
   paintMinutes(); paintCells();
 
   // ---------- 4 · impact ----------

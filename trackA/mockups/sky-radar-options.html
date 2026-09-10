@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Sky treatments + Diagnostics radar</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Sky treatments + status radar</title>
 <style>
 :root{--void:#050A14;--panel:#0D1526;--panelHi:#18263F;--primary:#5FDDFF;--structure:#3A5A82;
 --alert:#FF8A55;--earned:#FFCF57;--logged:#97F04A;--missed:#F2DC45;--irregular:#FF3B30;
@@ -70,7 +70,7 @@ existing star layers — so the cost difference between them is a few millisecon
   </div>
   <div>
     <div class="sky"><span class="tag">C · NEBULA BLOOM</span><canvas id="skyC"></canvas></div>
-    <p class="cost"><b>Large irregular patches under the stars, in the layer your nebula already occupies.</b>
+    <p class="cost"><b>Large irregular patches under the stars, in the layer the nebula already occupies.</b>
     Cheapest to add — it is a change to a function that exists rather than a new one.
     <span class="x">"High def" is the one thing it will not be</span>; it adds mood, not objects.</p>
   </div>
@@ -83,11 +83,11 @@ existing star layers — so the cost difference between them is a few millisecon
 </div>
 
 <p class="sub" style="margin-top:16px"><b>They combine.</b> D costs nothing and makes A or B look further away;
-C under either adds the colour. If you want one answer: <b class="k">A plus D</b> — one spiral off-centre,
+C under either adds the colour. If one answer is wanted: <b class="k">A plus D</b> — one spiral off-centre,
 three clusters elsewhere, nebula unchanged.</p>
 
 <!-- ═══════ RADAR ═══════ -->
-<h2>2 · DIAGNOSTICS RADAR</h2>
+<h2>2 · STATUS RADAR</h2>
 <p class="sub">All three drive the same seven checks. The difference is <b>when they move and what the motion
 claims</b> — which matters more than it sounds, because a dial that spins while nothing is happening is an
 instrument that lies.</p>
@@ -116,8 +116,8 @@ instrument that lies.</p>
       <span class="mono" id="statB" style="font-size:10px;color:var(--faint);align-self:center">IDLE</span></div>
     <div class="rows" id="rowsB"></div>
     <p class="cost"><b>Turns twice, resolves each row as it passes, then rests.</b>
-    <span class="k">Motion means work is happening</span> — which is true here, since diagnostics genuinely
-    re-check on launch and on returning to the front. Costs nothing at idle. Less cinematic, and it is the
+    <span class="k">Motion means work is happening</span> — which is true here, since the checks genuinely
+    re-run on launch and on returning to the front. Costs nothing at idle. Less cinematic, and it is the
     version that matches how the rest of this app already behaves.</p>
   </div>
 </div>
@@ -129,16 +129,16 @@ instrument that lies.</p>
     <div id="barC" style="position:absolute;top:0;bottom:0;width:110px;pointer-events:none;
       background:linear-gradient(90deg,transparent,rgba(95,221,255,.16),transparent);left:-120px"></div>
   </div>
-  <p class="cost"><b>The pass already built, moved onto Diagnostics and timed to the refresh.</b>
+  <p class="cost"><b>The pass already built, moved onto the status panel and timed to the refresh.</b>
   No new drawing, no dial, no 3D. It is the smallest possible answer and it does read as "something just
   checked" — but it says nothing about <i>what</i> is being checked, where the two dials do.</p>
 </div>
 
 <p class="foot">
 <b>The read.</b> <b style="color:var(--text)">B</b> — sweep only while checking. It is the only one of the three
-whose motion is true, and this app has spent a lot of effort on not showing progress it cannot back up: the
-evidence gate, the unset K, the hold rate it refuses to fake. A radar that spins on an idle machine is the
-same category of lie, just a prettier one. <b style="color:var(--text)">A is the better-looking option</b> and
+whose motion is true, and this app has spent a lot of effort on not showing progress it cannot back up: a
+meter stays empty until a real measurement exists, and a figure it cannot verify is left unset rather than
+guessed. A radar that spins on an idle machine is the same category of lie, just a prettier one. <b style="color:var(--text)">A is the better-looking option</b> and
 there is no hard argument against it — but it should be a choice made knowing the dial is decoration.
 </p>
 </div>
@@ -192,7 +192,7 @@ function spiral(x,cx,cy,scale,rot,hue){
     const g=x.createRadialGradient(0,0,0,0,0,r);
     g.addColorStop(0,`rgba(${c},.42)`);g.addColorStop(.4,`rgba(${c},.12)`);g.addColorStop(1,`rgba(${c},0)`);
     x.fillStyle=g;x.beginPath();x.ellipse(0,0,r,r*.44,0,0,6.2832);x.fill();x.restore();});
-  stars(x,w,h,600,999);})();
+  stars(x,w,h,600,12345);})();
 // C
 (()=>{const{x,w,h}=base('skyC');
   for(let i=0;i<26;i++){
@@ -202,10 +202,10 @@ function spiral(x,cx,cy,scale,rot,hue){
     const g=x.createRadialGradient(cx,cy,0,cx,cy,r);
     g.addColorStop(0,`rgba(${c},.10)`);g.addColorStop(1,`rgba(${c},0)`);
     x.fillStyle=g;x.beginPath();x.arc(cx,cy,r,0,6.2832);x.fill();}
-  stars(x,w,h,600,4242);})();
+  stars(x,w,h,600,12345);})();
 // D
 (()=>{const{x,w,h}=base('skyD');
-  stars(x,w,h,600,777);
+  stars(x,w,h,600,12345);
   [[w*.74,h*.3,86],[w*.26,h*.66,70],[w*.52,h*.82,60]].forEach(([cx,cy,n])=>{
     for(let i=0;i<n;i++){
       const a=Math.random()*6.2832,d=Math.abs(Math.random()+Math.random()+Math.random()-1.5)*46;
@@ -219,9 +219,9 @@ function spiral(x,cx,cy,scale,rot,hue){
 
 // ── radar ────────────────────────────────────────────────────────────
 const CHECKS=[
-  ['Notifications','3 armed',1],['Calendar access','granted',1],['Calendars visible','4',1],
-  ['Events ahead','52',1],['Punch list','readable',1],['Gateway','127.0.0.1:8000',1],
-  ['Store','10 sessions',1]];
+  ['Notifications','12 armed',1],['Calendar access','granted',1],['Calendars visible','3',1],
+  ['Upcoming events','20',1],['Punch list','readable',1],['Gateway','reachable',1],
+  ['Store','100 sessions',1]];
 function dial(svg){
   const ns='http://www.w3.org/2000/svg';
   [70,50,30].forEach(r=>{const c=document.createElementNS(ns,'circle');

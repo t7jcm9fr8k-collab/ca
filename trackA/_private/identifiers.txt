@@ -1,0 +1,125 @@
+# PRIVATE — never publish. Input to ../scrub_check.py.
+# One pattern per line. Blank lines and lines starting with # are ignored.
+# A line beginning with "re:" is a regular expression; anything else is a
+# case-insensitive literal.
+#
+# These are the strings that must never appear in the published tree. They were
+# read out of the source app and out of what the first scrub left behind.
+
+# --- person -------------------------------------------------------------
+Daniel
+
+# --- place --------------------------------------------------------------
+Willimantic
+Connecticut
+re:(?-i:\bCT\b)
+re:\b06[0-9]{3}\b
+
+# --- school -------------------------------------------------------------
+re:\b(MAT|ENG|BUS|FIN)\s?-?[0-9]{3}[A-Z]?\b
+Math For Liberal Arts
+College Writing Plus
+Principles Of Marketing
+Carter Science
+Webb Hall
+Student Services
+Advising
+term opens
+first day of term
+re:\bterm\s+t[−-]\s?[0-9]
+re:\b5 COURSES\b
+
+# --- the real timetable, kept by the first scrub as "layout data" --------
+09:30
+10:45
+12:30
+13:45
+14:00
+15:15
+14:30
+15:35
+25 August
+25 Aug
+Tue/Thu
+
+# --- the private app, its sibling projects and its assistant ------------
+Cortana
+re:Command\s?Spire
+castle
+CastleSim
+ClawHW
+Anonymic
+IELTS
+
+# --- private artifacts a comment must not cite --------------------------
+MOTION-OVERHAUL
+CONTRACTS
+RootView
+StickFight
+scriptCache
+DashboardView
+StudyLibrary
+DiagnosticsPanel
+TrendsView
+Never Miss Twice
+Ten-minute floor
+
+# --- hardware -----------------------------------------------------------
+re:\bM[1-9]\s?Air\b
+re:\b1470\s?[x×]\s?956\b
+re:\b1470\b
+
+# --- shop / personal metrics -------------------------------------------
+re:7 of 11
+10 days tracked
+6 irregular days
+photo slots filled
+Real numbers throughout
+
+# --- third-party marks --------------------------------------------------
+Monarch
+Whoop
+Symphony
+re:\bMarx\b
+D97757
+re:(?-i:\bHalo\b)
+Bungie
+
+# --- generic leak shapes ------------------------------------------------
+re:/Users/
+re:~/[A-Za-z]
+Created by
+re:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
+DEVELOPMENT_TEAM
+PRODUCT_BUNDLE_IDENTIFIER
+re:\b127\.0\.0\.1\b
+re:localhost:[0-9]+
+
+# --- academic vocabulary: neutral words carry the school signal too ------
+re:(?-i:\bTERM\b)
+term countdown
+this term
+whole term
+term days
+
+# --- residue the first pass missed (found by review, round 1) ------------
+re:(?-i:\bOVERHAUL\b)
+PROMPT STUDIO
+SKILL-TREE
+Diagnostics radar
+unset K
+evidence gate
+hold rate
+Photograph the four new items
+events ahead
+re:\b2 OF 3\b
+re:\b225\b
+re:\b78°
+re:\b64%
+re:2026-08-17
+AUGUST 2026
+
+# --- "the owner": the first scrub's own euphemism ------------------------
+# It removed the name and left a marker saying a specific person decided this.
+# Library docs should state the reason, not who asked for it.
+re:\bowner'?s?\b

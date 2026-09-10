@@ -1,8 +1,17 @@
+> **PRIVATE — NEVER PUBLISH THIS FILE.**
+> It is the audit record for the extraction. It quotes no personal value, but it
+> enumerates, category by category, what kinds of personal material the original
+> app contained — which tells a reader what to go looking for and confirms who the
+> author is. It lives in `trackA/_private/` and is excluded from the published
+> package by `trackA/PUBLISHING.md`. Keep it; do not ship it.
+
 # SCRUB — anonymity checklist for the HUDKit extraction
 
 Every category of identifier that was searched for, where it was found in the SOURCE (file:line
 of the original app; the shipped copies differ by a few lines where content was deleted), and
-what was done. Nothing personal is quoted here; this file ships with the package.
+what was done. Nothing personal is quoted here, and this file does NOT ship with the
+package — the category list alone would tell a reader what to look for. It stays in
+`trackA/_private/`.
 
 Tools: the source clone was read with file-reading tools only and never modified. The shipped
 tree was then searched (case-insensitive) for every banned term and every category below.
