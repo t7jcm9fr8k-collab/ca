@@ -1190,3 +1190,115 @@ it.** Nothing was searched, the sample was read once, and `--no-record` was
 set so the ledger carries only the pre-registered runs; this is the trial 3
 the pre-registration described, and the queue this ran from is
 `tools/QUEUE-RUNNER.md`.
+
+
+## The cross-section — two pre-registered specifications, both null (2026-09-11)
+
+Pre-registered in `PREREG-2026-09-11-cross-section.md`, written and committed
+(`e76f14f`) before any cross-sectional quantity was computed. Two
+specifications, one reading rule of four conditions, no third specification
+permitted afterwards. Run with `crosstest.py` (`986dda9`) on the nine long
+files, output saved verbatim to `runs/crosstest-2026-09-11.txt`.
+
+### Why this and not a fifteenth rule
+
+Every prior result in this document is single-asset timing: `replay()` takes
+one series, which expresses "SPY or cash" and cannot express "of these nine,
+which three". Twelve strategies and fourteen rules have gone through that
+engine and all are null but `rsi_oversold`. Adding another to the same pile is
+not free — the deflated Sharpe was already 0.43 after eight specifications —
+so this asked a different question of data already on disk.
+
+`portfolio.py` (`54bb94c`) was written for it, keeping the look-ahead guard,
+the fill at the next open, the cash-yield ordering and the `barqc` gate, and
+adding dates intersected rather than forward-filled, long-only unlevered
+weights, and a monthly schedule. Two defects were found by its own checks
+while writing them: the cursor guarded only one end so a request for one bar
+in the future returned tomorrow's price, and the benchmark bought at warm-up
+while the strategy waited for its first month end. The second is the same
+warm-up asymmetry three reviewers caught in the first real run, one level up.
+
+### The runs
+
+```
+python3 crosstest.py --spec both --shuffles 1000 --cost-bps 5 \
+                     --cash-yield 0.03 --seed 0 --no-record \
+                     --out runs/crosstest-2026-09-11.txt
+```
+
+Window 2005-02-25 to 2026-09-04, 5,415 shared sessions. QQQ's 1,500 earlier
+rows are discarded so all nine see the same dates; every other file loses
+nothing. The benchmark throughout is an equal-weight hold of the same nine,
+rebalanced monthly, paying the same costs — not SPY.
+
+The tool's verdict lines, verbatim:
+
+> tsmom — 246 rebalances. return 384.8% vs benchmark 408.6%; CAGR 8.04% vs
+> 8.30%; sharpe 0.58 vs 0.56; max drawdown −30.7% vs −49.3%; volatility 15.4%
+
+> 1 sharpe edge fail +0.02 (need +0.20) · 2 drawdown PASS −30.7% vs −49.3% ·
+> 3 permutation null fail p = 0.222 over 1000 shuffles (null mean sharpe 0.54,
+> max 0.72) · 4 both halves fail first +0.17, second −0.21, split 2016-06-14
+
+> VERDICT: NULL — 1 of 4 conditions
+
+> xsmom — 245 rebalances. return 448.0% vs benchmark 391.4%; CAGR 8.73% vs
+> 8.15%; sharpe 0.58 vs 0.55; max drawdown −30.0% vs −49.3%; volatility 16.9%
+
+> 1 sharpe edge fail +0.03 (need +0.20) · 2 drawdown PASS −30.0% vs −49.3% ·
+> 3 permutation null fail p = 0.073 over 1000 shuffles (null mean sharpe 0.46,
+> max 0.83) · 4 both halves fail first +0.09, second −0.10, split 2016-06-29
+
+> VERDICT: NULL — 1 of 4 conditions
+
+### Reading it
+
+**Both are null by the rule that was fixed before the data was touched.** One
+condition of four, and it is the same condition in both cases.
+
+**The condition that passed is drawdown, and it is the third time this
+pipeline has found that same thing.** Both specifications cut the worst
+drawdown from −49.3% to about −30%, a nineteen-point reduction, while adding
+nothing to return per unit of risk. That is what the trend filter did on SPY
+over the same span (−19.7% against −56.5%), and what Zakamulin and Faber
+report. These are risk management. They are not edge, and 246 round trips is
+what the risk management costs.
+
+**The Sharpe edge is not close.** +0.02 and +0.03 against a required +0.20.
+On raw return the two disagree — time-series momentum trailed the benchmark by
+24 points over twenty years, cross-sectional beat it by 57, about 0.6 a year —
+and neither difference survives being divided by its volatility.
+
+**Both halves is where the story is.** Each specification is positive in the
+first half and negative in the second: +0.17 then −0.21, +0.09 then −0.10,
+split mid-2016. Whatever was there lived in 2006 to 2016 and inverted after.
+That is the same shape as the intraday result, which was published in 2018 and
+has been excluded in all three trials since.
+
+**Cross-sectional momentum came in at p = 0.073, and that is the single most
+useful number here.** A reader deciding the threshold after seeing it would
+call 0.073 marginal, note that it is the better of the two, and build
+something. The threshold was 0.05, written down six hours earlier, so the
+answer is null. This is what pre-registration is for and it is the only
+occasion in this document where it has changed an answer that a discretionary
+reader would have gotten wrong.
+
+### One limitation in how the deflation was wired
+
+`crosstest.py` reports a deflated Sharpe of 0.982 and 0.959 after 39 trials.
+Those clear zero, and they do not contradict the verdict, because they answer
+a different question: whether the strategy's Sharpe is distinguishable from
+zero, not whether it beats holding. Both strategies made money over twenty
+years; so did the benchmark, at a Sharpe of 0.55. A deflated Sharpe computed
+against a zero-return null is the wrong reference for a question about beating
+a benchmark, and it should be computed against the benchmark's own Sharpe
+before it is quoted again.
+
+### Trial accounting
+
+Trials before this run: 37 backtests in the ledger. Added: **2**. Any future
+deflation must count 39, not 37. Neither specification was recorded to the
+ledger (`--no-record`), so that number lives here and in the saved output
+rather than in `out/ledger.json`.
+
+No third specification was run. The pre-registration said two.

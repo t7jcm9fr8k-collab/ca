@@ -1,0 +1,234 @@
+crosstest — pre-registered in PREREG-2026-09-11-cross-section.md
+run at 2026-09-11T01:09:24.462668+00:00
+specs: tsmom, xsmom  shuffles: 1000  seed: 0
+prior trials in the ledger: 37
+
+--- tsmom -----------------------------------------------------
+universe   DIA EEM EFA GLD IWM QQQ TLT XLE XLF
+window     2005-02-25 → 2026-09-04  (5415 shared sessions, scored from 2006-03-28)
+dropped    {'DIA': 0, 'EEM': 0, 'EFA': 0, 'GLD': 0, 'IWM': 0, 'QQQ': 1500, 'TLT': 0, 'XLE': 0, 'XLF': 0}
+mechanics  246 rebalances, 246 with a trade, 5.0 bp, cash 3.0%
+
+                      strategy   benchmark
+return                 384.8%      408.6%
+CAGR                    8.04%       8.30%
+sharpe                   0.58        0.56
+max drawdown           -30.7%      -49.3%
+volatility              15.4%            
+
+1 sharpe edge      fail  +0.02 (need +0.20)
+2 drawdown         PASS  -30.7% vs benchmark -49.3%
+3 permutation null fail  p = 0.222 over 1000 shuffles (null mean sharpe 0.54, max 0.72)
+4 both halves      fail  first +0.17, second -0.21, split 2016-06-14
+deflated sharpe    0.982 after 39 trials (37 prior from the ledger)
+
+VERDICT: NULL — 1 of 4 conditions
+
+not modelled: order book, partial fills, intraday slippage, borrow, dividends (these files are largely unadjusted), taxes
+
+--- xsmom -----------------------------------------------------
+universe   DIA EEM EFA GLD IWM QQQ TLT XLE XLF
+window     2005-02-25 → 2026-09-04  (5415 shared sessions, scored from 2006-04-27)
+dropped    {'DIA': 0, 'EEM': 0, 'EFA': 0, 'GLD': 0, 'IWM': 0, 'QQQ': 1500, 'TLT': 0, 'XLE': 0, 'XLF': 0}
+mechanics  245 rebalances, 245 with a trade, 5.0 bp, cash 0.0%
+
+                      strategy   benchmark
+return                 448.0%      391.4%
+CAGR                    8.73%       8.15%
+sharpe                   0.58        0.55
+max drawdown           -30.0%      -49.3%
+volatility              16.9%            
+
+1 sharpe edge      fail  +0.03 (need +0.20)
+2 drawdown         PASS  -30.0% vs benchmark -49.3%
+3 permutation null fail  p = 0.073 over 1000 shuffles (null mean sharpe 0.46, max 0.83)
+4 both halves      fail  first +0.09, second -0.10, split 2016-06-29
+deflated sharpe    0.959 after 39 trials (37 prior from the ledger)
+
+VERDICT: NULL — 1 of 4 conditions
+
+not modelled: order book, partial fills, intraday slippage, borrow, dividends (these files are largely unadjusted), taxes
+
+
+{
+ "tsmom": {
+  "result": {
+   "strategy": "tsmom",
+   "symbols": [
+    "DIA",
+    "EEM",
+    "EFA",
+    "GLD",
+    "IWM",
+    "QQQ",
+    "TLT",
+    "XLE",
+    "XLF"
+   ],
+   "timeframe": "1d",
+   "sources": [
+    "stooq"
+   ],
+   "shared_dates": 5415,
+   "dropped_per_symbol": {
+    "DIA": 0,
+    "EEM": 0,
+    "EFA": 0,
+    "GLD": 0,
+    "IWM": 0,
+    "QQQ": 1500,
+    "TLT": 0,
+    "XLE": 0,
+    "XLF": 0
+   },
+   "start": "2005-02-25T00:00:00+00:00",
+   "end": "2026-09-04T00:00:00+00:00",
+   "scored_from": "2006-03-28T00:00:00+00:00",
+   "rebalances": 246,
+   "fills": 246,
+   "return": 3.8475119997149996,
+   "cagr": 0.08042848361968025,
+   "max_drawdown": -0.30726310000035395,
+   "benchmark": 4.086245995393712,
+   "benchmark_sharpe": 0.5615920970702606,
+   "benchmark_max_drawdown": -0.49312293431685705,
+   "benchmark_cagr": 0.08297701814168823,
+   "cost_bps": 5.0,
+   "cash_yield": 0.03,
+   "years": 20.404761904761905,
+   "bars_per_year": 252,
+   "warmup": 273,
+   "live_bars": 5142,
+   "sharpe_per_bar": 0.0365841652350409,
+   "sharpe": 0.5807556188088785,
+   "volatility": 0.15360631566120297,
+   "skew": -0.4351963311058102,
+   "kurt": 9.061663563055534,
+   "returns_used": 5141,
+   "not_modelled": "order book, partial fills, intraday slippage, borrow, dividends (these files are largely unadjusted), taxes"
+  },
+  "verdict": {
+   "verdict": "NULL",
+   "conditions_passed": 1,
+   "c1_sharpe_edge": {
+    "ok": false,
+    "edge": 0.019163521738617906,
+    "need": 0.2,
+    "strategy": 0.5807556188088785,
+    "benchmark": 0.5615920970702606
+   },
+   "c2_drawdown": {
+    "ok": true,
+    "strategy": -0.30726310000035395,
+    "benchmark": -0.49312293431685705
+   },
+   "c3_permutation": {
+    "ok": false,
+    "p": 0.2217782217782218,
+    "shuffles": 1000,
+    "null_mean_sharpe": 0.5400625385526606,
+    "null_max_sharpe": 0.7156996650215879
+   },
+   "c4_both_halves": {
+    "ok": false,
+    "first": 0.167640401816884,
+    "second": -0.2053411569757594,
+    "split_at": "2016-06-14T00:00:00+00:00"
+   },
+   "deflated_sharpe": 0.9815989496987438,
+   "expected_max_sharpe": 0.007191096682441163,
+   "trials_counted": 39,
+   "prior_trials": 37
+  }
+ },
+ "xsmom": {
+  "result": {
+   "strategy": "xsmom",
+   "symbols": [
+    "DIA",
+    "EEM",
+    "EFA",
+    "GLD",
+    "IWM",
+    "QQQ",
+    "TLT",
+    "XLE",
+    "XLF"
+   ],
+   "timeframe": "1d",
+   "sources": [
+    "stooq"
+   ],
+   "shared_dates": 5415,
+   "dropped_per_symbol": {
+    "DIA": 0,
+    "EEM": 0,
+    "EFA": 0,
+    "GLD": 0,
+    "IWM": 0,
+    "QQQ": 1500,
+    "TLT": 0,
+    "XLE": 0,
+    "XLF": 0
+   },
+   "start": "2005-02-25T00:00:00+00:00",
+   "end": "2026-09-04T00:00:00+00:00",
+   "scored_from": "2006-04-27T00:00:00+00:00",
+   "rebalances": 245,
+   "fills": 245,
+   "return": 4.480126167269208,
+   "cagr": 0.08731466887751593,
+   "max_drawdown": -0.2997237909236391,
+   "benchmark": 3.9143524190040377,
+   "benchmark_sharpe": 0.5529348329159828,
+   "benchmark_max_drawdown": -0.49312293431685694,
+   "benchmark_cagr": 0.08149984376301522,
+   "cost_bps": 5.0,
+   "cash_yield": 0.0,
+   "years": 20.321428571428573,
+   "bars_per_year": 252,
+   "warmup": 294,
+   "live_bars": 5121,
+   "sharpe_per_bar": 0.0365407171008933,
+   "sharpe": 0.5800659010615725,
+   "volatility": 0.1690727415972287,
+   "skew": -0.41208883453531414,
+   "kurt": 7.597028385406182,
+   "returns_used": 5120,
+   "not_modelled": "order book, partial fills, intraday slippage, borrow, dividends (these files are largely unadjusted), taxes"
+  },
+  "verdict": {
+   "verdict": "NULL",
+   "conditions_passed": 1,
+   "c1_sharpe_edge": {
+    "ok": false,
+    "edge": 0.027131068145589743,
+    "need": 0.2,
+    "strategy": 0.5800659010615725,
+    "benchmark": 0.5529348329159828
+   },
+   "c2_drawdown": {
+    "ok": true,
+    "strategy": -0.2997237909236391,
+    "benchmark": -0.49312293431685694
+   },
+   "c3_permutation": {
+    "ok": false,
+    "p": 0.07292707292707293,
+    "shuffles": 1000,
+    "null_mean_sharpe": 0.4558603906727384,
+    "null_max_sharpe": 0.826771261679917
+   },
+   "c4_both_halves": {
+    "ok": false,
+    "first": 0.09480843104419873,
+    "second": -0.09939121373647086,
+    "split_at": "2016-06-29T00:00:00+00:00"
+   },
+   "deflated_sharpe": 0.9592862893048032,
+   "expected_max_sharpe": 0.01197739679636506,
+   "trials_counted": 39,
+   "prior_trials": 37
+  }
+ }
+}
