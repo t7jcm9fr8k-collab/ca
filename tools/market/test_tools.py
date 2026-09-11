@@ -1642,6 +1642,172 @@ check("a body that is not the trades table is Unparseable, never zero bars",
       and _raises(B.Unparseable, NJ.parse_nasdaq_json,
                   '{"data": {"tradesTable": {"rows": []}}}', "T"))
 
+# ------------------------------------------------- portfolio.py (cross-section)
+#
+# The single-asset engine cannot express "of these nine, which three", so
+# portfolio.py exists. These checks pin the same properties replay's checks
+# pin, one level up, plus the two ways a portfolio backtest lies that a
+# single-asset one cannot: a benchmark that is invested before the strategy
+# could be, and an alignment that forward-fills a hole into a free zero return.
+
+import portfolio as PF
+
+_PF_SESS = barqc.sessions_between(dt.date(2015, 1, 2), dt.date(2024, 12, 31))
+
+
+def _pf_series(sym, drift=0.0003, seed=1, skip=()):
+    """A synthetic series on REAL NYSE sessions, so barqc's calendar passes."""
+    rng = random.Random(seed)
+    px, out = 100.0, []
+    for i, d in enumerate(_PF_SESS):
+        if i in skip:
+            continue
+        r = rng.gauss(drift, 0.01)
+        o = px
+        px = px * (1 + r)
+        out.append(B.Bar(ts=dt.datetime.combine(d, dt.time(0, 0), tzinfo=dt.timezone.utc),
+                         open=o, high=max(o, px) * 1.001, low=min(o, px) * 0.999,
+                         close=px, volume=1e6))
+    return B.Series(symbol=sym, timeframe="1d", bars=tuple(out),
+                    provenance={"source": "synthetic",
+                                "fetched_at": dt.datetime.now(dt.timezone.utc),
+                                "adjusted": True})
+
+
+_PF = [_pf_series(f"S{i}", drift=0.0002 + 0.00008 * i, seed=i) for i in range(1, 5)]
+_pf_dates, _pf_aligned, _pf_dropped = PF.align(_PF)
+
+check("align intersects the dates rather than unioning them",
+      len(_pf_dates) == len(_PF_SESS) and set(_pf_dropped.values()) == {0})
+
+_PF_HOLE = [_pf_series("H1", seed=11), _pf_series("H2", seed=12, skip={100, 101, 102})]
+_h_dates, _h_aligned, _h_dropped = PF.align(_PF_HOLE)
+check("a hole in one name shortens the shared window, never forward-fills",
+      len(_h_dates) == len(_PF_SESS) - 3 and _h_dropped["H1"] == 3 and _h_dropped["H2"] == 0
+      and all(len(v) == len(_h_dates) for v in _h_aligned.values()))
+
+_pf_cur = PF.PortfolioCursor(_pf_aligned, _pf_dates, 10)
+check("the portfolio cursor raises on a bar that has not closed",
+      _raises(replay.LookAhead, _pf_cur.close, "S1", 10)
+      and _raises(replay.LookAhead, PF.PortfolioCursor(_pf_aligned, _pf_dates, 0).__class__.now.fget,
+                  PF.PortfolioCursor(_pf_aligned, _pf_dates, 0)))
+check("a trailing window that is not fully closed returns None, not a partial number",
+      _pf_cur.trailing_return("S1", 12) is None
+      and PF.PortfolioCursor(_pf_aligned, _pf_dates, 400).trailing_return("S1", 12) is not None)
+
+
+def _peeker(cur):
+    cur.close(cur.symbols[0], -1)          # one bar into the future
+    return {}
+
+
+_peeker.warmup = 30
+check("a strategy that reaches one bar forward raises LookAhead",
+      _raises(replay.LookAhead, PF.replay_portfolio, _PF, _peeker))
+
+_pf_eq = PF.replay_portfolio(_PF, PF.equal_weight(), cost_bps=5, name="eq")
+check("equal weight run as a strategy equals the benchmark to the last digit",
+      abs(_pf_eq["return"] - _pf_eq["benchmark"]) < 1e-12
+      and abs(_pf_eq["sharpe"] - _pf_eq["benchmark_sharpe"]) < 1e-12)
+check("the benchmark does not buy before the strategy's first rebalance",
+      _pf_eq["rebalances"] == _pf_eq["fills"] and _pf_eq["rebalances"] > 100)
+
+_pf_months = PF.month_end_indices(_pf_dates)
+check("the monthly schedule is one rebalance per calendar month",
+      len(_pf_months) == len({(_pf_dates[i].year, _pf_dates[i].month) for i in _pf_months})
+      and len(_pf_months) == 120)
+
+check("weights a long-only book cannot hold are refused",
+      _raises(ValueError, PF._clean_weights, {"S1": -0.5}, ("S1", "S2"))
+      and _raises(ValueError, PF._clean_weights, {"S1": 0.7, "S2": 0.7}, ("S1", "S2"))
+      and _raises(KeyError, PF._clean_weights, {"NOPE": 0.5}, ("S1", "S2")))
+
+_pf_free = PF.replay_portfolio(_PF, PF.xsmom(top=2), cost_bps=0, name="free")
+_pf_paid = PF.replay_portfolio(_PF, PF.xsmom(top=2), cost_bps=50, name="paid")
+check("cost is actually charged and lowers the result monotonically",
+      _pf_paid["return"] < _pf_free["return"] and _pf_paid["fills"] == _pf_free["fills"])
+
+_pf_bad = list(_PF[1].bars[:300])
+_pf_bad.append(B.Bar(ts=dt.datetime(2016, 4, 2, tzinfo=dt.timezone.utc),   # a Saturday
+                     open=100.0, high=101.0, low=99.0, close=100.5, volume=1e6))
+_PF_BAD = B.Series(symbol="BAD", timeframe="1d", bars=tuple(_pf_bad),
+                   provenance={"source": "synthetic",
+                               "fetched_at": dt.datetime.now(dt.timezone.utc),
+                               "adjusted": True})
+check("barqc gates every leg, so a blocked series never reaches the walk",
+      barqc.inspect(_PF_BAD)["verdict"] == "blocked"
+      and _raises(replay.Blocked, PF.replay_portfolio, [_PF[0], _PF_BAD], PF.equal_weight()))
+
+
+def _one_name_only(cur):
+    return {cur.symbols[0]: 1.0}
+
+
+_one_name_only.warmup = 1
+_pf_one = PF.replay_portfolio(_PF, _one_name_only, cost_bps=0, name="one")
+_pf_first_reb = _pf_one["weights_log"][0]["ts"][:10]
+_pf_fill_ts = [f["ts"][:10] for f in PF.replay_portfolio(_PF, _one_name_only, cost_bps=0)["weights_log"]]
+check("a decision made after a close fills at the NEXT session, never that close",
+      _pf_one["scored_from"] <= _pf_first_reb
+      and all(a <= b for a, b in zip(_pf_fill_ts, _pf_fill_ts[1:])))
+
+# The fill-price check needs a GAP between one close and the next open. The
+# synthetic generator above sets open[i] = close[i-1] exactly, so filling at
+# the previous close and filling at this open produce identical numbers and a
+# mutation that swaps them is invisible. That is the same blind spot that hid
+# the 15:29-vs-15:30 mutation in the intraday test; the fix is the same, a
+# hand-built series whose opens gap.
+
+def _pf_gapped(sym, base=100.0, gap_at=None, gap_to=None):
+    out = []
+    for i, d in enumerate(_PF_SESS[:400]):
+        o = base if i != gap_at else gap_to
+        c = base if i != gap_at else gap_to
+        out.append(B.Bar(ts=dt.datetime.combine(d, dt.time(0, 0), tzinfo=dt.timezone.utc),
+                         open=o, high=max(o, c) * 1.0001, low=min(o, c) * 0.9999,
+                         close=c, volume=1e6))
+    return B.Series(symbol=sym, timeframe="1d", bars=tuple(out),
+                    provenance={"source": "synthetic",
+                                "fetched_at": dt.datetime.now(dt.timezone.utc),
+                                "adjusted": True})
+
+
+# Flat at 100 everywhere, except one session that opens and closes at 110 —
+# the session right after the first rebalance decision.
+_pf_g_dates = PF.align([_pf_gapped("G1"), _pf_gapped("G2")])[0]
+_pf_g_first = PF.month_end_indices(_pf_g_dates)[0] + 1
+_PF_GAP = [_pf_gapped("G1", gap_at=_pf_g_first, gap_to=110.0), _pf_gapped("G2")]
+
+
+def _all_in_g1(cur):
+    return {"G1": 1.0}
+
+
+_all_in_g1.warmup = 1
+_pf_gap_run = PF.replay_portfolio(_PF_GAP, _all_in_g1, cost_bps=0, name="gap")
+# Filled at the gapped OPEN of 110, the position is worth 110 that close and
+# 100 thereafter: 1.0 * (100 / 110) - 1 = -9.09%. Filled at the PREVIOUS close
+# of 100 it would be flat at 0.00%. The two differ by nine points, so the
+# mutation has somewhere to show up.
+check("the fill takes the next session's OPEN, priced where they differ",
+      abs(_pf_gap_run["return"] - (100.0 / 110.0 - 1.0)) < 1e-9)
+
+check("xsmom holds exactly the requested number of names once warm",
+      all(len(w["weights"]) == 3
+          for w in PF.replay_portfolio(_PF, PF.xsmom(top=3), cost_bps=0)["weights_log"]))
+
+_pf_down = [_pf_series(f"D{i}", drift=-0.0006, seed=50 + i) for i in range(1, 4)]
+_pf_d_dates, _pf_d_aligned, _ = PF.align(_pf_down)
+check("tsmom holds nothing when every asset has fallen over the lookback",
+      PF.tsmom()(PF.PortfolioCursor(_pf_d_aligned, _pf_d_dates, 600)) == {}
+      and sum(PF.tsmom()(PF.PortfolioCursor(_pf_aligned, _pf_dates, 600)).values()) > 0.99)
+_pf_dry = PF.replay_portfolio(_pf_down, PF.tsmom(), cost_bps=5, cash_yield=0.0)
+_pf_wet = PF.replay_portfolio(_pf_down, PF.tsmom(), cost_bps=5, cash_yield=0.03)
+check("idle cash earns the stated yield, so sitting out is not scored as zero",
+      _pf_wet["return"] > _pf_dry["return"]
+      and _pf_wet["fills"] == _pf_dry["fills"]
+      and _pf_dry["fills"] < _pf_dry["rebalances"] / 4)
+
 # ---------------------------------------------------------------- cleanup
 
 ledger.LEDGER = _real_ledger
