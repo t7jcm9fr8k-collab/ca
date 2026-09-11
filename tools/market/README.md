@@ -30,7 +30,9 @@ out/              the ledger and its report (gitignored)
 | `demo.sh` | the whole loop on synthetic bars, refusals included |
 | `autopilot.py` (reviewed 2026-09-04 by four finders and three refuters per finding; the six confirmed defects are fixed and pinned — see EVIDENCE.md "Day run" §I) | the unattended daily loop: fetch, barqc, decide, reconcile with broker positions (whole shares or `--notional` fractions of an allocation), order through the gate, record. Paper by default; live needs filled paper runs and `--confirm-live`; no `--force`; a `STOP` file halts it, and a 15% equity drawdown from the recorded peak writes one. `universe.txt` is its list. |
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
-| `test_tools.py` | 494 checks. `python3 test_tools.py` |
+| `portfolio.py` | the engine that can hold more than one thing at once. `replay()` takes one series, which expresses "SPY or cash" and cannot express "of these nine, which three". Same look-ahead guard, same fill-at-the-next-open, same barqc gate; dates **intersected, never forward-filled**; weights long-only and unlevered; monthly schedule. Its benchmark is an equal-weight hold of the same universe, not SPY — a diversified book measured against one index measures diversification and calls it skill. |
+| `crosstest.py` | runs the two specifications pre-registered in `PREREG-2026-09-11-cross-section.md` — time-series momentum and cross-sectional 12-1 momentum across the nine long files — and prints WORKS / PARTIAL / NULL against the four conditions fixed **before** the data was touched, with the permutation null and the deflated Sharpe after the ledger's prior trials. |
+| `test_tools.py` | 510 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 
