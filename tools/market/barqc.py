@@ -48,6 +48,7 @@ USAGE
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import sys
 
@@ -148,7 +149,8 @@ def is_session_day(d):
 def check_ohlc(s):
     bad = []
     for i, b in enumerate(s.bars):
-        if (b.high < max(b.open, b.close) or b.low > min(b.open, b.close)
+        if (not all(math.isfinite(x) for x in (b.open, b.high, b.low, b.close))
+                or b.high < max(b.open, b.close) or b.low > min(b.open, b.close)
                 or b.low <= 0 or b.high <= 0 or b.open <= 0 or b.close <= 0
                 or b.high < b.low):
             bad.append(i)

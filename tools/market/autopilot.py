@@ -83,6 +83,7 @@ USAGE
 import argparse
 import datetime as dt
 import inspect
+import math
 import os
 import sys
 
@@ -155,7 +156,11 @@ def decide(series, strategy, now=None, position=0.0):
     cur = replay.Cursor(series, len(series), position=position)
     if len(cur) < strategy.warmup:
         return None, f"warm-up: {len(cur)} of {strategy.warmup} bars"
-    return max(-1.0, min(1.0, float(strategy(cur)))), "ok"
+    raw = float(strategy(cur))
+    if not math.isfinite(raw):
+        # max(-1, min(1, nan)) is 1.0: a NaN target used to become a full BUY
+        return None, f"the strategy returned {raw!r}, not a number — no decision"
+    return max(-1.0, min(1.0, raw)), "ok"
 
 
 BAND = 0.10
@@ -229,7 +234,7 @@ def drawdown_halt(mode, equity, max_drawdown):
     if equity is None:
         return None
     prior = [e.get("equity") for e in ledger.events("autopilot_run", mode=mode)
-             if isinstance(e.get("equity"), (int, float))]
+             if isinstance(e.get("equity"), (int, float)) and math.isfinite(e.get("equity"))]
     peak = max(prior + [equity])
     ledger.record("autopilot_run", mode=mode, equity=equity, peak=peak)
     if peak > 0 and equity < peak * (1.0 - max_drawdown):
@@ -310,12 +315,15 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
     broker object needs credentials(), account(), positions(), place_order(),
     wait_for_fill(), summarise(), PAPER, LIVE.
     """
-    if os.path.exists(STOP_FILE):
+    if os.path.lexists(STOP_FILE):     # a dangling symlink named STOP halts too
         return [{"symbol": "*", "action": "STOP file present — nothing run"}]
     try:
         ledger.load()
     except ledger.Corrupt as e:
         return [{"symbol": "*", "action": f"ledger unreadable — nothing run: {e}"}]
+    if not (isinstance(max_drawdown, (int, float)) and 0 < max_drawdown < 1):
+        return [{"symbol": "*", "action": f"max_drawdown {max_drawdown!r} is not between 0 and 1, "
+                                          f"so the halt could never fire — nothing run"}]
     if mode not in ("paper", "live"):
         raise ValueError("mode must be paper or live")
     strat = strategies.make(strategy_spec)
@@ -342,6 +350,8 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             equity = float(acct.get("equity")) if acct and acct.get("equity") is not None else None
         except (TypeError, ValueError):
             equity = None
+        if equity is not None and not math.isfinite(equity):
+            equity = None           # "NaN" parsed as a reading and, once recorded, disabled the halt
         if equity is None:
             return [{"symbol": "*", "action": "no equity reading from the broker — the drawdown "
                                              "guard cannot run, so nothing is traded"}]
@@ -481,6 +491,10 @@ def main():
     ap.add_argument("--source", default="alpaca", choices=["yahoo", "alpaca"],
                     help="alpaca (keys in the shell; 600 days, adjustment all) or yahoo (keyless, rate-limited)")
     a = ap.parse_args()
+    for name, v in (("--qty", a.qty), ("--notional", a.notional)):
+        if v is not None and not (math.isfinite(v) and v > 0):
+            sys.exit(f"REFUSING {name} {v}: it must be a positive, finite number "
+                     f"(--notional 0 used to fall back silently to whole shares)")
     if a.mode == "live" and not a.confirm_live:
         sys.exit("REFUSING --mode live without --confirm-live. Real money. Say so explicitly.")
     universe = read_universe(a.universe)

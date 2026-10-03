@@ -35,7 +35,8 @@ MODES
 
 EXIT CODES
     2  data refused (unparseable, or barqc blocked it)
-    3  gate refused (no backtest / no filled paper run / no --confirm-live)
+    3  gate refused (no backtest / no filled paper run / no --confirm-live /
+       --force on live / a STOP file present / a sell larger than the position)
     4  --force without --force-reason
     5  no broker credentials
     6  broker unreachable or order rejected
@@ -49,6 +50,7 @@ USAGE
 """
 
 import argparse
+import math
 import os
 import sys
 
@@ -101,6 +103,11 @@ def gate(a, strat_name):
     if not need:
         return
     missing = " and ".join(need)
+    if a.force and a.mode == "live":
+        refuse(3, "REFUSING to force --mode live.", "",
+               f"  {strat_name} on {a.symbol} needs {missing}.",
+               "  --force can waive the paper gate, never the live one: real money follows a",
+               "  recorded backtest and a filled paper run, every time. Nothing was recorded.")
     if a.force:
         ledger.record("bypass", mode=a.mode, strategy=strat_name, symbol=a.symbol,
                       missing=missing, reason=a.force_reason)
@@ -249,13 +256,19 @@ def main():
     if a.mode == "live" and not a.confirm_live:
         refuse(3, "REFUSING --mode live without --confirm-live.",
                "  Real money. Say so explicitly.")
+    if not a.dry_run:
+        import autopilot
+        if os.path.lexists(autopilot.STOP_FILE):
+            refuse(3, "REFUSING: a STOP file is present (a drawdown halt, or placed by hand).",
+                   "  Nothing is sent while it exists — run.py honours it as autopilot does.",
+                   "  Remove it to resume.")
     gate(a, strat_name)
 
     side = a.side or ("buy" if target > 0 else None)
     if side is None:
         refuse(3, f"strategy says flat ({target:+.2f}); nothing to buy.",
                "  To reduce a position you already hold: --side sell --qty N")
-    if not a.qty or a.qty <= 0:
+    if a.qty is None or not (math.isfinite(a.qty) and a.qty > 0):
         refuse(3, "--qty is required for paper/live and must be positive")
 
     if a.dry_run:
@@ -281,6 +294,14 @@ def main():
     print(f"account  {acct['account_number']} {'PAPER' if acct['paper'] else 'LIVE'} "
           f"status {acct['status']}, equity {acct['equity']}, "
           f"buying power {acct['buying_power']}")
+    if side == "sell":
+        try:
+            held = broker.positions(base, hdr).get(s.symbol.upper(), 0.0)
+        except (broker.Rejected, broker.Unreachable) as e:
+            refuse(6, f"NETWORK  {e}", "  Nothing sent: the position could not be read.")
+        if a.qty > held:
+            refuse(3, f"REFUSING to sell {a.qty:g} {s.symbol}: {held:g} held.",
+                   "  A sell larger than the position opens a short; these tools are long-only.")
     try:
         o = broker.place_order(base, hdr, s.symbol, side, a.qty, client_order_id=coid)
     except (broker.Rejected, broker.Unreachable) as e:

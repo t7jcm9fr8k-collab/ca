@@ -31,6 +31,7 @@ FILLS ARE ASYNCHRONOUS
 
 import hashlib
 import json
+import math
 import os
 import time
 import urllib.error
@@ -142,10 +143,12 @@ def place_order(base, hdr, symbol, side, qty=None, notional=None, order_type="ma
         raise ValueError("side must be buy or sell")
     if (qty is None) == (notional is None):
         raise ValueError("give exactly one of qty or notional")
-    if qty is not None and qty <= 0:
-        raise ValueError("qty must be positive")
-    if notional is not None and notional <= 0:
-        raise ValueError("notional must be positive")
+    if qty is not None and not (math.isfinite(float(qty)) and float(qty) > 0):
+        raise ValueError("qty must be a positive, finite number")
+    if notional is not None and not (math.isfinite(float(notional))
+                                     and round(float(notional), 2) > 0):
+        # 0.004 used to pass "> 0" and go out as notional "0.00"
+        raise ValueError("notional must be a positive, finite amount of at least $0.01")
     body = {"symbol": symbol.upper(), "side": side, "type": order_type, "time_in_force": tif}
     if qty is not None:
         body["qty"] = str(qty)

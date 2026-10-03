@@ -275,6 +275,10 @@ check("a failed check yields blocked",
 print("\nreplay — no look-ahead, by shape")
 
 s70 = _series(_daily(70))
+_nan_bars = list(s70.bars)
+_nan_bars[30] = B.Bar(_nan_bars[30].ts, _nan_bars[30].open, _nan_bars[30].high, _nan_bars[30].low,
+                      float("nan"), _nan_bars[30].volume)
+check("a NaN close is a bad OHLC row, so barqc blocks it", not barqc.check_ohlc(_series(_nan_bars))["ok"])
 c = replay.Cursor(s70, 10)
 check("cursor length is the closed count", len(c) == 10)
 check("cursor[-1] is the last CLOSED bar", c[-1] is s70.bars[9])
@@ -806,6 +810,8 @@ class _FakeAlpaca:
         if path == "/v2/account":
             return {"account_number": "PA00001234", "status": "ACTIVE", "equity": "1000",
                     "buying_power": "1000"}
+        if path == "/v2/positions":
+            return []                          # flat: nothing held
         if path == "/v2/orders" and body is not None:
             self.posts += 1
             coid = body.get("client_order_id") or f"alpaca-made-{self.posts}"   # Alpaca makes one if none is sent
@@ -863,6 +869,25 @@ try:
           _code == 0 and len(_ev3) == 1 and _ev3[0]["filled_qty"] == 0, f"{_code} {len(_ev3)}")
     check("run.py: every order carries a client_order_id",
           all(o["client_order_id"].startswith("ca-") for o in list(_alp.orders.values()) + list(_alp3.orders.values())))
+    # --- batch C: the guards on the way to an order
+    n_bp = len(ledger.events("bypass"))
+    check("--force can never reach live, even with --confirm-live and a reason (3, nothing recorded)",
+          _run(["--mode", "live", "--qty", "1", "--dry-run", "--confirm-live", "--force",
+                "--force-reason", "x"] + BRK + BASE) == 3 and len(ledger.events("bypass")) == n_bp)
+    broker._call = _FakeAlpaca().call
+    check("a sell larger than the position is refused (3) — no shorts",
+          _run(["--mode", "paper", "--side", "sell", "--qty", "1"] + SMA + BASE) == 3)
+    check("a NaN quantity is refused (3)", _run(["--mode", "paper", "--qty", "nan", "--dry-run"] + SMA + BASE) == 3)
+    import autopilot as _ap_mod
+    _stop_keep = _ap_mod.STOP_FILE
+    _ap_mod.STOP_FILE = os.path.join(_tmp, "STOP-run")
+    open(_ap_mod.STOP_FILE, "w").close()
+    check("a STOP file stops run.py orders too (3)",
+          _run(["--mode", "paper", "--side", "buy", "--qty", "7"] + SMA + BASE) == 3)
+    check("but a dry run still answers while STOP is present (0)",
+          _run(["--mode", "paper", "--qty", "7", "--dry-run"] + SMA + BASE) == 0)
+    os.remove(_ap_mod.STOP_FILE)
+    _ap_mod.STOP_FILE = _stop_keep
 finally:
     broker._call, broker.credentials = _bk_call, _bk_cred
 _bad = os.path.join(_tmp, "BAD-1d.csv")
@@ -1741,6 +1766,46 @@ try:
     _rs2 = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                          fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now)
     check("once the lock is free the run proceeds", len(_fbs.orders) == 1, _rs2[0]["action"])
+    # --- batch C in autopilot: finite numbers, a halt that can fire, a STOP symlink.
+    # STOP_FILE is sandboxed for the whole block: a regression that halts must
+    # write its STOP here, never beside the real autopilot.py.
+    _stop_keep_c = autopilot.STOP_FILE
+    autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP-c")
+    _fbn = _FakeBroker(equity="NaN")
+    _rn = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbn, now=_ap_now)
+    check("a NaN equity reading is no reading: nothing traded, nothing recorded as a peak",
+          _fbn.orders == [] and "no equity" in _rn[0]["action"], _rn[0]["action"])
+    for _md in (float("nan"), 1.0, 0.0, -0.1):
+        _rmd = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                             fetch_fn=_ap_fetch, broker_api=_FakeBroker(), now=_ap_now, max_drawdown=_md)
+        check(f"max_drawdown {_md} is refused — the halt could never fire", "nothing run" in _rmd[0]["action"])
+
+    def _nan_rule(cur):
+        return float("nan")
+    _nan_rule.warmup = 1
+    _tn, _why = autopilot.decide(_ap_series, _nan_rule, _ap_now)
+    check("a NaN strategy target is no decision, never a full buy", _tn is None and "not a number" in _why, _why)
+    _sent = []
+    _bk_call_c = broker._call
+    broker._call = lambda *a, **k: _sent.append(a) or {}
+    try:
+        check("broker refuses a NaN or infinite quantity before anything is sent",
+              _raises(ValueError, broker.place_order, broker.PAPER, {}, "SPY", "buy", float("nan"))
+              and _raises(ValueError, broker.place_order, broker.PAPER, {}, "SPY", "buy", float("inf"))
+              and _sent == [])
+        check("broker refuses a notional that rounds to $0.00 before anything is sent",
+              _raises(ValueError, broker.place_order, broker.PAPER, {}, "SPY", "buy", None, 0.004)
+              and _sent == [])
+    finally:
+        broker._call = _bk_call_c
+    autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP-link")
+    os.symlink(os.path.join(_ap_sand, "nowhere"), autopilot.STOP_FILE)
+    _rl = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_FakeBroker(), now=_ap_now)
+    check("a dangling symlink named STOP halts too", "STOP" in _rl[0]["action"], _rl[0]["action"])
+    os.remove(autopilot.STOP_FILE)
+    autopilot.STOP_FILE = _stop_keep_c
     check("orders carry the decision's client_order_id",
           all(o.get("client_order_id", "").startswith("ca-") for o in _fbs.coids.values()) and _fbs.coids)
 
