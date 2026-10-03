@@ -221,7 +221,7 @@ def render(name, r, verdict):
              f"second {c['c4_both_halves']['second']:+.2f}, "
              f"split {(c['c4_both_halves']['split_at'] or '')[:10]}")
     L.append(f"deflated sharpe    {c['deflated_sharpe']:.3f} after "
-             f"{c['trials_counted']} trials ({c['prior_trials']} prior from the ledger)")
+             f"{c['trials_counted']} trials ({c['prior_trials']} prior)")
     L.append("")
     L.append(f"VERDICT: {c['verdict']} — {c['conditions_passed']} of 4 conditions")
     L.append("")
@@ -243,13 +243,13 @@ def main():
     a = ap.parse_args()
 
     serieses = load_universe(source=a.source, adjusted=True)
-    prior = len(ledger.events("backtest"))
+    prior, prior_from = ledger.prior_trials()
     specs = ("tsmom", "xsmom") if a.spec == "both" else (a.spec,)
 
     lines = [f"crosstest — pre-registered in PREREG-2026-09-11-cross-section.md",
              f"run at {dt.datetime.now(dt.timezone.utc).isoformat()}",
              f"specs: {', '.join(specs)}  shuffles: {a.shuffles}  seed: {a.seed}",
-             f"prior trials in the ledger: {prior}", ""]
+             f"prior trials: {prior} ({prior_from})", ""]
     payload = {}
 
     for spec in specs:
@@ -281,8 +281,8 @@ def main():
             f.write(text + "\n\n" + json.dumps(payload, indent=1, default=str) + "\n")
         print(f"\nwrote {a.out}", file=sys.stderr)
     if not a.no_record:
-        print("\n(not recorded to the ledger; pass --no-record explicitly or wire "
-              "recording deliberately)", file=sys.stderr)
+        print("\n(not recorded to the ledger; if this run is a new trial, append a row "
+              "to trials.json citing its saved output — or pass --no-record)", file=sys.stderr)
 
 
 if __name__ == "__main__":

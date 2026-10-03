@@ -88,6 +88,32 @@ def filled_paper_runs(strategy, symbol):
             if (e.get("filled_qty") or 0) > 0]
 
 
+REGISTER = os.path.join(HERE, "trials.json")
+
+
+def prior_trials():
+    """
+    The trials any new deflated Sharpe must count, and a note saying where the
+    number came from.
+
+    out/ledger.json is gitignored, so a fresh clone has none and load() rightly
+    reports no events — which crosstest.py used to read as "0 prior trials",
+    deflating against 2 where the record says 39. The committed register
+    (trials.json) fixes the floor: entries the ledger itself holds are a
+    snapshot the live ledger replaces once it has at least as many; entries
+    that never reached the ledger are always added on top.
+    """
+    reg = json.load(open(REGISTER)) if os.path.exists(REGISTER) else {"entries": []}
+    snapshot = sum(e["count"] for e in reg["entries"] if e.get("in_ledger"))
+    off_ledger = sum(e["count"] for e in reg["entries"] if not e.get("in_ledger"))
+    live = len(events("backtest"))
+    if live >= snapshot:
+        base = f"{live} from out/ledger.json"
+    else:
+        base = f"{snapshot} from trials.json, out/ledger.json has {live}"
+    return max(live, snapshot) + off_ledger, f"{base}; +{off_ledger} recorded only in trials.json"
+
+
 def leak_refusal(backtest):
     """
     The paper gate's evidence: why this backtest does NOT show the strategy is

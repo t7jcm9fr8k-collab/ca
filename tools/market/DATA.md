@@ -256,6 +256,15 @@ docstring says a backtest on bad bars "converts an unchecked series into a
 result everyone believes was measured". The same hazard reached the trial
 accounting through the gitignore.
 
+**Closed 2026-10-03.** The count is now committed in `trials.json`, which
+`ledger.prior_trials()` reads and `crosstest.py` uses. Each row cites the saved
+output that holds it, and the 37 is marked as what it is — asserted, because
+the ledger that held those backtests is gone. Run in this clone, `crosstest.py`
+now prints "prior trials: 39 (37 from trials.json, out/ledger.json has 0; +2
+recorded only in trials.json)". What counts as a trial — nulltest runs,
+per-symbol versus global, `--no-record` runs — is written into the file as
+open questions rather than decided.
+
 Sections C, E, E-15 (its original run), F and I therefore state numbers a reader
 cloning this repository cannot check. §E-15's conclusion is the exception that
 got rescued: `runs/E15-nine-2026-09-07.txt` re-ran all nine and is committed,

@@ -1,0 +1,27 @@
+{
+  "what": "Every trial a deflated Sharpe must count, committed so the number survives a clone. out/ledger.json is gitignored and is absent from every fresh checkout; without this file crosstest.py counted 0 prior trials there and deflated against 2 instead of 39. ledger.prior_trials() reads it.",
+  "how": "An entry with in_ledger true is a SNAPSHOT of backtests the ledger itself holds: the live ledger replaces it once it holds at least as many. An entry with in_ledger false was never written to the ledger and is always added on top. Append a row for every new trial that does not record itself to the ledger, citing the saved output that holds it. Never edit a row.",
+  "entries": [
+    {
+      "as_of": "2026-09-11",
+      "count": 37,
+      "in_ledger": true,
+      "what": "backtests in out/ledger.json on the machine that ran the cross-section",
+      "status": "asserted, not recomputable: the ledger that held them is gitignored and absent from every clone, so their composition cannot be checked here",
+      "source": "runs/crosstest-2026-09-11.txt:4 (prior trials in the ledger: 37) and :141 (\"prior_trials\": 37)"
+    },
+    {
+      "as_of": "2026-09-11",
+      "count": 2,
+      "in_ledger": false,
+      "what": "the two pre-registered cross-section specifications, tsmom and xsmom; crosstest.py has no ledger.record call, so they exist only here and in the saved run",
+      "status": "measured",
+      "source": "runs/crosstest-2026-09-11.txt:23 and :46 (after 39 trials), :140 (\"trials_counted\": 39); EVIDENCE.md:1299-1300"
+    }
+  ],
+  "open_questions_for_the_owner": [
+    "Do nulltest runs spend trial budget? nulltest.py records them as kind \"nulltest\" (nulltest.py:479, :494) and nothing counts that kind, so the nine-symbol rule sweeps currently cost nothing.",
+    "Is the count global or per symbol? crosstest.py counts every backtest; combine.py --count-ledger counts one symbol's (combine.py:146). They disagree even when the ledger is present.",
+    "Runs made with --no-record (trial 3, the E-15 replications) are in neither the ledger nor this file."
+  ]
+}
