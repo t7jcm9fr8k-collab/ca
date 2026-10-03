@@ -628,6 +628,29 @@ H.save({"designs": {"marigold-calavera": {"versions": [], "inspections": [{"vers
 check("forget refuses a real design", _raises(ValueError, H.forget, "marigold-calavera"))
 check("forget drops a proof design and only that",
       H.forget("proof-calavera") and sorted(H.load()["designs"]) == ["marigold-calavera"])
+# An inspection belongs to the exact file inspected.
+import names as _names
+_hf = _os.path.join(_os.path.dirname(_os.path.abspath(H.__file__)), "out", "_hashtest-v1-onlight.png")
+_os.makedirs(_os.path.dirname(_hf), exist_ok=True)
+Image.new("RGBA", (8, 8), (10, 20, 30, 255)).save(_hf)
+H.save({"designs": {}})
+H.record_inspection("hashtest", 1, {"verdict": "pass", "failed": [], "unrun": [], "checks": {}}, _hf)
+_rec = H.load()["designs"]["hashtest"]["inspections"][-1]
+check("an inspection records the file's hash and a relative path, never an absolute one",
+      len(_rec["sha256"]) == 64 and not _os.path.isabs(_rec["file"]), str(_rec.get("file")))
+check("the inspection counts while the file is unchanged", H.inspection_for("hashtest", 1) is not None)
+Image.new("RGBA", (8, 8), (200, 20, 30, 255)).save(_hf)
+check("a print rebuilt after its inspection reads as uninspected", H.inspection_for("hashtest", 1) is None)
+check("…though the stale record is still there to explain why",
+      H.inspection_for("hashtest", 1, verify=False) is not None)
+_os.remove(_hf)
+H.save({"designs": {"x": {"versions": [{"version": 1, "at": "<b>t</b>", "files": {},
+        "changes": ["<script>alert(1)</script>"], "note": "a & b <i>"}], "inspections": []}}})
+_rep = open(H.build_report(H.load(), _os.path.dirname(H.LEDGER))).read()
+check("the history report escapes notes and changes", "&lt;script&gt;" in _rep and "<script>alert" not in _rep)
+check("safe_name keeps a plain name", _names.safe_name("orchid-skull", "x") == "orchid-skull")
+check("safe_name refuses a path, '..' or an absolute path",
+      all(_raises(ValueError, _names.safe_name, v, "x") for v in ("../evil", "a/b", "/etc/x", "..", "", "a\\b")))
 H.LEDGER = _h_keep
 
 check("an uninspected version has no record",

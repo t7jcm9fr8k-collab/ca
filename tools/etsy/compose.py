@@ -59,6 +59,7 @@ import re
 import sys
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
+from names import safe_name
 from render_plate import lift_background, trim_to_content
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -316,7 +317,7 @@ def build(recipe, root, canvas_size, draft=False):
         inks = {"ink0": (26, 26, 26)}
 
     for i, layer in enumerate(recipe["layers"]):
-        src = os.path.join(root, layer["source"])
+        src = os.path.join(root, safe_name(layer["source"], "layer source"))
         if not os.path.exists(src):
             built.append(None)
             notes.append(f"layer {i}: MISSING {layer['source']}")
@@ -455,10 +456,18 @@ def main():
 
     size = CANVAS if not a.draft else (CANVAS[0] // DRAFT_DIVISOR,
                                        CANVAS[1] // DRAFT_DIVISOR)
-    art, notes = build(recipe, a.sources, size, draft=a.draft)
+    try:
+        art, notes = build(recipe, a.sources, size, draft=a.draft)
+    except ValueError as e:
+        if "not a plain file name" not in str(e):
+            raise
+        sys.exit(f"REFUSED: {e}")
 
     os.makedirs(a.out, exist_ok=True)
-    rid = recipe.get("id", "composite")
+    try:
+        rid = safe_name(recipe.get("id", "composite"), "recipe id")
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
 
     onlight = art
     ondark = invert_inks(art)

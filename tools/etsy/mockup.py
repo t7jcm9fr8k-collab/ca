@@ -38,6 +38,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter
 
 import history
+from names import safe_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -173,6 +174,10 @@ def main():
     ap.add_argument("--force-reason", default="",
                     help="why the gate is being skipped; required with --force")
     a = ap.parse_args()
+    try:
+        safe_name(a.design, "--design")
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
 
     # ---- the gate -------------------------------------------------------
     #
@@ -192,6 +197,14 @@ def main():
 
     if a.version > 1 and not a.force:
         prev = history.inspection_for(a.design, a.version - 1)
+        if prev is None and history.inspection_for(a.design, a.version - 1, verify=False):
+            print(f"REFUSING to build v{a.version}.\n", file=sys.stderr)
+            print(f"  v{a.version - 1} of '{a.design}' was inspected, but its print file has "
+                  f"changed since —\n  rebuilt or replaced. That verdict belongs to pixels "
+                  f"that no longer exist.\n", file=sys.stderr)
+            print(f"  Run:  python3 qc.py --design {a.design} --version {a.version - 1}",
+                  file=sys.stderr)
+            sys.exit(3)
         if prev is None:
             print(f"REFUSING to build v{a.version}.\n", file=sys.stderr)
             print(f"  No inspection of v{a.version - 1} is recorded for "

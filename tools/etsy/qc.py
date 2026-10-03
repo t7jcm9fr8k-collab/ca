@@ -40,6 +40,7 @@ import sys
 from PIL import Image, ImageChops, ImageFilter
 
 import compose
+from names import safe_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -371,6 +372,11 @@ def main():
     ap.add_argument("--no-record", action="store_true",
                     help="inspect without writing to the history ledger")
     a = ap.parse_args()
+    try:
+        if a.design:
+            safe_name(a.design, "--design")
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
 
     path = a.file
     recipe_path = a.recipe
@@ -395,7 +401,7 @@ def main():
 
     if a.design and not a.no_record:
         import history
-        history.record_inspection(a.design, a.version, result)
+        history.record_inspection(a.design, a.version, result, path)
         print(f"\nrecorded to the ledger — v{a.version + 1} is now unblocked"
               if result["verdict"] != "blocked" else
               f"\nrecorded to the ledger — v{a.version + 1} may proceed and must "

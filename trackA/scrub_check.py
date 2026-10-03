@@ -32,6 +32,7 @@ USAGE
 
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -154,8 +155,85 @@ def calendar_errors(year=2026):
     return out
 
 
+def load_categorised(path):
+    """The same patterns, each with the '# --- section ---' it sits under."""
+    out, section = [], "uncategorised"
+    for raw in open(path, encoding="utf-8"):
+        line = raw.strip()
+        if line.startswith("# ---"):
+            section = line.strip("#- ").strip() or section
+            continue
+        if not line or line.startswith("#"):
+            continue
+        rx = re.compile(line[3:] if line.startswith("re:") else re.escape(line), re.I)
+        out.append((section, rx))
+    return out
+
+
+def scan_repo(root=None):
+    """
+    The whole repository, not just the two published subtrees: every tracked
+    text file outside trackA/_private/, every commit message, every author and
+    committer identity. The default run guards what HUDKit publishes; this one
+    guards the repository itself, which the publish check never looked at.
+    Returns {category: {"files": {path: n}, "messages": n, "identities": n}};
+    never the matched text.
+    """
+    root = root or subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=HERE,
+                                  capture_output=True, text=True, check=True).stdout.strip()
+    pats = load_categorised(PATTERNS_FILE)
+    hits = {}
+
+    def count(where, kind, text):
+        for cat, rx in pats:
+            n = len(rx.findall(text))
+            if n:
+                h = hits.setdefault(cat, {"files": {}, "messages": 0, "identities": 0})
+                if kind == "files":
+                    h["files"][where] = h["files"].get(where, 0) + n
+                else:
+                    h[kind] += n
+
+    tracked = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True,
+                             check=True).stdout.decode().split("\0")
+    private = [f for f in tracked if f.startswith("trackA/_private/")]
+    for rel in tracked:
+        if not rel or rel in private:
+            continue
+        try:
+            text = open(os.path.join(root, rel), encoding="utf-8").read()
+        except (UnicodeDecodeError, OSError):
+            continue                                # binaries: images, fonts
+        count(rel, "files", text)
+    log = subprocess.run(["git", "log", "--all", "--format=%an%n%ae%n%cn%n%ce%x00%B%x01"],
+                         cwd=root, capture_output=True, text=True, check=True).stdout
+    for rec in log.split("\x01"):
+        ident, _, msg = rec.partition("\x00")
+        count(None, "identities", ident)
+        count(None, "messages", msg)
+    return hits, private
+
+
 def main():
     patterns = load_patterns(PATTERNS_FILE)
+
+    if "--repo" in sys.argv:
+        hits, private = scan_repo()
+        print(f"scrub_check --repo: tracked files, commit messages and identities, "
+              f"{len(load_categorised(PATTERNS_FILE))} patterns — counts only, never the text")
+        if private:
+            print(f"  trackA/_private/ is TRACKED ({len(private)} files) — its own header says "
+                  f"never publish")
+        for cat, h in sorted(hits.items()):
+            files = sorted(h["files"].items(), key=lambda kv: -kv[1])
+            print(f"  {cat}: {sum(h['files'].values())} in {len(files)} file(s), "
+                  f"{h['messages']} in commit messages, {h['identities']} in identities")
+            for rel, n in files[:8]:
+                print(f"      {n:>4}  {rel}")
+            if len(files) > 8:
+                print(f"      … and {len(files) - 8} more file(s)")
+        print("CLEAN" if not hits and not private else "FOUND — see above")
+        return 0 if not hits and not private else 1
 
     if "--list" in sys.argv:
         print(f"{len(patterns)} identifier patterns from {PATTERNS_FILE}")

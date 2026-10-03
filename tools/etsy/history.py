@@ -30,6 +30,8 @@ import argparse
 import base64
 import datetime as dt
 import io
+import hashlib
+import html as _html
 import json
 import os
 import tempfile
@@ -124,11 +126,29 @@ def record_version(design, version, files, changes=None, note="",
     save(led)
 
 
-def record_inspection(design, version, result):
+def _sha256(path):
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def _portable(path):
+    """Relative to this folder when inside it (no machine path in the record)."""
+    rel = os.path.relpath(os.path.abspath(path), HERE)
+    return rel if not rel.startswith("..") else os.path.basename(path)
+
+
+def record_inspection(design, version, result, path=None):
+    """`path` is the print file inspected; its hash ties the verdict to those
+    exact pixels, so a version rebuilt after its inspection reads as uninspected."""
     led = load()
     d = _design(led, design)
     d["inspections"].append({
         "version": version, "at": _now(),
+        "file": _portable(path) if path else None,
+        "sha256": _sha256(path) if path else None,
         "verdict": result.get("verdict"),
         "failed": result.get("failed", []),
         "unrun": result.get("unrun", []),
@@ -138,13 +158,24 @@ def record_inspection(design, version, result):
     save(led)
 
 
-def inspection_for(design, version):
-    """The gate. Returns the most recent inspection of that version, or None."""
+def inspection_for(design, version, verify=True):
+    """
+    The gate. The most recent inspection of that version, or None — including
+    when the file it inspected has changed since. A v1 rebuilt after it was
+    inspected used to keep reading as inspected, so v2 and the listing gate
+    trusted pixels nobody had checked. An inspection recorded before hashes
+    were kept carries none and cannot be verified; it still counts.
+    """
     d = load()["designs"].get(design)
     if not d:
         return None
     got = [i for i in d.get("inspections", []) if i.get("version") == version]
-    return got[-1] if got else None
+    if not got:
+        return None
+    i = got[-1]
+    if verify and i.get("sha256") and _sha256(os.path.join(HERE, i["file"])) != i["sha256"]:
+        return None
+    return i
 
 
 # ---------------------------------------------------------------- visuals
@@ -311,6 +342,11 @@ img{width:100%;border:1px solid var(--rule);border-radius:2px;display:block}
 .none{color:var(--muted);font-style:italic;padding:16px 0}
 @media (max-width:640px){.sheet{padding:34px 18px 64px}h1{font-size:24px}}
 """
+def _h(v):
+    """Free text into HTML: notes, --change lines and force reasons are typed by hand."""
+    return _html.escape(str(v))
+
+
 def build_report(led, out_dir):
     plates = []
     for design, d in sorted(led.get("designs", {}).items()):
@@ -318,8 +354,8 @@ def build_report(led, out_dir):
         insps = d.get("inspections", [])
         name = design.replace("-", " ").title()
 
-        p = [f'<section class="plate"><h2>{name}</h2>'
-             f'<div class="slug">{design}</div>']
+        p = [f'<section class="plate"><h2>{_h(name)}</h2>'
+             f'<div class="slug">{_h(design)}</div>']
 
         if not versions:
             p.append('<p class="none">No versions built yet.</p></section>')
@@ -330,17 +366,17 @@ def build_report(led, out_dir):
             n = v["version"]
             p.append('<div class="ver">')
             p.append(f'<div class="vhead"><h3>Version {n}</h3>'
-                     f'<span class="stamp">{v["at"]}</span></div>')
+                     f'<span class="stamp">{_h(v["at"])}</span></div>')
             if v.get("forced"):
                 p.append(f'<div class="forced"><strong>Gate bypassed.</strong> '
                          f'This version skipped the inspection of v{n - 1}. '
-                         f'Stated reason: {v.get("force_reason") or "none given"}'
+                         f'Stated reason: {_h(v.get("force_reason") or "none given")}'
                          f'</div>')
             if v.get("note"):
-                p.append(f'<p class="why">{v["note"]}</p>')
+                p.append(f'<p class="why">{_h(v["note"])}</p>')
             if v.get("changes"):
                 p.append('<ul class="changes">'
-                         + "".join(f"<li>{c}</li>" for c in v["changes"])
+                         + "".join(f"<li>{_h(c)}</li>" for c in v["changes"])
                          + "</ul>")
 
             shots = []
@@ -349,7 +385,7 @@ def build_report(led, out_dir):
                 fp = v.get("files", {}).get(key)
                 if fp and os.path.exists(fp):
                     shots.append(f'<figure class="shot"><h4>{label}</h4>'
-                                 f'<img alt="{name} v{n} {label}" '
+                                 f'<img alt="{_h(name)} v{n} {label}" '
                                  f'src="{_b64(Image.open(fp).convert("RGB"))}">'
                                  f'</figure>')
             if n > 1:
@@ -373,8 +409,8 @@ def build_report(led, out_dir):
                 i = mine[-1]
                 cls = {"pass": "pass", "blocked": "blocked"}.get(
                     i["verdict"], "unrun")
-                p.append(f'<div class="verdict {cls}">{i["verdict"]}</div>'
-                         f' <span class="stamp">inspected {i["at"]}</span>')
+                p.append(f'<div class="verdict {cls}">{_h(i["verdict"])}</div>'
+                         f' <span class="stamp">inspected {_h(i["at"])}</span>')
                 p.append('<table class="checks"><thead><tr><th>Check</th>'
                          '<th class="n">Measured</th><th class="n">Required</th>'
                          '<th></th></tr></thead><tbody>')
@@ -382,9 +418,9 @@ def build_report(led, out_dir):
                     rc = ("f" if c.get("ok") is False else
                           "u" if c.get("ok") is None else "")
                     tag = "reported" if c.get("reported_only") else ""
-                    p.append(f'<tr class="{rc}"><td>{cname}</td>'
-                             f'<td class="n">{c.get("value","")}</td>'
-                             f'<td class="n">{c.get("want","")}</td>'
+                    p.append(f'<tr class="{rc}"><td>{_h(cname)}</td>'
+                             f'<td class="n">{_h(c.get("value",""))}</td>'
+                             f'<td class="n">{_h(c.get("want",""))}</td>'
                              f'<td class="tag">{tag}</td></tr>')
                     if c.get("note"):
                         p.append(f'<tr class="{rc}"><td colspan="4" '

@@ -31,6 +31,7 @@ USAGE
 import argparse
 import datetime as dt
 import contextlib
+import html as _html
 import json
 import os
 import tempfile
@@ -232,6 +233,9 @@ def _pct(x):
 def build_report(led, out_dir):
     groups = {}
     for e in led.get("events", []):
+        # Escaped once, here: bypass reasons, broker statuses and ids are free
+        # text and used to be interpolated into the HTML as they came.
+        e = {k: (_html.escape(v) if isinstance(v, str) else v) for k, v in e.items()}
         key = (e.get("strategy") or "?", e.get("symbol") or "?")
         groups.setdefault(key, []).append(e)
 

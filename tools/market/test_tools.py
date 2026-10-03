@@ -493,6 +493,14 @@ check("the report marks a bypass", "Gate bypassed" in html and "the test reason"
 check("the report uses the red bypass style", 'class="bypass"' in html)
 check("the report lists backtests", html.count("<tr>") >= 3)
 check("an empty ledger renders", "Ledger is empty" in open(ledger.build_report({"events": []}, _tmp)).read())
+_esc_keep = ledger.LEDGER
+ledger.LEDGER = os.path.join(_tmp, "esc", "ledger.json")
+ledger.record("bypass", mode="paper", strategy="s", symbol="X", missing="m",
+              reason='<script>alert(1)</script> & "quoted"')
+_esc_html = open(ledger.build_report(ledger.load(), _tmp)).read()
+check("the ledger report escapes free text (a bypass reason cannot inject markup)",
+      "&lt;script&gt;" in _esc_html and "<script>alert" not in _esc_html)
+ledger.LEDGER = _esc_keep
 
 # The committed trial register: a clone has no out/ledger.json, and the prior
 # count used to fall to 0 there. trials.json holds 37 ledger backtests (a
@@ -706,6 +714,19 @@ _loosen = ("_create_unverified_context(", "CERT_NONE", "check_hostname = False",
 check("nothing in the tree loosens TLS",
       not any(any(p in open(os.path.join(HERE, f)).read() for p in _loosen)
               for f in os.listdir(HERE) if f.endswith(".py") and f != "test_tools.py"))
+
+# An empty but well-formed reply is PARSE, never OK: as OK it overwrote the bars
+# file with nothing, and an empty series reads exactly like a flat market.
+_empty = B.Series("EMPTY", "1d", [], dict(PROV))
+check("a reply with no bars raises Unparseable", _raises(fetch.Unparseable, fetch._nonempty, _empty, "stooq"))
+_real_get = fetch._get
+# A header and a padded blank line: over the 40-byte "too short" guard, so it parses.
+fetch._get = lambda url, headers=None, waits=None: "Date,Open,High,Low,Close,Volume\r\n" + " " * 10 + "\r\n"
+try:
+    check("stooq's header-only body is PARSE, not an empty series",
+          _raises(fetch.Unparseable, fetch.fetch_stooq, "SPY"))
+finally:
+    fetch._get = _real_get
 
 # ---------------------------------------------------------------- broker
 

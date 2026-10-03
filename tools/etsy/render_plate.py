@@ -61,6 +61,7 @@ import argparse
 import os
 import sys
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from names import safe_name
 
 # ---------------------------------------------------------------- canvas
 
@@ -385,6 +386,10 @@ def main():
     ap.add_argument("--report", action="store_true",
                     help="print a listing-ready sentence describing the design work")
     a = ap.parse_args()
+    try:
+        safe_name(a.slug, "--slug")
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
 
     if not os.path.exists(a.src):
         sys.exit(f"source not found: {a.src}")

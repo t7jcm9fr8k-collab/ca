@@ -188,12 +188,22 @@ def _stooq_sym(symbol):
     return s if "." in s else f"{s}.us"
 
 
+def _nonempty(series, source):
+    """A reply that parsed into zero bars is PARSE, never OK: an empty series
+    reads exactly like a flat market, and as OK it overwrote the bars file and
+    then crashed autopilot on series.last."""
+    if not series.bars:
+        raise Unparseable(f"{source} answered for {series.symbol} with no bars at all — "
+                          f"nothing written")
+    return series
+
+
 def fetch_stooq(symbol):
     body = _get(STOOQ_URL.format(sym=_stooq_sym(symbol)),
                 headers={"User-Agent": BROWSER_UA,
                          "Accept": "text/csv,text/plain,*/*;q=0.8",
                          "Referer": STOOQ_PAGE.format(sym=_stooq_sym(symbol))})
-    return parse_stooq(body, symbol)
+    return _nonempty(parse_stooq(body, symbol), "stooq")
 
 
 # ---------------------------------------------------------------- yahoo
@@ -251,7 +261,7 @@ def parse_yahoo(body, symbol, adjusted_close=False):
 def fetch_yahoo(symbol, adjusted_close=False):
     body = _get(YAHOO_URL.format(sym=symbol.upper()),
                 headers={"User-Agent": BROWSER_UA, "Accept": "application/json,*/*;q=0.8"})
-    return parse_yahoo(body, symbol, adjusted_close)
+    return _nonempty(parse_yahoo(body, symbol, adjusted_close), "yahoo")
 
 
 # ---------------------------------------------------------------- alpaca
@@ -336,11 +346,11 @@ def fetch_alpaca(symbol, timeframe="1d", start=None, end=None, adjustment="split
             session = "regular (09:30–16:00 NY)"
         else:
             session = "extended hours included"
-    return B.Series(symbol.upper(), timeframe, bars, {
+    return _nonempty(B.Series(symbol.upper(), timeframe, bars, {
         "source": "alpaca", "fetched_at": dt.datetime.now(B.UTC).isoformat(timespec="seconds"),
         "adjusted": adjustment != "raw", "adjustment": adjustment, "feed": feed,
         "pages": pages, "start": start, "end": end,
-        "session": session, "extended_bars_dropped": dropped})
+        "session": session, "extended_bars_dropped": dropped}), "alpaca")
 
 
 # ---------------------------------------------------------------- merge
