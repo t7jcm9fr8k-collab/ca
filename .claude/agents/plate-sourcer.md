@@ -49,9 +49,13 @@ page**, never a search-result thumbnail:
 }
 ```
 
-`compose.py` rejects CC-BY-SA, NC and ND, and anything it cannot positively
-recognise as merchandise-safe. If a licence is ambiguous, **do not guess** —
-leave it blank so the recipe stays blocked, and say so.
+`compose.py` accepts only an allow-list of exact licence forms (SOURCING.md
+lists them) and refuses everything else — CC-BY-SA, NC and ND, any extra
+restriction or hedge, and public domain in one country only (PD-US). Write
+the form that matches the file page; the archive's own wording goes in
+`credit`. If a licence is ambiguous, **do not guess** — and never rewrite a
+qualified licence as a plain "public domain" to get past the gate. Leave it
+blank so the recipe stays blocked, and say so.
 
 Log the same entry in `Etsy-Art/SOURCES.md` format and hand it to Daniel to
 paste. No entry, no listing.

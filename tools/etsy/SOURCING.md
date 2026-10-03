@@ -163,11 +163,23 @@ even, not one with a heavy cartouche competing for attention.
      "credit": "Piranesi, Carceri plate VII, 1750"
    }
    ```
-   `licence` must read as public domain, PD, CC0, or no known copyright —
-   as whole words, and unqualified: a string that also says *not*, *only*,
-   *except*, *reserved*, *copyright* or carries a © is refused, because
-   "public domain in the US only" is not public domain on a shirt sold abroad.
-   Anything else is refused, including anything vague.
+   `licence` must be exactly one of the forms `compose.py` allows, and
+   nothing more: `public domain`, `PD`, `Public Domain Mark` (or `PDM 1.0`),
+   `CC0` (or `CC0 1.0`, `CC0 1.0 Universal`, with or without "no rights
+   reserved" / "public domain dedication"), `no known copyright restrictions`,
+   `no known restrictions on publication`, `copyright expired`, `out of
+   copyright`, a named Commons tag (`PD-old`, `PD-old-70`, `PD-old-100-expired`,
+   `PD-old-auto`, `PD-Art`, `PD-scan`), or the creativecommons.org CC0 / PDM
+   URL. Case, hyphens and punctuation between words do not matter. Any extra
+   word refuses it — *commercial use prohibited*, *with exceptions*, *terms
+   apply*, *possibly*, *isn't*, a `?`, a © — because the gate cannot tell a
+   harmless addition from a restriction, and a list of what is safe is the
+   only kind a new hedge cannot slip past. Put the archive's own wording in
+   `credit`.
+   **Territory:** public domain in one country only is refused. "Public domain
+   in the US", `PD-US`, `PD-US-expired` and `PD-US-not renewed` are all
+   refused, because a work free in the US can still be protected in the EU or
+   UK, and a shirt sells into both.
 3. Log the same entry in `Etsy-Art/SOURCES.md`.
 4. `python3 compose.py --recipe recipes/<id>.json --draft --report`
 5. **Look at the previews and the silhouette.** Both real defects in this

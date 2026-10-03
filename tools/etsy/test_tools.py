@@ -160,6 +160,47 @@ for lic in ("Not in the public domain", "All rights reserved — updated 2026",
 check("a part of a hyphenated tag is enough to refuse (BY-ND)", compose.licence_verdict("CC BY-ND 4.0") == "denied")
 check("Commons PD tags read as public domain", compose.licence_verdict("PD-old-70") == "ok"
       and compose.licence_verdict("PD-Art") == "ok")
+
+# The allow-list (review ED-2, TI-1, ED-M1). Every string below passed the
+# qualifier-list gate; each has an allowed form in it and is refused now.
+_HOSTILE = [
+    "This image isn't public domain", "Never public domain", "Doesn't appear to be public domain",
+    "Possibly public domain", "Public domain status uncertain", "Public domain (disputed)",
+    "No longer public domain", "Public domain (frame excluded)", "Public domain; restrictions apply",
+    "Public domain in some countries", "Public domain; commercial use prohibited",
+    "Public domain image — no commercial use", "CC BY 4.0; underlying work public domain",
+    "CC0 (with exceptions)", "CC0 w/ exceptions", "CC0 apart from the border",
+    "Public Domain Mark — terms apply", "public domain, attribution required",
+    "public domain, fee required for commercial reproduction", "public domain; resale prohibited",
+    "public domain?", "PD?", "public domain: no", "is public domain: false",
+    "public domain &copy; Museum 2020", "Public domain \u24b8 Museum",
+    "Public domain; copyrights held by the photographer",
+    "No known copyright restrictions (US); may be in copyright elsewhere",
+    "public domain in the US on\u00adly", "public domain in the US on\u200bly",
+    "public domain (\uff2e\uff2f\uff34)", "public domain (n0t)", "public domain (n\u043et)",
+    "pd-maybe", "PD-fake", "pd-x", "pd-", "pd-nonfree", "PD-textlogo; Trademarked", "PD-logo",
+    "{{Insignia}} PD-USGov", "public domain; personality rights apply", "CC0; trademark of Acme"]
+_refused = [x for x in _HOSTILE if compose.licence_verdict(x) == "ok"]
+check(f"ED-2/TI-1: {len(_HOSTILE)} hedged, negated, restricted or disguised licences are all refused",
+      not _refused, str(_refused))
+# ED-9: one policy for territory — US-only public domain is refused in every spelling.
+_US = ["Public domain in the US", "Public domain in the United States", "public domain (US)",
+       "PD-US", "PD-US-expired", "PD-US-not renewed", "Public domain in the US only"]
+check("ED-9: public domain in the US alone is refused, however it is written",
+      all(compose.licence_verdict(x) != "ok" for x in _US),
+      str([x for x in _US if compose.licence_verdict(x) == "ok"]))
+# ED-8 / ED-M2: archive wordings that ARE unconditional, which the old gate refused.
+_FAIR = ["CC0-1.0", "Public-Domain", "PDM-1.0", "https://creativecommons.org/publicdomain/zero/1.0/",
+         "http://creativecommons.org/publicdomain/mark/1.0/", "No known restrictions on publication.",
+         "Public domain — copyright expired", "out of copyright", "Public domain (author unknown)",
+         "CC0 — no rights reserved", "CC0 1.0 Universal — No Rights Reserved",
+         "Public Domain — no rights reserved", "PD-old-100-expired", "PD-old-70-1923", "PD-scan"]
+check("ED-8/ED-M2: the standard unconditional wordings pass",
+      all(compose.licence_verdict(x) == "ok" for x in _FAIR),
+      str([x for x in _FAIR if compose.licence_verdict(x) != "ok"]))
+check("a share-alike or non-commercial licence is still 'denied', not merely unrecognised",
+      [compose.licence_verdict(x) for x in ("CC BY-SA 4.0", "CC BY-NC 2.0", "CC BY-NC-ND 3.0")]
+      == ["denied"] * 3)
 import glob as _glob, json as _json, os as _os
 _lic_in_use = sorted({(L.get("provenance") or {}).get("licence", "")
                       for _rp in _glob.glob(_os.path.join(_os.path.dirname(_os.path.abspath(compose.__file__)), "recipes", "*.json"))

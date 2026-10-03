@@ -57,6 +57,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from names import safe_name
@@ -72,44 +73,88 @@ UPSCALE_TOLERANCE = 1.02   # above this a layer is being enlarged past its own p
 
 REQUIRED_PROVENANCE = ("url", "licence", "traced")
 
-# Licences that are fine on merchandise, matched as WHOLE WORDS. Anything else
-# stops the render — CC-BY-SA in particular is a share-alike trap on a product
-# you sell. This used to be substring matching, which accepted "Not in the
-# public domain" (it contains "public domain") and "All rights reserved —
-# updated 2026" (the "pd" inside "updated"): the gate on what goes onto a
-# shirt for sale said yes to a reserved image.
-LICENCE_ALLOW = (("public", "domain"), ("pdm",), ("pd",), ("cc0",),
-                 ("no", "known", "copyright"))
-# Any hyphen-separated part of any word: "BY-NC" is refused for its "nc".
-LICENCE_DENY = {"sa", "nc", "nd", "sharealike", "noncommercial", "derivatives"}
-# A recognised licence with a qualifier is not unconditionally public domain —
-# "public domain in the US only", "CC0 except the frame", "not public domain".
-LICENCE_QUALIFIERS = {"not", "non", "reserved", "restricted", "only", "except",
-                      "excluding", "unless", "permission", "copyrighted", "unknown",
-                      "unclear", "undetermined", "evaluated"}
+# Licences that are fine on merchandise: an ALLOW-LIST of whole strings. The
+# licence field must say exactly one of these, after normalising case, Unicode
+# compatibility forms, invisible characters and separators — nothing more.
+# Archive wording ("courtesy of…", "via the Met") belongs in `credit`.
+#
+# Two earlier gates failed open. Substring matching accepted "Not in the public
+# domain" and "All rights reserved — updated 2026" (the "pd" in "updated"). A
+# whole-word match plus a list of qualifiers then accepted any restriction the
+# list did not name: "Public domain; commercial use prohibited", "CC0 (with
+# exceptions)", "isn't public domain", "possibly public domain", "PD?", any
+# "pd-<anything>" tag including PD-textlogo (trademarked). A list of what is
+# safe cannot be outflanked that way: a new hedge is simply not on it.
+#
+# Territory: public domain in ONE country is not public domain on a shirt sold
+# into another (a pre-1931 US book by an author who died after 1955 is still
+# protected in the EU and UK), so PD-US tags and "in the United States" forms
+# are refused, as "US only" always was.
+_PD = ("public domain", "pd", "public domain mark", "public domain mark 1.0",
+       "public domain mark 1.0 universal", "pdm", "pdm 1.0", "pdm 1.0 universal")
+_PD_TAIL = ("", " no rights reserved", " copyright expired", " out of copyright",
+            " author unknown", " unknown author")
+_CC0 = ("cc0", "cc0 1.0", "cc0 universal", "cc0 1.0 universal")
+_CC0_TAIL = ("", " public domain dedication", " no rights reserved")
+LICENCE_FORMS = frozenset(
+    {p + t for p in _PD for t in _PD_TAIL}
+    | {c + t for c in _CC0 for t in _CC0_TAIL}
+    | {"no known copyright restrictions", "no known restrictions on publication",
+       "copyright expired", "out of copyright"})
+# Wikimedia Commons tags that mean public domain everywhere the shirt can go:
+# PD-old, PD-old-70, PD-old-100-expired, PD-old-auto, PD-old-70-1923, PD-Art,
+# PD-scan. Named, not "pd-" plus anything.
+LICENCE_TAGS = re.compile(r"pd (?:old(?: (?:\d{2,3}|auto))?(?: \d{4})?(?: expired)?|art|scan)")
+LICENCE_URLS = re.compile(r"https?://(?:www\.)?creativecommons\.org/publicdomain/(?:zero|mark)/1\.0/?"
+                          r"(?:deed\.[a-z-]+)?")
+# What separates words. Anything else that is not a letter or digit — "?",
+# "'", "©", "&", a Cyrillic "о" — stays in the string as a token of its own,
+# so it can never be read past.
+_DASHES = "\u2010\u2011\u2012\u2013\u2014\u2015-"
+_SEP = " \t\r\n,;:/()_." + _DASHES
+_TOKEN = re.compile(r"[a-z0-9]+(?:\.[0-9]+)*|[^" + re.escape(_SEP) + r"a-z0-9]")
+# Only for the message when a string is refused: why it reads as restricted.
+LICENCE_DENY = {"sa", "nc", "nd"}
+LICENCE_DENY_WORDS = {"sharealike", "noncommercial", "noderivatives", "noderivs"}
+LICENCE_QUALIFIERS = {
+    "not", "non", "no", "never", "isn", "doesn", "only", "except", "excepting", "exception",
+    "exceptions", "excluding", "excluded", "unless", "apart", "restricted", "restriction",
+    "restrictions", "reserved", "permission", "copyright", "copyrighted", "copyrights", "copr",
+    "possibly", "probably", "presumed", "believed", "maybe", "uncertain", "unclear", "unknown",
+    "undetermined", "disputed", "unverified", "us", "usa", "usgov", "united", "states",
+    "trademark", "trademarks", "trademarked", "insignia", "personality", "logo", "textlogo",
+    "terms", "fee", "fees", "attribution", "by", "commercial", "editorial", "personal", "resale",
+    "prohibited", "apply", "applies", "elsewhere", "countries", "country"}
+
+
+def licence_tokens(text):
+    """The licence string as the gate reads it: NFKC-normalised (fullwidth and
+    circled forms fold to plain letters), invisible format characters (soft
+    hyphen, zero-width space) removed, casefolded, split on separators."""
+    s = unicodedata.normalize("NFKC", str(text))
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Cf").casefold()
+    return s.strip(), _TOKEN.findall(s)
 
 
 def licence_verdict(text):
     """
-    "ok", "denied", "qualified" or "unrecognised" for a provenance licence
-    string. Whole words only; a "pd-..." Commons tag (PD-Art, PD-old-70) reads
-    as "pd". "copyright" outside "no known copyright", or a (c) sign, is a
-    qualifier: it says the work is in copyright somewhere.
+    "ok" when the licence string is one of the allowed forms and nothing else;
+    otherwise "denied" (share-alike, non-commercial, no-derivatives),
+    "qualified" (a restriction, hedge, negation or territory) or
+    "unrecognised". Every verdict but "ok" stops the render.
     """
-    raw = str(text).lower()
-    words = re.findall(r"[a-z0-9]+(?:[.\-][a-z0-9]+)*", raw.replace("\u2013", "-").replace("\u2014", " "))
-    parts = {p for w in words for p in w.split("-")}
-    if parts & LICENCE_DENY or "share alike" in " ".join(words):
+    raw, tokens = licence_tokens(text)
+    if re.search("[" + _DASHES + r"]\s*$", raw):
+        tokens.append("-")          # "PD-": a tag cut short is not the tag
+    canon = " ".join(tokens)
+    if canon in LICENCE_FORMS or LICENCE_TAGS.fullmatch(canon) or LICENCE_URLS.fullmatch(raw):
+        return "ok"
+    words = set(tokens)
+    if (words & LICENCE_DENY_WORDS or "share alike" in canon or "non commercial" in canon
+            or "no derivatives" in canon or (words & LICENCE_DENY and words & {"cc", "by"})):
         return "denied"
-    seq = " ".join(words)
-    if (parts & LICENCE_QUALIFIERS or "\u00a9" in raw or "(c)" in raw
-            or ("copyright" in parts and "no known copyright" not in seq)):
+    if words & LICENCE_QUALIFIERS or any(not t[0].isalnum() for t in tokens):
         return "qualified"
-    heads = [w.split("-")[0] if w.startswith("pd-") else w for w in words]
-    for form in LICENCE_ALLOW:
-        n = len(form)
-        if any(tuple(heads[i:i + n]) == form for i in range(len(heads) - n + 1)):
-            return "ok"
     return "unrecognised"
 
 
@@ -222,9 +267,11 @@ def check_provenance(recipe):
                     f"merchandise needs it unconditionally public domain or CC0")
             elif verdict == "unrecognised":
                 problems.append(
-                    f"layer {i} ({name}): licence '{p['licence']}' is not recognised "
-                    f"as merchandise-safe — check the file page and use an explicit "
-                    f"'public domain' or 'CC0' string if it is")
+                    f"layer {i} ({name}): licence '{p['licence']}' is not one of the "
+                    f"merchandise-safe forms — check the file page; if it is "
+                    f"unconditionally public domain or CC0, write exactly that "
+                    f"('public domain', 'CC0 1.0', 'PD-old-70') and keep the "
+                    f"archive's wording in 'credit'")
     return problems
 
 
