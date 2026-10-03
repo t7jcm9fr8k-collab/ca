@@ -259,9 +259,16 @@ checked directly in this clone.
 §E-15 reports the July-2020 gaps as DIA 10.7%, EFA 14.3%, XLF 6.6%, IWM 4.8%,
 TLT 2.3%, XLE 1.4%, QQQ 0.8%, GLD at parity. The independent measurement in
 `runs/datamap-2026-10-03-basis.txt` returns first-date gaps of 10.734, 14.303,
-6.609, 4.749, 2.273, 1.393, 0.833 and 0.000. Every one agrees. Since the five
-`E15-*.txt` files that section cites are not in the repository, this run is now
-the only in-repo attestation of those numbers, arrived at independently.
+6.609, 4.749, 2.273, 1.393, 0.833 and 0.000. Every one agrees.
+
+What this adds, stated precisely: `README.md:83-86` already carried the
+**qualitative** classification ("DIA, EFA, IWM and XLF unadjusted for dividends
+over 2020–26, TLT, XLE and QQQ nearly adjusted, GLD identical") and
+`README.md:79-81` already carried SPY's figures (a 2.3% median gap "shrinking
+from −6.25% in 2020 to 0 in 2025"). So this is not the first in-repo
+attestation. What was **not** in the repository is the per-symbol **numeric**
+table — the five `E15-*.txt` files that §E-15 cites for it were never committed
+— and EEM in any form.
 
 The same run supplies the one value §E-15 never measured: **EEM, median
 2.929%, first 2.980%** — EEM entered the cross-section with its basis
