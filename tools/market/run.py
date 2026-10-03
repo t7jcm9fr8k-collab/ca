@@ -266,24 +266,60 @@ def main():
 
     import broker
     base = broker.PAPER if a.mode == "paper" else broker.LIVE
+    # The same decision — mode, strategy, symbol, bar, side, size — always gets
+    # the same order id, so re-running after any failure below cannot send it
+    # twice: the broker refuses an id it has already seen.
+    coid = broker.client_order_id("run", a.mode, strat_name, s.symbol,
+                                  f"{s.last.ts:%Y-%m-%d}", side, a.qty)
     try:
         hdr = broker.credentials()
         acct = broker.account(base, hdr)
-        print(f"account  {acct['account_number']} {'PAPER' if acct['paper'] else 'LIVE'} "
-              f"status {acct['status']}, equity {acct['equity']}, "
-              f"buying power {acct['buying_power']}")
-        o = broker.place_order(base, hdr, s.symbol, side, a.qty)
-        o = broker.wait_for_fill(base, hdr, o["id"])
     except broker.NoCredentials as e:
         refuse(5, f"REFUSED: {e}")
-    except broker.Rejected as e:
-        refuse(6, f"REJECTED by broker: {e}", "  Nothing recorded.")
+    except (broker.Rejected, broker.Unreachable) as e:
+        refuse(6, f"NETWORK  {e}", "  Nothing sent.")
+    print(f"account  {acct['account_number']} {'PAPER' if acct['paper'] else 'LIVE'} "
+          f"status {acct['status']}, equity {acct['equity']}, "
+          f"buying power {acct['buying_power']}")
+    try:
+        o = broker.place_order(base, hdr, s.symbol, side, a.qty, client_order_id=coid)
+    except (broker.Rejected, broker.Unreachable) as e:
+        if isinstance(e, broker.Rejected) and not broker.is_duplicate(e):
+            refuse(6, f"REJECTED by broker: {e}", "  Nothing sent.")
+        # A duplicate, or a failure that may have happened AFTER the broker
+        # accepted the order (a timeout, a lost reply): ask the broker.
+        try:
+            o = broker.order_by_client_id(base, hdr, coid)
+        except broker.Unreachable as e2:
+            refuse(6, f"NETWORK  {e}", f"  UNKNOWN whether the order reached the broker ({e2}).",
+                   "  Re-running is safe: it sends the same client_order_id, which the",
+                   "  broker refuses if the first one landed.")
+        if o is None:
+            refuse(6, f"NETWORK  {e}", "  Nothing sent: the broker has no order under this "
+                   "decision's id. Safe to re-run.")
+        print(f"         the broker already holds this decision's order ({o.get('status')}); "
+              f"not sending it again", file=sys.stderr)
+
+    # Recorded the moment it exists at the broker, BEFORE the fill poll: a poll
+    # that fails used to end "Nothing recorded" for an order that was live, and
+    # the natural retry sent it again.
+    mine = [ev for ev in ledger.events(a.mode, symbol=s.symbol) if ev.get("client_order_id") == coid]
+    if not mine:
+        ledger.record(a.mode, strategy=strat_name, symbol=s.symbol, signal=target,
+                      endpoint=base, account=acct["account_number"], client_order_id=coid,
+                      **broker.summarise(o))
+    try:
+        o = broker.wait_for_fill(base, hdr, o["id"])
     except broker.Unreachable as e:
-        refuse(6, f"NETWORK  {e}", "  Nothing recorded. Unreachable is not a fill.")
+        print(f"{a.mode:<8} {side} {a.qty:g} {s.symbol}: SENT, fill unknown ({e}). Recorded as "
+              f"unfilled; the broker's order page has the truth.", file=sys.stderr)
+        return
 
     rec = broker.summarise(o)
-    ledger.record(a.mode, strategy=strat_name, symbol=s.symbol, signal=target,
-                  endpoint=base, account=acct["account_number"], **rec)
+    filled_before = any((ev.get("filled_qty") or 0) > 0 for ev in mine)
+    if rec["filled_qty"] > 0 and not filled_before:
+        ledger.record(a.mode, strategy=strat_name, symbol=s.symbol, signal=target,
+                      endpoint=base, account=acct["account_number"], client_order_id=coid, **rec)
     print(f"{a.mode:<8} {rec['side']} {rec['qty']:g} {s.symbol}: {rec['status']}, "
           f"filled {rec['filled_qty']:g}"
           + (f" @ {rec['filled_avg_price']}" if rec["filled_avg_price"] else ""))

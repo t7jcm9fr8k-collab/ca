@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 
 import bars as B
 import barqc
@@ -790,6 +791,80 @@ check("a flat signal has nothing to buy (3)",
 check("paper without --qty is refused (3)", _run(["--mode", "paper", "--dry-run"] + SMA + BASE) == 3)
 check("a REAL paper run with no keys is refused (5) and records nothing",
       _run(["--mode", "paper", "--qty", "5"] + SMA + BASE) == 5 and ledger.events("paper", strategy="sma_cross_10_30") == [])
+
+
+class _FakeAlpaca:
+    """Stands in for Alpaca's HTTP API under the REAL broker.py, so the order
+    bodies run.py builds are the ones checked. Keeps orders by client_order_id
+    and refuses a repeat the way Alpaca does."""
+
+    def __init__(self, lose_reply=False, never_lands=False, poll_fails=False):
+        self.orders, self.posts = {}, 0
+        self.lose_reply, self.never_lands, self.poll_fails = lose_reply, never_lands, poll_fails
+
+    def call(self, base, path, hdr, body=None, method=None):
+        if path == "/v2/account":
+            return {"account_number": "PA00001234", "status": "ACTIVE", "equity": "1000",
+                    "buying_power": "1000"}
+        if path == "/v2/orders" and body is not None:
+            self.posts += 1
+            coid = body.get("client_order_id") or f"alpaca-made-{self.posts}"   # Alpaca makes one if none is sent
+            if coid in self.orders:
+                raise broker.Rejected('HTTP 422: {"code": 40010001, "message": "client_order_id must be unique"}')
+            if self.never_lands:
+                raise broker.Unreachable("URLError: connection reset")
+            o = {"id": f"ord-{coid[-12:]}", "client_order_id": coid, "symbol": body["symbol"],
+                 "side": body["side"], "qty": body.get("qty", "0"), "status": "accepted",
+                 "filled_qty": "0", "submitted_at": "t"}
+            self.orders[coid] = o
+            if self.lose_reply:
+                raise broker.Unreachable("TimeoutError: the read operation timed out")
+            return dict(o)
+        if path.startswith("/v2/orders:by_client_order_id"):
+            coid = urllib.parse.unquote(path.split("client_order_id=", 1)[1])
+            if coid in self.orders:
+                return dict(self.orders[coid])
+            raise broker.Rejected("HTTP 404: order not found")
+        if path.startswith("/v2/orders/"):
+            if self.poll_fails:
+                raise broker.Unreachable("TimeoutError: poll")
+            o = next(v for v in self.orders.values() if v["id"] == path.rsplit("/", 1)[1])
+            o.update(status="filled", filled_qty=o["qty"], filled_avg_price="100.0", filled_at="t")
+            return dict(o)
+        raise AssertionError(path)
+
+
+_bk_call, _bk_cred = broker._call, broker.credentials
+broker.credentials = lambda: {"APCA-API-KEY-ID": "k", "APCA-API-SECRET-KEY": "s"}
+try:
+    _alp = _FakeAlpaca(lose_reply=True)
+    broker._call = _alp.call
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "2"] + SMA + BASE)
+    _oid = next(iter(_alp.orders.values()))["id"]
+    _ev = [e for e in ledger.events("paper", symbol="SYN") if e.get("order_id") == _oid]
+    check("run.py: a lost reply is resolved by lookup — recorded, filled, exit 0",
+          _code == 0 and _alp.posts == 1 and len(_ev) == 2 and _ev[-1]["filled_qty"] == 2.0, f"{_code} {len(_ev)}")
+    _alp.lose_reply = False
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "2"] + SMA + BASE)
+    _ev = [e for e in ledger.events("paper", symbol="SYN") if e.get("order_id") == _oid]
+    check("run.py: re-running the same decision sends no second order and records nothing twice",
+          _code == 0 and len(_alp.orders) == 1 and len(_ev) == 2, f"{_code} {len(_alp.orders)} {len(_ev)}")
+    _n_before = len(ledger.events("paper"))
+    broker._call = _FakeAlpaca(never_lands=True).call
+    check("run.py: a POST that never landed exits 6 and records nothing",
+          _run(["--mode", "paper", "--side", "buy", "--qty", "3"] + SMA + BASE) == 6
+          and len(ledger.events("paper")) == _n_before)
+    _alp3 = _FakeAlpaca(poll_fails=True)
+    broker._call = _alp3.call
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "4"] + SMA + BASE)
+    _oid3 = next(iter(_alp3.orders.values()))["id"]
+    _ev3 = [e for e in ledger.events("paper", symbol="SYN") if e.get("order_id") == _oid3]
+    check("run.py: a failed fill poll is SENT, recorded unfilled — never 'Nothing recorded'",
+          _code == 0 and len(_ev3) == 1 and _ev3[0]["filled_qty"] == 0, f"{_code} {len(_ev3)}")
+    check("run.py: every order carries a client_order_id",
+          all(o["client_order_id"].startswith("ca-") for o in list(_alp.orders.values()) + list(_alp3.orders.values())))
+finally:
+    broker._call, broker.credentials = _bk_call, _bk_cred
 _bad = os.path.join(_tmp, "BAD-1d.csv")
 B.to_csv(_series(three_gone), _bad)
 check("a blocked series is refused before any mode runs (2)",
@@ -1339,12 +1414,16 @@ class _FakeBroker:
     """Stands in for broker.py: records what it was asked to send, fills or not."""
     PAPER, LIVE = "paper://", "live://"
 
-    def __init__(self, held=None, fill=True, equity="1000", fill_raises=False):
+    def __init__(self, held=None, fill=True, equity="1000", fill_raises=False,
+                 lose_reply=False, lookup_raises=False, coids=None):
         self.held = dict(held or {})
         self.fill = fill
         self.orders = []
         self.equity = equity
         self.fill_raises = fill_raises
+        self.lose_reply = lose_reply          # accept the order, then raise as a lost reply would
+        self.lookup_raises = lookup_raises
+        self.coids = coids if coids is not None else {}   # client_order_id -> order, like Alpaca's
 
     def credentials(self):
         return {"k": "v"}
@@ -1356,11 +1435,23 @@ class _FakeBroker:
     def positions(self, base, hdr):
         return dict(self.held)
 
-    def place_order(self, base, hdr, symbol, side, qty=None, notional=None):
+    def place_order(self, base, hdr, symbol, side, qty=None, notional=None, client_order_id=None):
+        if client_order_id in self.coids:
+            raise broker.Rejected('HTTP 422: {"message": "client_order_id must be unique"}')
         self.orders.append((base, symbol, side, qty if qty is not None else notional))
-        return {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side,
-                "qty": str(qty if qty is not None else 0), "status": "accepted",
-                "filled_qty": "0"}
+        o = {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side,
+             "qty": str(qty if qty is not None else 0), "status": "accepted",
+             "filled_qty": "0", "client_order_id": client_order_id}
+        if client_order_id:
+            self.coids[client_order_id] = o
+        if self.lose_reply:
+            raise broker.Unreachable("TimeoutError: the read operation timed out")
+        return o
+
+    def order_by_client_id(self, base, hdr, coid):
+        if self.lookup_raises:
+            raise broker.Unreachable("URLError: lookup failed")
+        return self.coids.get(coid)
 
     def wait_for_fill(self, base, hdr, oid):
         if self.fill_raises:
@@ -1396,6 +1487,8 @@ _ap_series = _series(_ap_bars, symbol="DIPX")
 _ap_ledger_real = ledger.LEDGER
 ledger.LEDGER = os.path.join(_ap_sand, "ledger.json")
 _sf = autopilot.STOP_FILE
+_lf = autopilot.LOCK_FILE
+autopilot.LOCK_FILE = os.path.join(_ap_sand, "autopilot.lock")
 try:
     _fb = _FakeBroker()
     _r = autopilot.run(["DIPX", "NOPE"], "trend_filter:20", "paper", qty=2, root=_ap_root,
@@ -1605,6 +1698,52 @@ try:
           _run(["--mode", "paper"] + SMA + BASE + ["--qty", "1", "--dry-run"]) == 7)
     ledger.LEDGER = _ap_led_keep
 
+    # --- one decision, one order: a failure after the broker accepted is not a refusal.
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPQ", leak_check=_LK_OK)
+    _fbq = _FakeBroker(lose_reply=True)
+    _rq = autopilot.run(["DIPQ"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbq, now=_ap_now)
+    check("an order accepted but whose reply was lost is found and recorded, not called refused",
+          len(_fbq.orders) == 1 and "refused" not in _rq[0]["action"]
+          and len([e for e in ledger.events("paper", symbol="DIPQ") if e.get("autopilot")]) >= 1,
+          _rq[0]["action"])
+    _fbq.lose_reply = False
+    autopilot.run(["DIPQ"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                  fetch_fn=_ap_fetch, broker_api=_fbq, now=_ap_now)
+    check("and the next run does not send it again", len(_fbq.orders) == 1)
+    # Accepted, reply lost, AND the lookup fails: unknown, nothing recorded; the
+    # next run resends the same id and the broker's refusal proves it landed.
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPR", leak_check=_LK_OK)
+    _fbr = _FakeBroker(lose_reply=True, lookup_raises=True)
+    _rr = autopilot.run(["DIPR"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbr, now=_ap_now)
+    check("when even the lookup fails the run says UNKNOWN and records nothing",
+          "UNKNOWN" in _rr[0]["action"] and ledger.events("paper", symbol="DIPR") == [], _rr[0]["action"])
+    _fbr.lose_reply = _fbr.lookup_raises = False
+    _rr2 = autopilot.run(["DIPR"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                         fetch_fn=_ap_fetch, broker_api=_fbr, now=_ap_now)
+    check("the resend is refused by the broker as a duplicate, then found and recorded: one order",
+          len(_fbr.orders) == 1 and len(ledger.events("paper", symbol="DIPR")) >= 1, _rr2[0]["action"])
+    # Two runs at once: the second finds the lock held and sends nothing.
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPS", leak_check=_LK_OK)
+    import fcntl as _fcntl
+    _held = open(autopilot.LOCK_FILE, "a")
+    _fcntl.flock(_held, _fcntl.LOCK_EX)
+    _fbs = _FakeBroker()
+    _rs = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now)
+    check("an overlapping run finds the lock held and sends nothing",
+          _fbs.orders == [] and "holds the lock" in _rs[0]["action"], _rs[0]["action"])
+    _rsd = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                         fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now, dry_run=True)
+    check("a dry run needs no lock (it sends nothing)", "would buy" in _rsd[0]["action"], _rsd[0]["action"])
+    _held.close()
+    _rs2 = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                         fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now)
+    check("once the lock is free the run proceeds", len(_fbs.orders) == 1, _rs2[0]["action"])
+    check("orders carry the decision's client_order_id",
+          all(o.get("client_order_id", "").startswith("ca-") for o in _fbs.coids.values()) and _fbs.coids)
+
     # --- the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP2")
     _fb8 = _FakeBroker(equity="1000")
@@ -1631,6 +1770,7 @@ try:
 finally:
     ledger.LEDGER = _ap_ledger_real
     autopilot.STOP_FILE = _sf
+    autopilot.LOCK_FILE = _lf
     shutil.rmtree(_ap_sand)
 
 # ---------------------------------------------------------------- aggregate

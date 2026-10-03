@@ -29,10 +29,12 @@ FILLS ARE ASYNCHRONOUS
     nothing about slippage.
 """
 
+import hashlib
 import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import tlsctx
@@ -105,8 +107,32 @@ def positions(base, hdr):
     return out
 
 
+def client_order_id(*parts):
+    """
+    The same decision always gets the same id. Alpaca refuses a second order
+    under an id it has already seen, so a retry after an ambiguous failure — a
+    timeout on the POST, a lost reply, a crash before the ledger write — cannot
+    place the order twice. "ca-" plus 40 hex characters: under Alpaca's limit.
+    """
+    return "ca-" + hashlib.sha256("|".join(str(p) for p in parts).encode()).hexdigest()[:40]
+
+
+def is_duplicate(err):
+    """True when Alpaca refused an order because its client_order_id was already used."""
+    return isinstance(err, Rejected) and "client_order_id" in str(err).lower()
+
+
+def order_by_client_id(base, hdr, coid):
+    """The order this decision's id names, or None when the broker has none."""
+    try:
+        return _call(base, "/v2/orders:by_client_order_id?client_order_id="
+                     + urllib.parse.quote(coid, safe=""), hdr)
+    except Rejected:                      # 404: no order under that id
+        return None
+
+
 def place_order(base, hdr, symbol, side, qty=None, notional=None, order_type="market",
-                tif="day"):
+                tif="day", client_order_id=None):
     """
     One of `qty` (shares) or `notional` (dollars, fractional shares) — never
     both, never neither. Alpaca fills a notional market order in fractional
@@ -125,6 +151,8 @@ def place_order(base, hdr, symbol, side, qty=None, notional=None, order_type="ma
         body["qty"] = str(qty)
     else:
         body["notional"] = f"{float(notional):.2f}"
+    if client_order_id:
+        body["client_order_id"] = client_order_id
     return _call(base, "/v2/orders", hdr, body)
 
 

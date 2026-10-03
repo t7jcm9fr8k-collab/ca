@@ -82,6 +82,7 @@ USAGE
 
 import argparse
 import datetime as dt
+import inspect
 import os
 import sys
 
@@ -262,9 +263,47 @@ def already_acted(mode, symbol, bar_date):
     return False
 
 
-def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
-        confirm_live=False, dry_run=False, root=None, fetch_fn=refresh,
-        broker_api=None, now=None, out_dir=None, notional=None, max_drawdown=0.15):
+LOCK_FILE = os.path.join(HERE, "out", "autopilot.lock")
+
+
+def _lock():
+    """An exclusive, non-blocking lock for one run, or None when another run holds it."""
+    try:
+        import fcntl
+    except ImportError:                          # not POSIX: no lock, as before
+        return open(os.devnull)
+    os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
+    f = open(LOCK_FILE, "a")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
+def run(*args, **kwargs):
+    """
+    One pass over the universe — see _run_once. A run that can send orders
+    holds an exclusive lock: two overlapping runs (cron and a hand run, or a
+    slow run and the next tick) both passed already_acted and both sent.
+    """
+    bound = inspect.signature(_run_once).bind(*args, **kwargs)
+    bound.apply_defaults()
+    if bound.arguments["dry_run"]:
+        return _run_once(*args, **kwargs)
+    lock = _lock()
+    if lock is None:
+        return [{"symbol": "*", "action": "another autopilot run holds the lock — nothing run"}]
+    try:
+        return _run_once(*args, **kwargs)
+    finally:
+        lock.close()
+
+
+def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
+              confirm_live=False, dry_run=False, root=None, fetch_fn=refresh,
+              broker_api=None, now=None, out_dir=None, notional=None, max_drawdown=0.15):
     """
     One pass over the universe. Returns the list of per-symbol records.
     `fetch_fn(symbol, root)` and `broker_api` are injectable for tests; the
@@ -360,12 +399,27 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = f"would {side} {desc} ({mode})"
             recs.append(rec)
             continue
+        import broker as broker_ids        # the pure id helper; no network at import
+        coid = broker_ids.client_order_id("autopilot", mode, strat.__name__, sym,
+                                          rec["bar_date"], side)
         try:
-            o = broker_api.place_order(base, hdr, sym, side, **order)
+            o = broker_api.place_order(base, hdr, sym, side, client_order_id=coid, **order)
         except Exception as e:
-            rec["action"] = f"broker refused: {e}"
-            recs.append(rec)
-            continue
+            # A refusal, or a failure AFTER the broker accepted (a timeout, a
+            # lost reply, an id it has already seen): ask the broker. Treating
+            # every exception as "refused" let the next run send it again.
+            try:
+                o = broker_api.order_by_client_id(base, hdr, coid)
+            except Exception as e2:
+                rec["action"] = (f"UNKNOWN whether {side} {desc} was sent ({e}; lookup: {e2}). "
+                                 f"The next run resends the same client_order_id, which the "
+                                 f"broker refuses if this one landed")
+                recs.append(rec)
+                continue
+            if o is None:
+                rec["action"] = f"broker refused: {e}"
+                recs.append(rec)
+                continue
         # Recorded the moment the broker accepts it, BEFORE the fill poll: an
         # order that exists at the broker and not in the ledger would be sent
         # again by the next run. The fill, when it comes, is a second record.
