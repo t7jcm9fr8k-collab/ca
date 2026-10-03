@@ -27,8 +27,11 @@ import datetime as dt, csv, random, sys
 sys.path.insert(0, ".")
 import barqc
 random.seed(7)
-start = dt.date(2025, 6, 2)
-sessions = barqc.sessions_between(start, start + dt.timedelta(days=365))[:250]
+# The values are seeded; the dates end on the latest session, because paper and
+# live refuse bars more than three sessions old and the demo's refusals must be
+# the gate's, not the calendar's.
+today = dt.datetime.now(dt.timezone.utc).date()
+sessions = barqc.sessions_between(today - dt.timedelta(days=400), today)[-250:]
 p, rows = 100.0, []
 for d in sessions:
     o = p * (1 + random.gauss(0, 0.004)); c = o * (1 + random.gauss(0.0004, 0.012))
