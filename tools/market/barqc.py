@@ -144,6 +144,22 @@ def is_session_day(d):
     return d.weekday() < 5 and d not in nyse_holidays(d.year)
 
 
+def sessions_behind(s, now=None):
+    """
+    Trading sessions dated after the last bar, up to and including today — 0
+    when the last bar is today's. Counted on the exchange calendar rather than
+    the clock, so Friday's bar read on Monday morning is 1 behind, not 3.4
+    periods, and a holiday is not mistaken for missing data.
+    """
+    if not s.bars:
+        return None
+    now = now or dt.datetime.now(B.UTC)
+    last = s.last.ts.date()
+    if last >= now.date():
+        return 0
+    return len(sessions_between(last + dt.timedelta(days=1), now.date()))
+
+
 # ---------------------------------------------------------------- checks
 
 def check_ohlc(s):

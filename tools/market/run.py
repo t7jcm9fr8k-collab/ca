@@ -33,14 +33,25 @@ MODES
     is sent and nothing is recorded as a run; a forced dry run still records the
     bypass, because the bypass is what needs auditing.
 
+ONE DECISION, ONE ORDER
+    Every order carries an id made from the decision — mode, strategy, symbol,
+    bar, side, size — and the broker refuses an id it has seen. Running the
+    same decision again therefore sends NOTHING and says so (exit 8); --repeat N
+    sends a deliberate Nth copy. An order whose fate a failure hid is recorded
+    as 'unknown', and the next run asks the broker about it before sending
+    anything for that symbol. Paper and live refuse bars more than three
+    sessions old: an order on them would be trading the past.
+
 EXIT CODES
-    2  data refused (unparseable, or barqc blocked it)
+    2  data refused (unparseable, barqc blocked it, or stale for paper/live)
     3  gate refused (no backtest / no filled paper run / no --confirm-live /
        --force on live / a STOP file present / a sell larger than the position)
     4  --force without --force-reason
     5  no broker credentials
     6  broker unreachable or order rejected
     7  the ledger exists but cannot be read — nothing that records or trades runs
+    8  NOT SENT: this decision's order (or an earlier one whose outcome was
+       unknown) is already at the broker; what it holds is recorded
 
 USAGE
     python3 run.py --mode signal   --strategy sma_cross:10,30 --csv bars/AAPL-1d.csv --symbol AAPL
@@ -147,6 +158,9 @@ def main():
                     help="override the side the signal implies")
     ap.add_argument("--dry-run", action="store_true",
                     help="paper/live: pass the gate, send nothing")
+    ap.add_argument("--repeat", type=int, metavar="N",
+                    help="paper/live: send the same order again on the same bar, as its Nth "
+                         "copy. Without it a repeat of a decision is never sent twice")
     ap.add_argument("--confirm-live", action="store_true",
                     help="required for --mode live")
     ap.add_argument("--force", action="store_true",
@@ -262,6 +276,16 @@ def main():
             refuse(3, "REFUSING: a STOP file is present (a drawdown halt, or placed by hand).",
                    "  Nothing is sent while it exists — run.py honours it as autopilot does.",
                    "  Remove it to resume.")
+    behind = barqc.sessions_behind(s)
+    if behind is not None and behind > barqc.STALE_PERIODS:
+        # autopilot refuses stale bars; run.py used to send on a research file
+        # months old, and its order id — keyed on the bar — froze with it.
+        refuse(2, f"REFUSED: the last bar is {s.last.ts:%Y-%m-%d}, {behind} sessions behind "
+                  f"(limit {barqc.STALE_PERIODS}).",
+               "  An order on it would be trading the past. Refresh the bars first:",
+               f"  python3 fetch.py --symbol {s.symbol}")
+    if a.repeat is not None and a.repeat < 2:
+        refuse(3, "--repeat N numbers a deliberate copy of an order already sent: N is 2 or more.")
     gate(a, strat_name)
 
     side = a.side or ("buy" if target > 0 else None)
@@ -281,9 +305,11 @@ def main():
     base = broker.PAPER if a.mode == "paper" else broker.LIVE
     # The same decision — mode, strategy, symbol, bar, side, size — always gets
     # the same order id, so re-running after any failure below cannot send it
-    # twice: the broker refuses an id it has already seen.
+    # twice: the broker refuses an id it has already seen. --repeat N makes a
+    # deliberate copy a different decision.
     coid = broker.client_order_id("run", a.mode, strat_name, s.symbol,
-                                  f"{s.last.ts:%Y-%m-%d}", side, a.qty)
+                                  f"{s.last.ts:%Y-%m-%d}", side, a.qty,
+                                  *(("repeat", a.repeat) if a.repeat else ()))
     try:
         hdr = broker.credentials()
         acct = broker.account(base, hdr)
@@ -294,62 +320,137 @@ def main():
     print(f"account  {broker.mask_account(acct['account_number'])} {'PAPER' if acct['paper'] else 'LIVE'} "
           f"status {acct['status']}, equity {acct['equity']}, "
           f"buying power {acct['buying_power']}")
-    if side == "sell":
+    common = dict(strategy=strat_name, symbol=s.symbol, signal=target, endpoint=base,
+                  account=acct["account_number"])
+
+    # 1. Orders an earlier run sent without learning whether they landed. Each
+    #    is settled before anything new goes out: an order that did land is
+    #    a position this run must not act blind to.
+    for ev in unresolved(a.mode, s.symbol):
+        c = ev["client_order_id"]
         try:
-            held = broker.positions(base, hdr).get(s.symbol.upper(), 0.0)
-        except (broker.Rejected, broker.Unreachable) as e:
-            refuse(6, f"NETWORK  {e}", "  Nothing sent: the position could not be read.")
-        if a.qty > held:
-            refuse(3, f"REFUSING to sell {a.qty:g} {s.symbol}: {held:g} held.",
-                   "  A sell larger than the position opens a short; these tools are long-only.")
-    try:
-        o = broker.place_order(base, hdr, s.symbol, side, a.qty, client_order_id=coid)
-    except (broker.Rejected, broker.Unreachable) as e:
-        if isinstance(e, broker.Rejected) and not broker.is_duplicate(e):
-            refuse(6, f"REJECTED by broker: {e}", "  Nothing sent.")
-        # A duplicate, or a failure that may have happened AFTER the broker
-        # accepted the order (a timeout, a lost reply): ask the broker.
-        try:
-            o = broker.order_by_client_id(base, hdr, coid)
-        except broker.Unreachable as e2:
-            refuse(6, f"NETWORK  {e}", f"  UNKNOWN whether the order reached the broker ({e2}).",
-                   "  Re-running is safe: it sends the same client_order_id, which the",
-                   "  broker refuses if the first one landed.")
+            o = broker.order_by_client_id(base, hdr, c)
+        except broker.Unreachable as e:
+            refuse(6, f"NETWORK  {e}",
+                   f"  An earlier {ev.get('side')} {ev.get('qty')} {s.symbol} is still UNKNOWN and the",
+                   "  broker could not be asked about it. Nothing sent.")
         if o is None:
-            refuse(6, f"NETWORK  {e}", "  Nothing sent: the broker has no order under this "
-                   "decision's id. Safe to re-run.")
-        print(f"         the broker already holds this decision's order ({o.get('status')}); "
-              f"not sending it again", file=sys.stderr)
+            ledger.record(a.mode, **{**common, **_carry(ev)}, client_order_id=c,
+                          status="not_sent", filled_qty=0.0)
+            print(f"         an earlier {ev.get('side')} {ev.get('qty')} {s.symbol} whose outcome was "
+                  f"unknown never reached the broker; recorded as not sent")
+            continue
+        ledger.record(a.mode, **{**common, **_carry(ev)}, client_order_id=c, **broker.summarise(o))
+        if c != coid:
+            refuse(8, f"NOT SENT — an earlier {o.get('side')} {o.get('qty')} {s.symbol}, whose outcome "
+                      f"was unknown, DID reach the broker ({o.get('status')}).",
+                   "  It is recorded now. This run sent nothing; re-run to send this order.")
+
+    # 2. This decision's own order may already exist — sent by an earlier run
+    #    that crashed, or deliberately run twice. Asked BEFORE the position
+    #    check: a full sell that filled leaves nothing held, and the re-run
+    #    meant to record it used to be refused as a short.
+    try:
+        o = broker.order_by_client_id(base, hdr, coid)
+    except broker.Unreachable as e:
+        refuse(6, f"NETWORK  {e}", "  Nothing sent: the broker could not say whether this "
+               "decision's order already exists.")
+    sent_now = o is None
+    if sent_now:
+        if side == "sell":
+            try:
+                held = broker.positions(base, hdr).get(s.symbol.upper(), 0.0)
+            except (broker.Rejected, broker.Unreachable) as e:
+                refuse(6, f"NETWORK  {e}", "  Nothing sent: the position could not be read.")
+            if not (math.isfinite(held) and a.qty <= held):
+                refuse(3, f"REFUSING to sell {a.qty:g} {s.symbol}: {held:g} held.",
+                       "  A sell larger than the position opens a short; these tools are long-only.")
+        try:
+            o = broker.place_order(base, hdr, s.symbol, side, a.qty, client_order_id=coid)
+        except (broker.Rejected, broker.Unreachable) as e:
+            if isinstance(e, broker.Rejected) and not broker.is_duplicate(e):
+                refuse(6, f"REJECTED by broker: {e}", "  Nothing sent.")
+            # A failure that may have happened AFTER the broker accepted the
+            # order (a timeout, a lost reply), or a duplicate: ask the broker.
+            sent_now = not broker.is_duplicate(e)
+            lookup_failed = None
+            try:
+                o = broker.order_by_client_id(base, hdr, coid)
+            except broker.Unreachable as e2:
+                o, lookup_failed = None, e2
+            if o is None and lookup_failed is None and sent_now:
+                refuse(6, f"NETWORK  {e}", "  Nothing sent: the broker has no order under this "
+                       "decision's id. Safe to re-run.")
+            if o is None:
+                # Not known either way. Recorded, so the next run asks the
+                # broker before it sends anything for this symbol.
+                ledger.record(a.mode, **common, client_order_id=coid, status="unknown",
+                              side=side, qty=float(a.qty), filled_qty=0.0)
+                refuse(6, f"NETWORK  {e}; lookup: "
+                          f"{lookup_failed or 'refused as a duplicate, yet no order under its id'}",
+                       "  UNKNOWN whether the order reached the broker. Recorded as unknown;",
+                       "  the next run asks the broker about it before sending anything.")
 
     # Recorded the moment it exists at the broker, BEFORE the fill poll: a poll
     # that fails used to end "Nothing recorded" for an order that was live, and
     # the natural retry sent it again.
-    mine = [ev for ev in ledger.events(a.mode, symbol=s.symbol) if ev.get("client_order_id") == coid]
-    if not mine:
-        ledger.record(a.mode, strategy=strat_name, symbol=s.symbol, signal=target,
-                      endpoint=base, account=acct["account_number"], client_order_id=coid,
-                      **broker.summarise(o))
+    wrote = False
+    if not settled(a.mode, s.symbol, coid):
+        ledger.record(a.mode, **common, client_order_id=coid, **broker.summarise(o))
+        wrote = True
     try:
         o = broker.wait_for_fill(base, hdr, o["id"])
-    except broker.Unreachable as e:
-        print(f"{a.mode:<8} {side} {a.qty:g} {s.symbol}: SENT, fill unknown ({e}). Recorded as "
-              f"unfilled; the broker's order page has the truth.", file=sys.stderr)
-        return
+    except (broker.Rejected, broker.Unreachable) as e:
+        print(f"{a.mode:<8} {side} {a.qty:g} {s.symbol}: "
+              f"{'SENT' if sent_now else 'NOT SENT (already at the broker)'}, fill unknown ({e}). "
+              f"Recorded as it stood; the broker's order page has the truth.", file=sys.stderr)
+        sys.exit(0 if sent_now else 8)
 
     rec = broker.summarise(o)
-    filled_before = any((ev.get("filled_qty") or 0) > 0 for ev in mine)
-    if rec["filled_qty"] > 0 and not filled_before:
-        ledger.record(a.mode, strategy=strat_name, symbol=s.symbol, signal=target,
-                      endpoint=base, account=acct["account_number"], client_order_id=coid, **rec)
+    # A fill is recorded when it is MORE than the ledger already holds for this
+    # order: once per order, and again when a partial fill completes.
+    have = max((ev.get("filled_qty") or 0) for ev in settled(a.mode, s.symbol, coid))
+    if rec["filled_qty"] > have:
+        ledger.record(a.mode, **common, client_order_id=coid, **rec)
+        wrote = True
+    if not sent_now:
+        print(f"NOT SENT — this decision's order already exists at the broker "
+              f"(order {rec['order_id']}, submitted {rec['submitted_at']}): this run sent nothing.")
+        print(f"         to send the same order again on purpose: --repeat 2")
     print(f"{a.mode:<8} {rec['side']} {rec['qty']:g} {s.symbol}: {rec['status']}, "
           f"filled {rec['filled_qty']:g}"
           + (f" @ {rec['filled_avg_price']}" if rec["filled_avg_price"] else ""))
     if rec["filled_qty"] <= 0:
         print("         not filled yet — this run does NOT count as paper evidence "
               "for the live gate until it fills", file=sys.stderr)
-    print(f"\nrecorded {a.mode} run to the ledger")
+    print(f"\nrecorded {a.mode} run to the ledger" if wrote else "\nnothing new to record")
     print(f"       python3 ledger.py --report")
+    if not sent_now:
+        sys.exit(8)
 
+
+UNSETTLED = ("unknown", "not_sent")
+
+
+def settled(mode, symbol, coid):
+    """This order's records that say what the broker holds — not the 'unknown'
+    marker an ambiguous failure leaves, nor the 'not_sent' that resolves one."""
+    return [ev for ev in ledger.events(mode, symbol=symbol)
+            if ev.get("client_order_id") == coid and ev.get("status") not in UNSETTLED]
+
+
+def unresolved(mode, symbol):
+    """run.py's 'unknown' records for this symbol with nothing after them."""
+    last = {}
+    for ev in ledger.events(mode, symbol=symbol):
+        if ev.get("client_order_id") and not ev.get("autopilot"):
+            last[ev["client_order_id"]] = ev
+    return [ev for ev in last.values() if ev.get("status") == "unknown"]
+
+
+def _carry(ev):
+    """What an 'unknown' record knew about the order it stands for."""
+    return {k: ev[k] for k in ("strategy", "signal") if k in ev}
 
 if __name__ == "__main__":
     main()

@@ -144,13 +144,21 @@ def account(base, hdr):
 
 
 def positions(base, hdr):
-    """{symbol: qty} of open positions. Empty dict means flat, not unknown."""
+    """{symbol: qty} of open positions. Empty dict means flat, not unknown;
+    a quantity that is not a readable, finite number raises Unreachable."""
     out = {}
     for p in _call(base, "/v2/positions", hdr) or []:
         try:
-            out[str(p.get("symbol", "")).upper()] = float(p.get("qty") or 0)
+            q = float(p.get("qty") or 0)
         except (TypeError, ValueError):
-            continue
+            q = math.nan
+        if not math.isfinite(q):
+            # "NaN" compares False with everything: a sell check passed it, and
+            # a position skipped as unreadable read as flat, which invites a
+            # buy. Unknown, so nothing trades.
+            raise Unreachable(f"the broker reported a quantity for {p.get('symbol')!r} "
+                              f"that is not a finite number; positions are unknown")
+        out[str(p.get("symbol", "")).upper()] = q
     return out
 
 
@@ -170,12 +178,19 @@ def is_duplicate(err):
 
 
 def order_by_client_id(base, hdr, coid):
-    """The order this decision's id names, or None when the broker has none."""
+    """
+    The order this decision's id names, or None when the broker has none. Only
+    a 404 means none: a 429 or a 400 used to read the same, and the caller
+    then told the user "nothing sent, safe to re-run" about an order that had
+    landed. Any other refusal is an unanswered question — Unreachable.
+    """
     try:
         return _call(base, "/v2/orders:by_client_order_id?client_order_id="
                      + urllib.parse.quote(coid, safe=""), hdr)
-    except Rejected:                      # 404: no order under that id
-        return None
+    except Rejected as e:
+        if str(e).startswith("HTTP 404"):
+            return None
+        raise Unreachable(f"the order lookup was refused, so whether it exists is unknown: {e}") from None
 
 
 def place_order(base, hdr, symbol, side, qty=None, notional=None, order_type="market",

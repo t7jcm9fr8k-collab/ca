@@ -174,6 +174,15 @@ forced run that looked identical to an earned one would make the ledger lie,
 and the ledger's only value is that a live run sitting below a paper run
 *proves* the paper run happened.
 
+One decision, one order. Each order carries an id built from the decision
+(mode, strategy, symbol, bar, side, size), and the broker refuses an id it has
+seen — so running the same command twice sends **nothing** the second time and
+says `NOT SENT`, exit **8**. To send a deliberate copy on the same bar, add
+`--repeat 2`. When a failure hides whether an order landed, it is recorded as
+`unknown`, and the next run asks the broker about it before sending anything
+for that symbol. Paper and live refuse bars more than three sessions old
+(exit **2**): refresh with `fetch.py` first.
+
 Run `./demo.sh` to watch all of it, refusals included.
 
 ## The stack, as features — so it can be measured

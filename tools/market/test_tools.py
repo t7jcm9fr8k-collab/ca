@@ -825,7 +825,13 @@ check("neither qty nor notional is refused",
 print("\nthe gate — signal → backtest → paper → live")
 
 _fix = os.path.join(_tmp, "SYN-1d.csv")
-B.to_csv(_series(_daily(80)), _fix)
+# Ends on the latest session: paper and live refuse bars more than three
+# sessions old, so a fixture pinned to a past date would test only that refusal.
+_today = dt.datetime.now(dt.timezone.utc).date()
+_fix_start = barqc.sessions_between(_today - dt.timedelta(days=200), _today)[-80]
+B.to_csv(_series(_daily(80, start=_fix_start)), _fix)
+_stale = os.path.join(_tmp, "SYN-stale-1d.csv")
+B.to_csv(_series(_daily(80)), _stale)
 strategies.REGISTRY["flat"] = lambda: (lambda cur: 0.0)
 
 
@@ -895,18 +901,31 @@ check("a REAL paper run with no keys is refused (5) and records nothing",
 class _FakeAlpaca:
     """Stands in for Alpaca's HTTP API under the REAL broker.py, so the order
     bodies run.py builds are the ones checked. Keeps orders by client_order_id
-    and refuses a repeat the way Alpaca does."""
+    and refuses a repeat the way Alpaca does. Fills move `held`, so a sell that
+    filled leaves less to sell."""
 
-    def __init__(self, lose_reply=False, never_lands=False, poll_fails=False):
-        self.orders, self.posts = {}, 0
+    def __init__(self, lose_reply=False, never_lands=False, poll_fails=False, held=None,
+                 lookup_fails=False, lookup_code=None, fill_on_post=False, partial=None,
+                 poll_rejects=False):
+        self.orders, self.posts, self.held = {}, 0, dict(held or {})
         self.lose_reply, self.never_lands, self.poll_fails = lose_reply, never_lands, poll_fails
+        self.lookup_fails, self.lookup_code, self.fill_on_post = lookup_fails, lookup_code, fill_on_post
+        self.partial, self.poll_rejects = partial, poll_rejects
+
+    def _fill(self, o, qty):
+        before = float(o["filled_qty"])
+        o.update(filled_qty=f"{qty:g}", filled_avg_price="100.0", filled_at="t",
+                 status="filled" if qty >= float(o["qty"]) else "partially_filled")
+        sign = 1 if o["side"] == "buy" else -1
+        self.held[o["symbol"]] = self.held.get(o["symbol"], 0.0) + sign * (qty - before)
 
     def call(self, base, path, hdr, body=None, method=None):
         if path == "/v2/account":
             return {"account_number": "PA00001234", "status": "ACTIVE", "equity": "1000",
                     "buying_power": "1000"}
         if path == "/v2/positions":
-            return []                          # flat: nothing held
+            return [{"symbol": k, "qty": str(v)} for k, v in self.held.items()
+                    if isinstance(v, str) or v]
         if path == "/v2/orders" and body is not None:
             self.posts += 1
             coid = body.get("client_order_id") or f"alpaca-made-{self.posts}"   # Alpaca makes one if none is sent
@@ -918,10 +937,20 @@ class _FakeAlpaca:
                  "side": body["side"], "qty": body.get("qty", "0"), "status": "accepted",
                  "filled_qty": "0", "submitted_at": "t"}
             self.orders[coid] = o
+            if self.fill_on_post:
+                self._fill(o, float(o["qty"]))
+            elif self.partial:
+                self._fill(o, self.partial)
             if self.lose_reply:
                 raise broker.Unreachable("TimeoutError: the read operation timed out")
             return dict(o)
         if path.startswith("/v2/orders:by_client_order_id"):
+            # lookup_fails / lookup_code strike once an order has been POSTed:
+            # the lookup BEFORE sending answers, the one after a lost reply fails.
+            if self.lookup_fails and self.posts:
+                raise broker.Unreachable("TimeoutError: lookup")
+            if self.lookup_code and self.posts:
+                raise broker.Rejected(f"HTTP {self.lookup_code}: slow down")
             coid = urllib.parse.unquote(path.split("client_order_id=", 1)[1])
             if coid in self.orders:
                 return dict(self.orders[coid])
@@ -929,14 +958,42 @@ class _FakeAlpaca:
         if path.startswith("/v2/orders/"):
             if self.poll_fails:
                 raise broker.Unreachable("TimeoutError: poll")
+            if self.poll_rejects:
+                raise broker.Rejected("HTTP 429: too many requests")
             o = next(v for v in self.orders.values() if v["id"] == path.rsplit("/", 1)[1])
-            o.update(status="filled", filled_qty=o["qty"], filled_avg_price="100.0", filled_at="t")
+            self._fill(o, float(o["qty"]))
             return dict(o)
         raise AssertionError(path)
 
 
+def _run_out(argv):
+    """_run, keeping what was printed: (code, stdout, stderr)."""
+    real, out, err = sys.argv, io.StringIO(), io.StringIO()
+    sys.argv = ["run.py"] + argv
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            run.main()
+        code = 0
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else 1
+    finally:
+        sys.argv = real
+    return code, out.getvalue(), err.getvalue()
+
+
+def _coid_events(alp, mode="paper"):
+    """The ledger's records for the orders this fake holds."""
+    ids = {o["client_order_id"] for o in alp.orders.values()}
+    return [e for e in ledger.events(mode, symbol="SYN") if e.get("client_order_id") in ids]
+
+
 _bk_call, _bk_cred = broker._call, broker.credentials
 broker.credentials = lambda: {"APCA-API-KEY-ID": "k", "APCA-API-SECRET-KEY": "s"}
+import autopilot as _ap_mod
+# run.py honours autopilot's STOP file. A real one beside autopilot.py must not
+# decide these checks, so the whole block reads a sandboxed path.
+_stop_keep = _ap_mod.STOP_FILE
+_ap_mod.STOP_FILE = os.path.join(_tmp, "STOP-run")
 try:
     _alp = _FakeAlpaca(lose_reply=True)
     broker._call = _alp.call
@@ -946,10 +1003,20 @@ try:
     check("run.py: a lost reply is resolved by lookup — recorded, filled, exit 0",
           _code == 0 and _alp.posts == 1 and len(_ev) == 2 and _ev[-1]["filled_qty"] == 2.0, f"{_code} {len(_ev)}")
     _alp.lose_reply = False
-    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "2"] + SMA + BASE)
+    _code, _out, _err = _run_out(["--mode", "paper", "--side", "buy", "--qty", "2"] + SMA + BASE)
     _ev = [e for e in ledger.events("paper", symbol="SYN") if e.get("order_id") == _oid]
     check("run.py: re-running the same decision sends no second order and records nothing twice",
-          _code == 0 and len(_alp.orders) == 1 and len(_ev) == 2, f"{_code} {len(_alp.orders)} {len(_ev)}")
+          len(_alp.orders) == 1 and len(_ev) == 2, f"{_code} {len(_alp.orders)} {len(_ev)}")
+    check("run.py: ...and says NOT SENT, exit 8 — never 'recorded' for a run that wrote nothing",
+          _code == 8 and "NOT SENT" in _out and "recorded paper run" not in _out
+          and "nothing new to record" in _out, f"{_code} {_out!r}")
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "2", "--repeat", "2"] + SMA + BASE)
+    check("run.py: --repeat 2 sends a deliberate second copy on the same bar (0)",
+          _code == 0 and len(_alp.orders) == 2 and len(_coid_events(_alp)) == 4,
+          f"{_code} {len(_alp.orders)} {len(_coid_events(_alp))}")
+    check("run.py: --repeat 1 is refused (3) — copy 1 is the order itself",
+          _run(["--mode", "paper", "--side", "buy", "--qty", "2", "--repeat", "1"] + SMA + BASE) == 3
+          and len(_alp.orders) == 2)
     _n_before = len(ledger.events("paper"))
     broker._call = _FakeAlpaca(never_lands=True).call
     check("run.py: a POST that never landed exits 6 and records nothing",
@@ -973,18 +1040,104 @@ try:
     check("a sell larger than the position is refused (3) — no shorts",
           _run(["--mode", "paper", "--side", "sell", "--qty", "1"] + SMA + BASE) == 3)
     check("a NaN quantity is refused (3)", _run(["--mode", "paper", "--qty", "nan", "--dry-run"] + SMA + BASE) == 3)
-    import autopilot as _ap_mod
-    _stop_keep = _ap_mod.STOP_FILE
-    _ap_mod.STOP_FILE = os.path.join(_tmp, "STOP-run")
     open(_ap_mod.STOP_FILE, "w").close()
     check("a STOP file stops run.py orders too (3)",
           _run(["--mode", "paper", "--side", "buy", "--qty", "7"] + SMA + BASE) == 3)
     check("but a dry run still answers while STOP is present (0)",
           _run(["--mode", "paper", "--qty", "7", "--dry-run"] + SMA + BASE) == 0)
     os.remove(_ap_mod.STOP_FILE)
-    _ap_mod.STOP_FILE = _stop_keep
+
+    # --- the review's money-path findings, each against the real broker.py
+    # A full sell that filled, with its reply AND the lookup lost: recorded as
+    # unknown, and the re-run settles it instead of refusing it as a short.
+    _ms = _FakeAlpaca(held={"SYN": 2.0}, lose_reply=True, lookup_fails=True, fill_on_post=True)
+    broker._call = _ms.call
+    _code = _run(["--mode", "paper", "--side", "sell", "--qty", "2"] + SMA + BASE)
+    _unk = [e for e in _coid_events(_ms) if e.get("status") == "unknown"]
+    check("MP-2: an ambiguous sell is recorded as 'unknown' (6), not left out of the ledger",
+          _code == 6 and len(_ms.orders) == 1 and len(_unk) == 1 and _unk[0]["side"] == "sell",
+          f"{_code} {len(_ms.orders)} {_unk}")
+    _ms.lose_reply = _ms.lookup_fails = False
+    _code, _out, _ = _run_out(["--mode", "paper", "--side", "sell", "--qty", "2"] + SMA + BASE)
+    _set = [e for e in _coid_events(_ms) if e.get("status") == "filled"]
+    check("MP-2: the re-run settles it — the filled sell recorded once, nothing sent, exit 8",
+          _code == 8 and _ms.posts == 1 and len(_set) == 1 and _set[0]["filled_qty"] == 2.0
+          and "REFUSING to sell" not in _out, f"{_code} {_ms.posts} {_set} {_out!r}")
+    # An unknown order that DID land stops a different order until it is seen.
+    _mx = _FakeAlpaca(lose_reply=True, lookup_fails=True)
+    broker._call = _mx.call
+    _run(["--mode", "paper", "--side", "buy", "--qty", "3"] + SMA + BASE)
+    _mx.lose_reply = _mx.lookup_fails = False
+    _code, _, _out = _run_out(["--mode", "paper", "--side", "buy", "--qty", "5"] + SMA + BASE)
+    check("MP-1/2: an earlier unknown order that landed is recorded and the NEW order is not sent (8)",
+          _code == 8 and _mx.posts == 1 and "DID reach the broker" in _out
+          and any(e.get("status") == "accepted" for e in _coid_events(_mx)), f"{_code} {_mx.posts} {_out!r}")
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "5"] + SMA + BASE)
+    check("MP-1/2: ...and once it is on the record, the next run sends (0)",
+          _code == 0 and len(_mx.orders) == 2, f"{_code} {len(_mx.orders)}")
+    # An unknown order that never landed is marked not_sent, and the run goes on.
+    _mn = _FakeAlpaca(never_lands=True)
+    _mn_coid = broker.client_order_id("x-never-landed")
+    ledger.record("paper", strategy="sma_cross_10_30", symbol="SYN", signal=1.0,
+                  client_order_id=_mn_coid, status="unknown", side="buy", qty=1.0, filled_qty=0.0)
+    _mn.never_lands = False
+    broker._call = _mn.call
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "6"] + SMA + BASE)
+    check("MP-1/2: an unknown order the broker never got is recorded 'not_sent' and the run sends (0)",
+          _code == 0 and len(_mn.orders) == 1 and any(
+              e.get("client_order_id") == _mn_coid and e.get("status") == "not_sent"
+              for e in ledger.events("paper", symbol="SYN")), f"{_code} {len(_mn.orders)}")
+    _mf = _FakeAlpaca(lose_reply=True, lookup_code=429)
+    broker._call = _mf.call
+    _code, _, _err = _run_out(["--mode", "paper", "--side", "buy", "--qty", "7"] + SMA + BASE)
+    check("MP-4: a 429 on the lookup is not 'no such order' — UNKNOWN (6), recorded, never 'safe to re-run'",
+          _code == 6 and "Safe to re-run" not in _err and "UNKNOWN" in _err
+          and [e.get("status") for e in _coid_events(_mf)] == ["unknown"], f"{_code} {_err!r}")
+    check("MP-4: order_by_client_id returns None only on 404",
+          _raises(broker.Unreachable, broker.order_by_client_id, broker.PAPER, {}, "ca-x"))
+    _m5 = _FakeAlpaca(lose_reply=True, fill_on_post=True)
+    broker._call = _m5.call
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "8"] + SMA + BASE)
+    _fills = [e for e in _coid_events(_m5) if (e.get("filled_qty") or 0) > 0]
+    check("MP-5: an order the lookup already shows filled is recorded filled ONCE",
+          _code == 0 and len(_fills) == 1, f"{_code} {_fills}")
+    _m5b = _FakeAlpaca(fill_on_post=True)
+    broker._call = _m5b.call
+    _run(["--mode", "paper", "--side", "buy", "--qty", "9"] + SMA + BASE)
+    check("MP-5: ...and so is one whose POST reply already says filled",
+          len([e for e in _coid_events(_m5b) if (e.get("filled_qty") or 0) > 0]) == 1)
+    _mp = _FakeAlpaca(partial=1.0, lose_reply=True, poll_fails=True)
+    broker._call = _mp.call
+    _run(["--mode", "paper", "--side", "buy", "--qty", "3", "--repeat", "3"] + SMA + BASE)
+    _mp.lose_reply = _mp.poll_fails = False
+    _code = _run(["--mode", "paper", "--side", "buy", "--qty", "3", "--repeat", "3"] + SMA + BASE)
+    check("MISS-2: a partial fill completed on a re-run records the full fill",
+          _code == 8 and max(e.get("filled_qty") or 0 for e in _coid_events(_mp)) == 3.0,
+          f"{_code} {[(e.get('status'), e.get('filled_qty')) for e in _coid_events(_mp)]}")
+    _mr = _FakeAlpaca(poll_rejects=True)
+    broker._call = _mr.call
+    _code, _out, _err = _run_out(["--mode", "paper", "--side", "buy", "--qty", "10"] + SMA + BASE)
+    check("MP-7: a refused fill poll is 'SENT, fill unknown', recorded, exit 0 — no traceback",
+          _code == 0 and "SENT" in _err and len(_coid_events(_mr)) == 1, f"{_code} {_err!r}")
+    _mnan = _FakeAlpaca(held={"SYN": "NaN"})
+    broker._call = _mnan.call
+    check("MP-6: a NaN position reads as unknown — positions() raises",
+          _raises(broker.Unreachable, broker.positions, broker.PAPER, {}))
+    check("MP-6: run.py sells nothing against a NaN position (6)",
+          _run(["--mode", "paper", "--side", "sell", "--qty", "5"] + SMA + BASE) == 6 and _mnan.posts == 0)
+    _mnan.held = {"SYN": "inf"}
+    check("MP-6: ...nor against an infinite one (6)",
+          _run(["--mode", "paper", "--side", "sell", "--qty", "5000"] + SMA + BASE) == 6 and _mnan.posts == 0)
+    _old_base = ["--csv", _stale] + BASE[2:]
+    broker._call = _FakeAlpaca().call
+    check("MP-9: paper refuses bars more than three sessions old (2)",
+          _run(["--mode", "paper", "--side", "buy", "--qty", "1"] + SMA + _old_base) == 2)
+    check("MP-9: ...a dry run says the same (2); signal and backtest still read them (0)",
+          _run(["--mode", "paper", "--qty", "1", "--dry-run"] + SMA + _old_base) == 2
+          and _run(["--mode", "signal"] + SMA + _old_base) == 0)
 finally:
     broker._call, broker.credentials = _bk_call, _bk_cred
+    _ap_mod.STOP_FILE = _stop_keep
 _bad = os.path.join(_tmp, "BAD-1d.csv")
 B.to_csv(_series(three_gone), _bad)
 check("a blocked series is refused before any mode runs (2)",
