@@ -149,6 +149,24 @@ for lic in ("Public Domain", "CC0 1.0", "no known copyright restrictions"):
     ok["layers"][0]["provenance"]["licence"] = lic
     check(f"safe licence accepted ({lic})", compose.check_provenance(ok) == [])
 
+# Whole words, not substrings. Substring matching accepted every one of these:
+# "public domain" sits inside "Not in the public domain", and "pd" inside "updated".
+for lic in ("Not in the public domain", "All rights reserved — updated 2026",
+            "Public domain in the US only; all rights reserved elsewhere",
+            "© 2024 A Museum. Public domain image", "In copyright", "CC0 (except the frame)"):
+    bad = {"layers": [{"source": "x.png", "provenance": dict(base["layers"][0]["provenance"])}]}
+    bad["layers"][0]["provenance"]["licence"] = lic
+    check(f"a qualified licence is refused ({lic})", len(compose.check_provenance(bad)) == 1)
+check("a part of a hyphenated tag is enough to refuse (BY-ND)", compose.licence_verdict("CC BY-ND 4.0") == "denied")
+check("Commons PD tags read as public domain", compose.licence_verdict("PD-old-70") == "ok"
+      and compose.licence_verdict("PD-Art") == "ok")
+import glob as _glob, json as _json, os as _os
+_lic_in_use = sorted({(L.get("provenance") or {}).get("licence", "")
+                      for _rp in _glob.glob(_os.path.join(_os.path.dirname(_os.path.abspath(compose.__file__)), "recipes", "*.json"))
+                      for L in _json.load(open(_rp)).get("layers", [])} - {""})
+check(f"every licence the committed recipes use still passes ({len(_lic_in_use)} strings)",
+      _lic_in_use and all(compose.licence_verdict(x) == "ok" for x in _lic_in_use), str(_lic_in_use))
+
 # ---------------------------------------------------------------- silhouette
 
 print("\nsilhouette")

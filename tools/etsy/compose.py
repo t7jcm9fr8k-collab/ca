@@ -55,6 +55,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
@@ -70,11 +71,45 @@ UPSCALE_TOLERANCE = 1.02   # above this a layer is being enlarged past its own p
 
 REQUIRED_PROVENANCE = ("url", "licence", "traced")
 
-# Licence strings that are fine on merchandise. Anything else stops the render —
-# CC-BY-SA in particular is a share-alike trap on a product you sell.
-LICENCE_ALLOW = ("public domain", "pd", "cc0", "no known copyright")
-LICENCE_DENY = ("cc-by-sa", "by-sa", "share-alike", "sharealike", "noncommercial",
-                "non-commercial", "nc", "nd", "no-derivatives")
+# Licences that are fine on merchandise, matched as WHOLE WORDS. Anything else
+# stops the render — CC-BY-SA in particular is a share-alike trap on a product
+# you sell. This used to be substring matching, which accepted "Not in the
+# public domain" (it contains "public domain") and "All rights reserved —
+# updated 2026" (the "pd" inside "updated"): the gate on what goes onto a
+# shirt for sale said yes to a reserved image.
+LICENCE_ALLOW = (("public", "domain"), ("pdm",), ("pd",), ("cc0",),
+                 ("no", "known", "copyright"))
+# Any hyphen-separated part of any word: "BY-NC" is refused for its "nc".
+LICENCE_DENY = {"sa", "nc", "nd", "sharealike", "noncommercial", "derivatives"}
+# A recognised licence with a qualifier is not unconditionally public domain —
+# "public domain in the US only", "CC0 except the frame", "not public domain".
+LICENCE_QUALIFIERS = {"not", "non", "reserved", "restricted", "only", "except",
+                      "excluding", "unless", "permission", "copyrighted", "unknown",
+                      "unclear", "undetermined", "evaluated"}
+
+
+def licence_verdict(text):
+    """
+    "ok", "denied", "qualified" or "unrecognised" for a provenance licence
+    string. Whole words only; a "pd-..." Commons tag (PD-Art, PD-old-70) reads
+    as "pd". "copyright" outside "no known copyright", or a (c) sign, is a
+    qualifier: it says the work is in copyright somewhere.
+    """
+    raw = str(text).lower()
+    words = re.findall(r"[a-z0-9]+(?:[.\-][a-z0-9]+)*", raw.replace("\u2013", "-").replace("\u2014", " "))
+    parts = {p for w in words for p in w.split("-")}
+    if parts & LICENCE_DENY or "share alike" in " ".join(words):
+        return "denied"
+    seq = " ".join(words)
+    if (parts & LICENCE_QUALIFIERS or "\u00a9" in raw or "(c)" in raw
+            or ("copyright" in parts and "no known copyright" not in seq)):
+        return "qualified"
+    heads = [w.split("-")[0] if w.startswith("pd-") else w for w in words]
+    for form in LICENCE_ALLOW:
+        n = len(form)
+        if any(tuple(heads[i:i + n]) == form for i in range(len(heads) - n + 1)):
+            return "ok"
+    return "unrecognised"
 
 
 # ---------------------------------------------------------------- ink
@@ -173,13 +208,18 @@ def check_provenance(recipe):
         for field in REQUIRED_PROVENANCE:
             if not str(p.get(field, "")).strip():
                 problems.append(f"layer {i} ({name}): provenance.{field} is empty")
-        lic = str(p.get("licence", "")).lower()
+        lic = str(p.get("licence", "")).strip()
         if lic:
-            if any(bad in lic for bad in LICENCE_DENY):
+            verdict = licence_verdict(lic)
+            if verdict == "denied":
                 problems.append(
                     f"layer {i} ({name}): licence '{p['licence']}' is not usable on "
                     f"merchandise")
-            elif not any(ok in lic for ok in LICENCE_ALLOW):
+            elif verdict == "qualified":
+                problems.append(
+                    f"layer {i} ({name}): licence '{p['licence']}' is qualified — "
+                    f"merchandise needs it unconditionally public domain or CC0")
+            elif verdict == "unrecognised":
                 problems.append(
                     f"layer {i} ({name}): licence '{p['licence']}' is not recognised "
                     f"as merchandise-safe — check the file page and use an explicit "

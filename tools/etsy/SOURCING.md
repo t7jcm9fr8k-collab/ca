@@ -163,7 +163,10 @@ even, not one with a heavy cartouche competing for attention.
      "credit": "Piranesi, Carceri plate VII, 1750"
    }
    ```
-   `licence` must read as public domain, PD, CC0, or no known copyright.
+   `licence` must read as public domain, PD, CC0, or no known copyright —
+   as whole words, and unqualified: a string that also says *not*, *only*,
+   *except*, *reserved*, *copyright* or carries a © is refused, because
+   "public domain in the US only" is not public domain on a shirt sold abroad.
    Anything else is refused, including anything vague.
 3. Log the same entry in `Etsy-Art/SOURCES.md`.
 4. `python3 compose.py --recipe recipes/<id>.json --draft --report`
