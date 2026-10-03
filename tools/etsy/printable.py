@@ -31,14 +31,21 @@ THE THREE RULES
 
 THE GATE
     A printable is a sale file, so it comes only from a design version that
-    has a recorded inspection that was not blocked. `--force` goes around the
+    has a recorded inspection that was not blocked, and only from the exact
+    file that inspection hashed: --print must be byte-for-byte what qc.py
+    inspected. An inspection recorded before hashes were kept does not clear
+    it; run qc.py again. `--force` goes around the
     gate and, like every bypass here, needs `--force-reason` (exit 4 without
     one) and is printed in the summary so it is visible.
 
 USAGE
     python3 printable.py --design marigold-calavera --version 2 \\
-        --print out/marigold-calavera-onlight.png --forbid "Your Name" --forbid "Your Town"
-    python3 printable.py --design x --version 2 --print out/x-onlight.png --sizes 8x10 a3
+        --print out/marigold-calavera-v2-onlight.png --forbid "Your Name" --forbid "Your Town"
+    python3 printable.py --design x --version 2 --print out/x-v2-onlight.png --sizes 8x10 a3
+
+    --print is the version's own print file, the one mockup.py wrote and
+    qc.py inspected: compose's out/<design>-onlight.png is re-saved by
+    mockup.py, so its bytes are not the inspected ones.
 """
 
 import argparse
@@ -48,6 +55,7 @@ import sys
 from PIL import Image
 
 import history
+from names import safe_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -203,6 +211,28 @@ def export(art, design, out_dir, sizes=None, dpi=DPI, margin_in=MARGIN_IN,
     return out
 
 
+def gate_refusal(design, version, print_path):
+    """
+    Why this file may NOT be exported as a sale file for this version, or None.
+    The inspection has to be of these exact bytes: the gate used to check the
+    version's own print against itself and then export whatever --print named.
+    """
+    state, insp = history.inspection_status(design, version)
+    if state == "none":
+        return "no inspection recorded"
+    if state == "changed":
+        return "the file it inspected has changed or gone since; inspect it again"
+    if state == "unbound" or not insp.get("sha256"):
+        return ("its inspection is not tied to a file's bytes (no checks ran, or it "
+                "predates hashing); run qc.py on it again")
+    if insp.get("verdict") == "blocked":
+        return f"inspection verdict is blocked ({', '.join(insp.get('failed') or [])})"
+    if history._sha256(print_path) != insp["sha256"]:
+        return (f"--print {print_path} is not the file that was inspected "
+                f"({insp.get('file')})")
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -223,15 +253,17 @@ def main():
                          "version. Needs --force-reason; printed in the summary.")
     ap.add_argument("--force-reason", default="")
     a = ap.parse_args()
+    try:
+        safe_name(a.design, "--design")      # it names the files written into --out
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
 
     if not os.path.exists(a.print_file):
         sys.exit(f"no print file at {a.print_file}")
 
-    insp = history.inspection_for(a.design, a.version)
-    cleared = insp is not None and insp.get("verdict") != "blocked"
+    why = gate_refusal(a.design, a.version, a.print_file)
+    cleared = why is None
     if not cleared and not a.force:
-        why = ("no inspection recorded" if insp is None
-               else f"inspection verdict is {insp.get('verdict')}")
         print(f"REFUSED — {a.design} v{a.version}: {why}.", file=sys.stderr)
         print("A printable is a sale file. Run qc.py on this version first, or "
               "--force with --force-reason to go around the gate visibly.",

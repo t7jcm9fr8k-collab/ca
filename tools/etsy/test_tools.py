@@ -655,14 +655,29 @@ import history as H
 _led_backup = H.load()
 
 # The inspection history fails loudly too, and the demo can only forget proofs.
-_h_keep = H.LEDGER
+# Everything in this block lives in two temp folders, removed at the end: one
+# stands in for tools/etsy (H.HERE), one for a folder outside it. Nothing here
+# touches the real tools/etsy/out/.
+_h_keep, _here_keep = H.LEDGER, H.HERE
 import tempfile as _tempfile
-H.LEDGER = _os.path.join(_tempfile.mkdtemp(prefix="hist-"), "history.json")
+import shutil as _shutil
+import subprocess as _subprocess
+import contextlib as _contextlib
+import io as _io
+_hdir = _tempfile.mkdtemp(prefix="hist-")
+_odir = _tempfile.mkdtemp(prefix="hist-outside-")
+H.HERE = _hdir
+H.LEDGER = _os.path.join(_hdir, "out", "history.json")
+_os.makedirs(_os.path.dirname(H.LEDGER))
 with open(H.LEDGER, "w") as _f:
     _f.write('{"designs": {"marigold": {"inspections": [')
 _hb = open(H.LEDGER, "rb").read()
+_any = _os.path.join(_hdir, "any.png")
+Image.new("RGBA", (8, 8), (1, 2, 3, 255)).save(_any)
+_CHK = {"verdict": "pass", "failed": [], "unrun": [],
+        "checks": {"file spec": {"ok": True, "value": "8x8", "want": "x", "note": ""}}}
 check("an unreadable history raises instead of reading as empty", _raises(H.Corrupt, H.load))
-check("and nothing is written over it", _raises(H.Corrupt, H.record_inspection, "x", 1, {"verdict": "pass"})
+check("and nothing is written over it", _raises(H.Corrupt, H.record_inspection, "x", 1, _CHK, _any)
       and open(H.LEDGER, "rb").read() == _hb)
 H.save({"designs": {"marigold-calavera": {"versions": [], "inspections": [{"version": 1}]},
                     "proof-calavera": {"versions": [], "inspections": []}}})
@@ -671,28 +686,172 @@ check("forget drops a proof design and only that",
       H.forget("proof-calavera") and sorted(H.load()["designs"]) == ["marigold-calavera"])
 # An inspection belongs to the exact file inspected.
 import names as _names
-_hf = _os.path.join(_os.path.dirname(_os.path.abspath(H.__file__)), "out", "_hashtest-v1-onlight.png")
-_os.makedirs(_os.path.dirname(_hf), exist_ok=True)
+_hf = _os.path.join(_hdir, "out", "_hashtest-v1-onlight.png")
 Image.new("RGBA", (8, 8), (10, 20, 30, 255)).save(_hf)
 H.save({"designs": {}})
-H.record_inspection("hashtest", 1, {"verdict": "pass", "failed": [], "unrun": [], "checks": {}}, _hf)
+H.record_inspection("hashtest", 1, _CHK, _hf)
 _rec = H.load()["designs"]["hashtest"]["inspections"][-1]
-check("an inspection records the file's hash and a relative path, never an absolute one",
-      len(_rec["sha256"]) == 64 and not _os.path.isabs(_rec["file"]), str(_rec.get("file")))
+check("an inspection inside the folder records the file's hash and a relative path",
+      len(_rec["sha256"]) == 64 and _rec["file"] == _os.path.join("out", "_hashtest-v1-onlight.png"),
+      str(_rec.get("file")))
 check("the inspection counts while the file is unchanged", H.inspection_for("hashtest", 1) is not None)
 Image.new("RGBA", (8, 8), (200, 20, 30, 255)).save(_hf)
 check("a print rebuilt after its inspection reads as uninspected", H.inspection_for("hashtest", 1) is None)
 check("…though the stale record is still there to explain why",
-      H.inspection_for("hashtest", 1, verify=False) is not None)
-_os.remove(_hf)
-H.save({"designs": {"x": {"versions": [{"version": 1, "at": "<b>t</b>", "files": {},
-        "changes": ["<script>alert(1)</script>"], "note": "a & b <i>"}], "inspections": []}}})
+      H.inspection_for("hashtest", 1, verify=False) is not None
+      and H.inspection_status("hashtest", 1)[0] == "changed")
+
+# ED-6 / TI-4: a print OUTSIDE the folder can be verified too. Only its
+# basename used to be kept, so an unchanged print read as "changed since".
+_of = _os.path.join(_odir, "elsewhere-v1-onlight.png")
+Image.new("RGBA", (8, 8), (5, 5, 5, 255)).save(_of)
+H.record_inspection("outside", 1, _CHK, _of)
+check("ED-6: an inspection of a print outside the folder counts while it is unchanged",
+      H.inspection_status("outside", 1)[0] == "ok", str(H.load()["designs"]["outside"]))
+Image.new("RGBA", (8, 8), (6, 6, 6, 255)).save(_of)
+check("ED-6: ...and stops counting when it changes", H.inspection_status("outside", 1)[0] == "changed")
+
+# ED-3: an inspection of nothing is not evidence.
+check("ED-3: an inspection of a file that does not exist is refused, nothing written",
+      _raises(ValueError, H.record_inspection, "ghost", 1, _CHK, _os.path.join(_hdir, "nope.png"))
+      and "ghost" not in H.load()["designs"])
+H.save({"designs": {"legacy-missing": {"versions": [], "inspections": [
+    {"version": 1, "at": "t", "file": "out/gone.png", "sha256": None, "verdict": "unrun",
+     "failed": [], "unrun": [], "checks": {}}]}}})
+check("ED-3: a record of a missing file (no hash, no checks) never clears a gate",
+      H.inspection_for("legacy-missing", 1) is None
+      and H.inspection_status("legacy-missing", 1)[0] == "unbound")
+H.save({"designs": {"legacy": {"versions": [], "inspections": [
+    {"version": 1, "at": "t", "verdict": "pass", "failed": [], "unrun": [],
+     "checks": {"file spec": {"ok": True}}}]}}})
+check("a record from before files were kept still counts for the v2 gate",
+      H.inspection_for("legacy", 1) is not None)
+H.save({"designs": {"legacy-unrun": {"versions": [], "inspections": [
+    {"version": 1, "at": "t", "verdict": "unrun", "failed": [], "unrun": [], "checks": {}}]}}})
+check("ED-3: ...but one from then that ran no checks (the file was missing) does not",
+      H.inspection_for("legacy-unrun", 1) is None)
+
+import qc as _qc
+import printable as _printable
+import mockup as _mockup
+
+
+def _cli(mod, argv):
+    """mod.main() with argv: (exit code, stdout + stderr)."""
+    real, buf = sys.argv, _io.StringIO()
+    sys.argv = [mod.__name__ + ".py"] + argv
+    try:
+        with _contextlib.redirect_stdout(buf), _contextlib.redirect_stderr(buf):
+            mod.main()
+        code = 0
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        if not isinstance(e.code, int) and e.code is not None:
+            buf.write(str(e.code))
+    finally:
+        sys.argv = real
+    return code, buf.getvalue()
+
+
+H.save({"designs": {}})
+_qout = _os.path.join(_odir, "qcout")
+_os.makedirs(_qout)
+_own = _os.path.join(_qout, "qd-v1-onlight.png")
+Image.new("RGBA", (8, 8), (40, 40, 40, 255)).save(_own)
+_code, _txt = _cli(_qc, ["--design", "qd", "--version", "1", "--out", _qout])
+_qrec = (H.load()["designs"].get("qd") or {}).get("inspections", [{}])[-1]
+check("TI-3: qc.py records the inspected file and its hash (through the CLI)",
+      _qrec.get("sha256") == H._sha256(_own) and _qrec.get("file") == _os.path.realpath(_own),
+      f"{_code} {_qrec.get('file')}")
+_clean = _os.path.join(_odir, "clean-copy.png")
+Image.new("RGBA", (8, 8), (90, 90, 90, 255)).save(_clean)
+_n = len(H.load()["designs"]["qd"]["inspections"])
+_code, _txt = _cli(_qc, ["--design", "qd", "--version", "1", "--out", _qout, "--file", _clean])
+check("ED-5: qc --design will not record an inspection of a file that is not the version's print",
+      _code != 0 and "REFUSED" in _txt and len(H.load()["designs"]["qd"]["inspections"]) == _n, _txt[-200:])
+_code, _txt = _cli(_qc, ["--design", "qd", "--version", "1", "--out", _qout, "--file", _clean,
+                         "--no-record"])
+check("ED-5: ...though it will inspect it with --no-record", "REFUSED" not in _txt
+      and len(H.load()["designs"]["qd"]["inspections"]) == _n)
+_code, _txt = _cli(_qc, ["--design", "qmissing", "--version", "1", "--out", _qout])
+check("ED-3: qc.py on a version with no print file exits non-zero and records nothing",
+      _code == 2 and "qmissing" not in H.load()["designs"], _txt[-200:])
+Image.new("RGBA", (8, 8), (41, 40, 40, 255)).save(_own)
+_code, _txt = _cli(_mockup, ["--design", "qd", "--version", "2", "--print", _own, "--out", _qout,
+                             "--change", "x"])
+check("TI-3: mockup refuses v2 once v1's print changed after its inspection (3)",
+      _code == 3 and "changed or" in _txt and f"--out {_qout}" in _txt, _txt[-300:])
+
+# ED-4: the sale-file gate exports only the bytes that were inspected.
+H.save({"designs": {}})
+_pa = _os.path.join(_odir, "pa-v1-onlight.png")
+_pb = _os.path.join(_odir, "pb-other.png")
+Image.new("RGBA", (8, 8), (12, 12, 12, 255)).save(_pa)
+Image.new("RGBA", (8, 8), (250, 250, 250, 255)).save(_pb)
+H.record_inspection("pa", 1, _CHK, _pa)
+check("ED-4: printable clears the file that was inspected",
+      _printable.gate_refusal("pa", 1, _pa) is None)
+check("ED-4: printable refuses any other --print, whatever its name",
+      "not the file that was inspected" in (_printable.gate_refusal("pa", 1, _pb) or ""))
+_pout = _os.path.join(_odir, "printables")
+_code, _txt = _cli(_printable, ["--design", "pa", "--version", "1", "--print", _pb,
+                                "--sizes", "8x10", "--out", _pout])
+check("ED-4: printable.py exits 3 and writes nothing for an uninspected --print",
+      _code == 3 and not _os.path.exists(_pout), _txt[-200:])
+H.save({"designs": {"legacy": {"versions": [], "inspections": [
+    {"version": 1, "at": "t", "verdict": "pass", "failed": [], "unrun": [],
+     "checks": {"file spec": {"ok": True}}}]}}})
+check("ED-4: an inspection with no hash does not clear a SALE file",
+      _printable.gate_refusal("legacy", 1, _pa) is not None)
+_code, _txt = _cli(_printable, ["--design", "../escaped", "--version", "1", "--print", _pa,
+                                "--sizes", "8x10", "--force", "--force-reason", "probe",
+                                "--out", _pout])
+check("ED-7: printable --design goes through safe_name, even with --force",
+      _code != 0 and "REFUSED" in _txt and not _os.path.exists(_os.path.join(_odir, "escaped-8x10.png")),
+      _txt[-200:])
+
+# ED-1 / TI-2: an inspection's check notes reach the report escaped. qc's
+# provenance note quotes the recipe's licence string and layer source.
+H.save({"designs": {}})
+H.record_inspection("x", 1, {"verdict": "blocked", "failed": ["provenance"], "unrun": [], "checks": {
+    "provenance": {"ok": False, "value": "1", "want": "0",
+                   "note": "layer 0 (<img src=x onerror=alert(1)>.png): licence '<script>bad</script>'"}}}, _any)
+H.record_version("x", 1, {}, changes=["<script>alert(1)</script>"], note="a & b <i>")
 _rep = open(H.build_report(H.load(), _os.path.dirname(H.LEDGER))).read()
-check("the history report escapes notes and changes", "&lt;script&gt;" in _rep and "<script>alert" not in _rep)
+check("the history report escapes notes and changes", "&lt;script&gt;alert" in _rep and "<script>alert" not in _rep)
+check("ED-1: ...and an inspection's check notes", "&lt;img src=x" in _rep and "<img src=x" not in _rep
+      and "<script>bad" not in _rep)
+
+# ED-10: concurrent writers lose nothing.
+H.save({"designs": {}})
+_writer = ("import sys; sys.path.insert(0, sys.argv[1]); import history as H; H.LEDGER = sys.argv[2]\n"
+           "for k in range(12): H.record_version('race-' + sys.argv[3], k, {})")
+_procs = [_subprocess.Popen([sys.executable, "-c", _writer, _os.path.dirname(_os.path.abspath(H.__file__)),
+                             H.LEDGER, str(w)]) for w in range(4)]
+for _p in _procs:
+    _p.wait()
+_nv = sum(len(d["versions"]) for d in H.load()["designs"].values())
+check("ED-10: four processes writing at once keep all 48 versions", _nv == 48, str(_nv))
+
+# ED-M3: the calendar's "ready" uses the same names compose accepts.
+import schedule as _schedule
+_rdir, _sdir = _os.path.join(_odir, "recipes"), _os.path.join(_odir, "srcs", "inner")
+_os.makedirs(_rdir)
+_os.makedirs(_sdir)
+Image.new("RGB", (4, 4)).save(_os.path.join(_odir, "srcs", "outside.png"))
+Image.new("RGB", (4, 4)).save(_os.path.join(_sdir, "fine.png"))
+for _rid, _src in (("escapee", "../outside.png"), ("plain", "fine.png")):
+    with open(_os.path.join(_rdir, f"{_rid}.json"), "w") as _f:
+        _f.write(_json.dumps({"layers": [{"source": _src, "provenance": base["layers"][0]["provenance"]}]}))
+check("ED-M3: a recipe whose layer source leaves sources/ is not 'ready'",
+      _schedule.renderable([{"id": "escapee"}, {"id": "plain"}], _rdir, _sdir) == {"plain"})
+
 check("safe_name keeps a plain name", _names.safe_name("orchid-skull", "x") == "orchid-skull")
 check("safe_name refuses a path, '..' or an absolute path",
       all(_raises(ValueError, _names.safe_name, v, "x") for v in ("../evil", "a/b", "/etc/x", "..", "", "a\\b")))
-H.LEDGER = _h_keep
+H.LEDGER, H.HERE = _h_keep, _here_keep
+_shutil.rmtree(_hdir)
+_shutil.rmtree(_odir)
 
 check("an uninspected version has no record",
       H.inspection_for("__nonexistent__", 1) is None)

@@ -196,13 +196,21 @@ def main():
         sys.exit(4)
 
     if a.version > 1 and not a.force:
-        prev = history.inspection_for(a.design, a.version - 1)
-        if prev is None and history.inspection_for(a.design, a.version - 1, verify=False):
+        state, rec = history.inspection_status(a.design, a.version - 1)
+        prev = rec if state == "ok" else None
+        out_flag = "" if os.path.realpath(a.out) == os.path.realpath(os.path.join(HERE, "out")) \
+            else f" --out {a.out}"
+        if state in ("changed", "unbound"):
             print(f"REFUSING to build v{a.version}.\n", file=sys.stderr)
-            print(f"  v{a.version - 1} of '{a.design}' was inspected, but its print file has "
-                  f"changed since —\n  rebuilt or replaced. That verdict belongs to pixels "
-                  f"that no longer exist.\n", file=sys.stderr)
-            print(f"  Run:  python3 qc.py --design {a.design} --version {a.version - 1}",
+            if state == "changed":
+                print(f"  v{a.version - 1} of '{a.design}' was inspected, but the file it "
+                      f"inspected has changed or\n  gone since — rebuilt or replaced. That "
+                      f"verdict belongs to pixels that no longer exist.\n", file=sys.stderr)
+            else:
+                print(f"  v{a.version - 1} of '{a.design}' has an inspection that ran no "
+                      f"checks or names no file\n  to verify — qc ran before the print "
+                      f"existed. It is not evidence.\n", file=sys.stderr)
+            print(f"  Run:  python3 qc.py --design {a.design} --version {a.version - 1}{out_flag}",
                   file=sys.stderr)
             sys.exit(3)
         if prev is None:
@@ -213,7 +221,7 @@ def main():
                   f"Without\n  them it is a second guess, not a revision.\n",
                   file=sys.stderr)
             print(f"  Run:  python3 qc.py --design {a.design} "
-                  f"--version {a.version - 1}", file=sys.stderr)
+                  f"--version {a.version - 1}{out_flag}", file=sys.stderr)
             sys.exit(3)
         if not a.change:
             print(f"REFUSING to build v{a.version}.\n", file=sys.stderr)

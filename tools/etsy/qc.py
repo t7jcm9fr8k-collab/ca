@@ -381,7 +381,17 @@ def main():
     path = a.file
     recipe_path = a.recipe
     if a.design:
-        path = path or os.path.join(a.out, f"{a.design}-v{a.version}-onlight.png")
+        import history
+        own = (history.print_file(a.design, a.version)
+               or os.path.join(a.out, f"{a.design}-v{a.version}-onlight.png"))
+        if path and not a.no_record and os.path.realpath(path) != os.path.realpath(own):
+            # The inspection is the v2 and sale-file gates' evidence for THIS
+            # version; a clean copy inspected in its place used to clear a
+            # print that fails.
+            sys.exit(f"REFUSED: an inspection recorded for {a.design} v{a.version} must be "
+                     f"of its print file, {own}; --file names {path}.\n"
+                     f"  To inspect another file without recording it: --no-record")
+        path = path or own
         recipe_path = recipe_path or os.path.join(HERE, "recipes", f"{a.design}.json")
     if not path:
         sys.exit("need --design or --file")
@@ -399,8 +409,12 @@ def main():
     else:
         print(render(result))
 
+    if result.get("error"):
+        # Nothing was inspected, so nothing is recorded: an inspection of a
+        # missing file used to clear the gates once a v1 was built later.
+        print("\nnot recorded — there was no file to inspect", file=sys.stderr)
+        sys.exit(2)
     if a.design and not a.no_record:
-        import history
         history.record_inspection(a.design, a.version, result, path)
         print(f"\nrecorded to the ledger — v{a.version + 1} is now unblocked"
               if result["verdict"] != "blocked" else

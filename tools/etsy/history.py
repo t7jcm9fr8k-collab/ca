@@ -28,6 +28,7 @@ USAGE
 
 import argparse
 import base64
+import contextlib
 import datetime as dt
 import io
 import hashlib
@@ -85,6 +86,26 @@ def save(led):
         raise
 
 
+@contextlib.contextmanager
+def _locked():
+    """One writer at a time. Every record_* is load → append → save, and two
+    overlapping runs (demo.sh in one terminal, qc in another) used to lose
+    each other's records — a lost forced-version record takes its 'Gate
+    bypassed' line out of the report."""
+    try:
+        import fcntl
+    except ImportError:                       # not POSIX: no lock, as before
+        yield
+        return
+    os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
+    with open(LEDGER + ".lock", "a") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lk, fcntl.LOCK_UN)
+
+
 def forget(design):
     """
     Drop one PROOF design's records so demo.sh can run again from a clean
@@ -94,10 +115,11 @@ def forget(design):
     if not design.startswith("proof-"):
         raise ValueError(f"refusing to forget '{design}': only proof-* designs can be "
                          f"forgotten; real designs' inspections are the gate's evidence")
-    led = load()
-    if led["designs"].pop(design, None) is None:
-        return False
-    save(led)
+    with _locked():
+        led = load()
+        if led["designs"].pop(design, None) is None:
+            return False
+        save(led)
     return True
 
 
@@ -115,15 +137,15 @@ def record_version(design, version, files, changes=None, note="",
     the whole ledger unreliable — a reader could no longer tell which v2 answered
     findings and which simply went around them.
     """
-    led = load()
-    d = _design(led, design)
     entry = {"version": version, "at": _now(), "files": files,
              "changes": changes or [], "note": note}
     if forced:
         entry["forced"] = True
         entry["force_reason"] = force_reason
-    d["versions"].append(entry)
-    save(led)
+    with _locked():
+        led = load()
+        _design(led, design)["versions"].append(entry)
+        save(led)
 
 
 def _sha256(path):
@@ -135,27 +157,79 @@ def _sha256(path):
 
 
 def _portable(path):
-    """Relative to this folder when inside it (no machine path in the record)."""
-    rel = os.path.relpath(os.path.abspath(path), HERE)
-    return rel if not rel.startswith("..") else os.path.basename(path)
+    """
+    Where the inspected file is, as the record keeps it: relative to this
+    folder when inside it, so the record names no machine path; the full path
+    otherwise. Keeping only the basename of an outside file meant the record
+    could never find it again — the gate then called an unchanged print
+    "changed since", and re-running qc could not fix it. history.json lives in
+    out/, which git ignores, so a full path never leaves the machine.
+    """
+    full = os.path.realpath(path)
+    rel = os.path.relpath(full, os.path.realpath(HERE))
+    return full if rel == ".." or rel.startswith(".." + os.sep) else rel
 
 
-def record_inspection(design, version, result, path=None):
+def _resolve(stored):
+    return stored if os.path.isabs(stored) else os.path.join(HERE, stored)
+
+
+def print_file(design, version):
+    """The print file the ledger says this version was built as, or None."""
+    d = load()["designs"].get(design) or {}
+    got = [v for v in d.get("versions", []) if v.get("version") == version]
+    return (got[-1].get("files") or {}).get("print") if got else None
+
+
+def record_inspection(design, version, result, path):
     """`path` is the print file inspected; its hash ties the verdict to those
-    exact pixels, so a version rebuilt after its inspection reads as uninspected."""
-    led = load()
-    d = _design(led, design)
-    d["inspections"].append({
+    exact pixels, so a version rebuilt after its inspection reads as uninspected.
+    An inspection of a file that does not exist is refused, not recorded: it
+    used to be stored with no hash and count as a legacy record forever."""
+    if not path or not os.path.isfile(path):
+        raise ValueError(f"no print file at {path!r}: an inspection of nothing "
+                         f"is not recorded")
+    entry = {
         "version": version, "at": _now(),
-        "file": _portable(path) if path else None,
-        "sha256": _sha256(path) if path else None,
+        "file": _portable(path),
+        "sha256": _sha256(path),
         "verdict": result.get("verdict"),
         "failed": result.get("failed", []),
         "unrun": result.get("unrun", []),
         "checks": {k: {kk: vv for kk, vv in v.items() if kk != "blocking"}
                    for k, v in result.get("checks", {}).items()},
-    })
-    save(led)
+    }
+    with _locked():
+        led = load()
+        _design(led, design)["inspections"].append(entry)
+        save(led)
+
+
+def inspection_status(design, version):
+    """
+    (state, record) for the most recent inspection of that version:
+        "none"     never inspected
+        "ok"       the file it inspected is unchanged
+        "changed"  that file has changed or is gone since — rebuilt or replaced
+        "unbound"  recorded with no file to verify against, or no checks run
+    Only "ok" counts. An inspection recorded before files were kept at all
+    (no "file" key) cannot be verified and still counts for mockup's v2 gate;
+    the sale-file gate in printable.py asks for a hash on top.
+    """
+    d = load()["designs"].get(design)
+    got = [i for i in (d or {}).get("inspections", []) if i.get("version") == version]
+    if not got:
+        return "none", None
+    i = got[-1]
+    if not i.get("checks"):
+        return "unbound", i               # verdict 'unrun': the file was not there
+    if "file" not in i:
+        return "ok", i                    # recorded before hashes were kept
+    if not i.get("file") or not i.get("sha256"):
+        return "unbound", i
+    if _sha256(_resolve(i["file"])) != i["sha256"]:
+        return "changed", i
+    return "ok", i
 
 
 def inspection_for(design, version, verify=True):
@@ -163,19 +237,13 @@ def inspection_for(design, version, verify=True):
     The gate. The most recent inspection of that version, or None — including
     when the file it inspected has changed since. A v1 rebuilt after it was
     inspected used to keep reading as inspected, so v2 and the listing gate
-    trusted pixels nobody had checked. An inspection recorded before hashes
-    were kept carries none and cannot be verified; it still counts.
+    trusted pixels nobody had checked. verify=False returns the record whatever
+    its state.
     """
-    d = load()["designs"].get(design)
-    if not d:
-        return None
-    got = [i for i in d.get("inspections", []) if i.get("version") == version]
-    if not got:
-        return None
-    i = got[-1]
-    if verify and i.get("sha256") and _sha256(os.path.join(HERE, i["file"])) != i["sha256"]:
-        return None
-    return i
+    state, i = inspection_status(design, version)
+    if not verify:
+        return i
+    return i if state == "ok" else None
 
 
 # ---------------------------------------------------------------- visuals
@@ -424,7 +492,7 @@ def build_report(led, out_dir):
                              f'<td class="tag">{tag}</td></tr>')
                     if c.get("note"):
                         p.append(f'<tr class="{rc}"><td colspan="4" '
-                                 f'class="remark">{c["note"]}</td></tr>')
+                                 f'class="remark">{_h(c["note"])}</td></tr>')
                 p.append("</tbody></table>")
             else:
                 p.append(f'<div class="gate">No inspection recorded. '

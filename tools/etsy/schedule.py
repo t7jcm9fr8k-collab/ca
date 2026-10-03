@@ -113,11 +113,18 @@ def renderable(designs, recipes_dir=None, sources_dir=None):
     whatever date the calendar might give it.
     """
     import compose  # lazy: pulls PIL, which the calendar itself never needs
+    from names import safe_name
     recipes_dir = recipes_dir or os.path.join(HERE, "recipes")
     sources_dir = sources_dir or os.path.join(HERE, "sources")
     ready = set()
     for d in designs:
         did = d.get("id", "")
+        try:
+            # The same names compose.py accepts: a "../" source it refuses
+            # must not read as ready here.
+            safe_name(did, "design id")
+        except ValueError:
+            continue
         path = os.path.join(recipes_dir, f"{did}.json")
         if not os.path.exists(path):
             continue
@@ -128,6 +135,11 @@ def renderable(designs, recipes_dir=None, sources_dir=None):
         if compose.check_provenance(recipe):
             continue
         srcs = [l.get("source", "") for l in recipe.get("layers", [])]
+        try:
+            for x in srcs:
+                safe_name(x, "layer source")
+        except ValueError:
+            continue
         if srcs and all(os.path.exists(os.path.join(sources_dir, x)) for x in srcs):
             ready.add(did)
     return ready
