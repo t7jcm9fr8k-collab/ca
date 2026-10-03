@@ -455,6 +455,8 @@ def main():
     if len(a.csv) > 1:
         if not a.rule:
             ap.error("several --csv files need --rule NAME")
+        if not a.no_record:
+            ledger.load()        # unreadable → refused now, not after the first symbol's work
         rows = []
         for path, sym in zip(a.csv, a.symbol):
             try:
@@ -496,4 +498,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ledger.Corrupt as e:          # a clean refusal, not a traceback
+        sys.exit(f"REFUSED: {e}")

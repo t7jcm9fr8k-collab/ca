@@ -60,6 +60,10 @@ WHAT STOPS IT
       not liquidate — what to do with the open positions is a decision, not
       a reflex, and it is Daniel's.
     One order per symbol per bar date: re-running the schedule is safe.
+    An order whose fate a failure hid (reply and lookup both lost) is
+      recorded 'unknown'; the next run asks the broker about it before it
+      decides anything for that symbol, and waits while the answer is still
+      unknown. One run per mode at a time: a second waits for the lock.
 
 THE FIRST THING IN THIS REPO THAT PLACES AN ORDER ON ITS OWN
     Every agent here carried "never places an order". This file does, because
@@ -69,9 +73,10 @@ THE FIRST THING IN THIS REPO THAT PLACES AN ORDER ON ITS OWN
     not an income. Read the ledger report before believing anything else.
 
 CREDENTIALS
-    From the shell environment only (ALPACA_KEY_ID, ALPACA_SECRET_KEY), as
-    broker.py requires. Never in a file in this repository, never in the
-    scheduler entry that is committed. README.md shows the cron line.
+    As broker.py reads them: the shell environment (ALPACA_KEY_ID,
+    ALPACA_SECRET_KEY) or the macOS login keychain. Never in a file in this
+    repository, never as arguments, never in the scheduler entry that is
+    committed. README.md shows the cron line.
 
 USAGE
     python3 autopilot.py --dry-run                        # decide, send nothing
@@ -86,6 +91,7 @@ import inspect
 import math
 import os
 import sys
+import time
 
 import bars as B
 import barqc
@@ -185,13 +191,36 @@ def last_target(mode, symbol):
     it from the ledger keeps the loop stateless across processes and makes
     the backtest and the live loop agree on what "position" is.
     """
-    ev = [e for e in ledger.events(mode, symbol=symbol) if e.get("autopilot")]
+    ev = [e for e in _orders(mode, symbol) if e.get("status") not in UNSETTLED]
     if not ev:
         return None
     try:
         return float(ev[-1].get("signal"))
     except (TypeError, ValueError):
         return None
+
+
+# An order whose fate a failure hid is recorded 'unknown'; the next run asks the
+# broker and records what it holds, or 'not_sent' when it holds nothing.
+UNSETTLED = ("unknown", "not_sent")
+
+
+def _orders(mode, symbol):
+    """This loop's order records for a symbol, without any order that turned
+    out never to have reached the broker."""
+    ev = [e for e in ledger.events(mode, symbol=symbol) if e.get("autopilot")]
+    never = {e["client_order_id"] for e in ev
+             if e.get("status") == "not_sent" and e.get("client_order_id")}
+    return [e for e in ev if not (e.get("client_order_id") and e["client_order_id"] in never)]
+
+
+def unresolved(mode, symbol):
+    """'unknown' order records with nothing recorded after them."""
+    last = {}
+    for e in ledger.events(mode, symbol=symbol):
+        if e.get("autopilot") and e.get("client_order_id"):
+            last[e["client_order_id"]] = e
+    return [e for e in last.values() if e.get("status") == "unknown"]
 
 
 def reconcile_notional(target, last, held_qty, notional, band=BAND):
@@ -261,30 +290,63 @@ def gate(mode, strategy_name, symbol, confirm_live):
 
 
 def already_acted(mode, symbol, bar_date):
-    """One order per symbol per bar date, whatever strategy sent it."""
-    for e in ledger.events(mode, symbol=symbol):
-        if e.get("autopilot") and e.get("bar_date") == bar_date:
-            return True
-    return False
+    """One order per symbol per bar date, whatever strategy sent it. An order
+    that never reached the broker does not count: the bar is still open to it."""
+    return any(e.get("bar_date") == bar_date for e in _orders(mode, symbol))
+
+
+def settle(mode, symbol, broker_api, base, hdr):
+    """
+    Ask the broker about every order this loop recorded as 'unknown' for the
+    symbol, and record what it holds. Returns None when all are settled, or
+    the reason this symbol must wait: an order whose fate is still unknown is
+    a position the loop would otherwise act blind to.
+    """
+    for e in unresolved(mode, symbol):
+        try:
+            o = broker_api.order_by_client_id(base, hdr, e["client_order_id"])
+        except Exception as err:
+            return (f"none: an earlier {e.get('side')} (bar {e.get('bar_date')}) is still "
+                    f"UNKNOWN and the broker could not be asked ({err})")
+        carry = {k: e[k] for k in ("strategy", "symbol", "signal", "endpoint", "account",
+                                   "autopilot", "bar_date", "client_order_id") if k in e}
+        if o is None:
+            ledger.record(mode, **carry, status="not_sent", filled_qty=0.0)
+        else:
+            ledger.record(mode, **carry, **broker_api.summarise(o))
+    return None
 
 
 LOCK_FILE = os.path.join(HERE, "out", "autopilot.lock")
+LOCK_WAIT = 600          # seconds a run waits for an earlier one before giving up
 
 
-def _lock():
-    """An exclusive, non-blocking lock for one run, or None when another run holds it."""
+def lock_path(mode):
+    """One lock per mode: a paper run and a live run never share a slot."""
+    root, ext = os.path.splitext(LOCK_FILE)
+    return f"{root}-{mode}{ext}"
+
+
+def _lock(mode):
+    """An exclusive lock for one run of this mode, waited for up to LOCK_WAIT
+    seconds, or None when an earlier run still holds it then. A cron tick that
+    meets a slow run queues behind it instead of vanishing."""
     try:
         import fcntl
     except ImportError:                          # not POSIX: no lock, as before
         return open(os.devnull)
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
-    f = open(LOCK_FILE, "a")
-    try:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        f.close()
-        return None
-    return f
+    f = open(lock_path(mode), "a")
+    deadline = time.monotonic() + LOCK_WAIT
+    while True:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return f
+        except OSError:
+            if time.monotonic() >= deadline:
+                f.close()
+                return None
+            time.sleep(1)
 
 
 def run(*args, **kwargs):
@@ -297,9 +359,10 @@ def run(*args, **kwargs):
     bound.apply_defaults()
     if bound.arguments["dry_run"]:
         return _run_once(*args, **kwargs)
-    lock = _lock()
+    lock = _lock(bound.arguments["mode"])
     if lock is None:
-        return [{"symbol": "*", "action": "another autopilot run holds the lock — nothing run"}]
+        return [{"symbol": "*", "action": f"another {bound.arguments['mode']} autopilot run held "
+                                          f"the lock for {LOCK_WAIT}s — nothing run"}]
     try:
         return _run_once(*args, **kwargs)
     finally:
@@ -370,6 +433,12 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             rec["action"] = "skipped: no bars"
             recs.append(rec)
             continue
+        if not dry_run:
+            stuck = settle(mode, sym, broker_api, base, hdr)
+            if stuck:
+                rec["action"] = stuck
+                recs.append(rec)
+                continue
         held_qty = held.get(sym, 0.0)
         last = last_target(mode, sym) if held_qty > 0 else None
         if held_qty <= 0:
@@ -412,6 +481,9 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
         import broker as broker_ids        # the pure id helper; no network at import
         coid = broker_ids.client_order_id("autopilot", mode, strat.__name__, sym,
                                           rec["bar_date"], side)
+        common = dict(strategy=strat.__name__, symbol=sym, signal=target, endpoint=base,
+                      account=acct["account_number"], autopilot=True, bar_date=rec["bar_date"],
+                      client_order_id=coid)
         try:
             o = broker_api.place_order(base, hdr, sym, side, client_order_id=coid, **order)
         except Exception as e:
@@ -421,9 +493,15 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
             try:
                 o = broker_api.order_by_client_id(base, hdr, coid)
             except Exception as e2:
+                # Recorded, so this bar counts as acted on and the target it
+                # meant stands; the next run asks the broker before anything
+                # else for this symbol. Unrecorded, the next run read the
+                # position as unexplained and traded against it.
+                ledger.record(mode, **common, status="unknown", side=side, filled_qty=0.0,
+                              **({"qty": float(order["qty"])} if "qty" in order
+                                 else {"notional": float(order["notional"])}))
                 rec["action"] = (f"UNKNOWN whether {side} {desc} was sent ({e}; lookup: {e2}). "
-                                 f"The next run resends the same client_order_id, which the "
-                                 f"broker refuses if this one landed")
+                                 f"Recorded as unknown; the next run asks the broker first")
                 recs.append(rec)
                 continue
             if o is None:
@@ -433,17 +511,18 @@ def _run_once(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
         # Recorded the moment the broker accepts it, BEFORE the fill poll: an
         # order that exists at the broker and not in the ledger would be sent
         # again by the next run. The fill, when it comes, is a second record.
-        common = dict(strategy=strat.__name__, symbol=sym, signal=target, endpoint=base,
-                      account=acct["account_number"], autopilot=True, bar_date=rec["bar_date"])
-        ledger.record(mode, **common, **broker_api.summarise(o))
+        first = broker_api.summarise(o)
+        ledger.record(mode, **common, **first)
         try:
             o = broker_api.wait_for_fill(base, hdr, o["id"])
         except Exception as e:
-            rec["action"] = f"{side} {desc}: sent, fill unknown ({e}); recorded as unfilled"
+            rec["action"] = f"{side} {desc}: sent, fill unknown ({e}); recorded as it stood"
             recs.append(rec)
             continue
         summary = broker_api.summarise(o)
-        if summary.get("filled_qty"):
+        # A second record only for a fill the first did not already show: a
+        # lookup that found the order filled used to be written twice.
+        if (summary.get("filled_qty") or 0) > (first.get("filled_qty") or 0):
             ledger.record(mode, **common, **summary)
         rec["action"] = (f"{side} {desc}: {summary['status']}, filled "
                          f"{summary['filled_qty']:g}")

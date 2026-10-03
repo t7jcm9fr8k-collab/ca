@@ -548,4 +548,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ledger.Corrupt as e:          # a clean refusal, not a traceback
+        sys.exit(f"REFUSED: {e}")

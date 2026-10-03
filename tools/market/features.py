@@ -37,6 +37,7 @@ USAGE (library — strategies.py uses these)
 """
 
 import datetime as dt
+import math
 
 # ---------------------------------------------------------------- helpers
 
@@ -363,7 +364,7 @@ def volume_profile(bars, bins=24, value_area=0.70):
             if overlap > 0:
                 vol[k] += per * overlap
     total = sum(vol)
-    if total <= 0:
+    if not (math.isfinite(total) and total > 0):     # a NaN total passed "<= 0"
         return None
     poc = max(range(bins), key=lambda k: vol[k])
     lo_k = hi_k = poc

@@ -316,12 +316,15 @@ def main():
     ap.add_argument("--out", default=os.path.join(HERE, "out"))
     a = ap.parse_args()
 
+    try:
+        led = load()
+    except Corrupt as e:                 # a clean refusal, not a traceback
+        raise SystemExit(f"REFUSED: {e}")
     if a.show:
         got = events(strategy=a.show[0], symbol=a.show[1])
         print(json.dumps(got, indent=2, default=str) if got else
               f"no events for {a.show[0]} {a.show[1]}")
         return
-    led = load()
     path = build_report(led, a.out)
     print(f"wrote {path}")
     kinds = {}

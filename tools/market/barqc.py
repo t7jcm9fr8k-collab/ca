@@ -165,7 +165,9 @@ def sessions_behind(s, now=None):
 def check_ohlc(s):
     bad = []
     for i, b in enumerate(s.bars):
-        if (not all(math.isfinite(x) for x in (b.open, b.high, b.low, b.close))
+        # volume too: a NaN volume turned a volume-weighted rule flat and the
+        # loop sold the position on it
+        if (not all(math.isfinite(x) for x in (b.open, b.high, b.low, b.close, b.volume))
                 or b.high < max(b.open, b.close) or b.low > min(b.open, b.close)
                 or b.low <= 0 or b.high <= 0 or b.open <= 0 or b.close <= 0
                 or b.high < b.low):
@@ -174,7 +176,7 @@ def check_ohlc(s):
     if bad:
         b = s.bars[bad[0]]
         note = (f"first at row {bad[0]} ({b.ts:%Y-%m-%d}): "
-                f"O {b.open:g} H {b.high:g} L {b.low:g} C {b.close:g}")
+                f"O {b.open:g} H {b.high:g} L {b.low:g} C {b.close:g} V {b.volume:g}")
     return {"ok": not bad, "value": f"{len(bad)} bad row(s)", "want": "0",
             "note": note}
 

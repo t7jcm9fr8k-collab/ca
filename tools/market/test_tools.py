@@ -280,6 +280,16 @@ _nan_bars = list(s70.bars)
 _nan_bars[30] = B.Bar(_nan_bars[30].ts, _nan_bars[30].open, _nan_bars[30].high, _nan_bars[30].low,
                       float("nan"), _nan_bars[30].volume)
 check("a NaN close is a bad OHLC row, so barqc blocks it", not barqc.check_ohlc(_series(_nan_bars))["ok"])
+for _bad_v in (float("nan"), float("inf"), float("-inf")):
+    _vb = list(s70.bars)
+    _vb[-1] = B.Bar(_vb[-1].ts, _vb[-1].open, _vb[-1].high, _vb[-1].low, _vb[-1].close, _bad_v)
+    check(f"MISS-1: a {_bad_v} volume blocks the series too — it flipped volume rules to flat",
+          barqc.inspect(_series(_vb))["verdict"] == "blocked")
+_vb = list(s70.bars)
+_vb[5] = B.Bar(_vb[5].ts, _vb[5].open, _vb[5].high, _vb[5].low, _vb[5].close, float("nan"))
+import features as _Fv
+check("MISS-1: volume_profile has no answer when the total volume is NaN",
+      _Fv.volume_profile(_vb) is None)
 c = replay.Cursor(s70, 10)
 check("cursor length is the closed count", len(c) == 10)
 check("cursor[-1] is the last CLOSED bar", c[-1] is s70.bars[9])
@@ -1138,6 +1148,38 @@ try:
 finally:
     broker._call, broker.credentials = _bk_call, _bk_cred
     _ap_mod.STOP_FILE = _stop_keep
+# MP-10: the research tools meet an unreadable ledger with a refusal, not a
+# traceback — and nulltest refuses BEFORE computing the first symbol.
+_corrupt = os.path.join(_tmp, "corrupt-ledger.json")
+with open(_corrupt, "w") as _f:
+    _f.write("{not json")
+_RUNPY = ("import sys, runpy, ledger; ledger.LEDGER = sys.argv[1]; sys.argv = sys.argv[2:]; "
+          "runpy.run_path(sys.argv[0], run_name='__main__')")
+_PROVA = ["--source", "test", "--adjusted", "yes"]
+_lk_keep, _argv_keep = ledger.LEDGER, sys.argv
+ledger.LEDGER, sys.argv = _corrupt, ["ledger.py", "--report", "--out", _tmp]
+try:
+    ledger.main()
+    _lmsg = "returned"
+except SystemExit as e:
+    _lmsg = str(e.code)
+finally:
+    ledger.LEDGER, sys.argv = _lk_keep, _argv_keep
+check("MP-10: ledger.py --report refuses an unreadable ledger cleanly", _lmsg.startswith("REFUSED"), _lmsg)
+for _script, _args in (
+        ("nulltest.py", ["--csv", _fix, _fix, "--symbol", "SYN", "SYN", "--rule", "rsi_oversold",
+                         "--shuffles", "3"] + _PROVA),
+        ("combine.py", ["--csv", _fix, "--symbol", "SYN", "--signals", "sma_cross:10,30",
+                        "--holdout-from", "2026-09-01"] + _PROVA),
+        ("crosstest.py", ["--shuffles", "1"])):
+    _p = subprocess.run([sys.executable, "-c", _RUNPY, _corrupt, _script] + _args,
+                        cwd=HERE, capture_output=True, text=True, timeout=300)
+    check(f"MP-10: {_script} refuses an unreadable ledger cleanly — no traceback",
+          _p.returncode != 0 and "REFUSED" in _p.stderr and "Traceback" not in _p.stderr
+          and (_script != "nulltest.py" or "SYN" not in _p.stdout),
+          (_p.stdout + _p.stderr)[-300:])
+check("MP-10: ...and none of them wrote over it", open(_corrupt).read() == "{not json")
+
 _bad = os.path.join(_tmp, "BAD-1d.csv")
 B.to_csv(_series(three_gone), _bad)
 check("a blocked series is refused before any mode runs (2)",
@@ -1688,7 +1730,8 @@ class _FakeBroker:
     PAPER, LIVE = "paper://", "live://"
 
     def __init__(self, held=None, fill=True, equity="1000", fill_raises=False,
-                 lose_reply=False, lookup_raises=False, coids=None):
+                 lose_reply=False, lookup_raises=False, coids=None, fill_on_post=False):
+        self.fill_on_post = fill_on_post      # the order is filled before the reply would arrive
         self.held = dict(held or {})
         self.fill = fill
         self.orders = []
@@ -1715,6 +1758,8 @@ class _FakeBroker:
         o = {"id": f"o{len(self.orders)}", "symbol": symbol, "side": side,
              "qty": str(qty if qty is not None else 0), "status": "accepted",
              "filled_qty": "0", "client_order_id": client_order_id}
+        if self.fill_on_post:
+            o.update(status="filled", filled_qty=o["qty"], filled_avg_price="100.0")
         if client_order_id:
             self.coids[client_order_id] = o
         if self.lose_reply:
@@ -1762,6 +1807,8 @@ ledger.LEDGER = os.path.join(_ap_sand, "ledger.json")
 _sf = autopilot.STOP_FILE
 _lf = autopilot.LOCK_FILE
 autopilot.LOCK_FILE = os.path.join(_ap_sand, "autopilot.lock")
+_lw = autopilot.LOCK_WAIT
+autopilot.LOCK_WAIT = 0          # a held lock answers at once here, not after ten minutes
 try:
     _fb = _FakeBroker()
     _r = autopilot.run(["DIPX", "NOPE"], "trend_filter:20", "paper", qty=2, root=_ap_root,
@@ -1990,23 +2037,79 @@ try:
     _fbr = _FakeBroker(lose_reply=True, lookup_raises=True)
     _rr = autopilot.run(["DIPR"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                         fetch_fn=_ap_fetch, broker_api=_fbr, now=_ap_now)
-    check("when even the lookup fails the run says UNKNOWN and records nothing",
-          "UNKNOWN" in _rr[0]["action"] and ledger.events("paper", symbol="DIPR") == [], _rr[0]["action"])
+    check("when even the lookup fails the run says UNKNOWN and records it as unknown",
+          "UNKNOWN" in _rr[0]["action"]
+          and [e.get("status") for e in ledger.events("paper", symbol="DIPR")] == ["unknown"],
+          _rr[0]["action"])
     _fbr.lose_reply = _fbr.lookup_raises = False
     _rr2 = autopilot.run(["DIPR"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                          fetch_fn=_ap_fetch, broker_api=_fbr, now=_ap_now)
-    check("the resend is refused by the broker as a duplicate, then found and recorded: one order",
-          len(_fbr.orders) == 1 and len(ledger.events("paper", symbol="DIPR")) >= 1, _rr2[0]["action"])
+    check("the next run asks the broker, records the order it holds, and sends nothing: one order",
+          len(_fbr.orders) == 1 and [e.get("status") for e in ledger.events("paper", symbol="DIPR")]
+          == ["unknown", "accepted"], _rr2[0]["action"])
+
+    # MP-1: an unknown order in notional mode. Unrecorded, the next run read the
+    # bought position against a target of 1.0 and sold 63% of it.
+    def _frac37():
+        def frac37(cur):
+            return 0.37
+        frac37.warmup = 1
+        return frac37
+    strategies.REGISTRY["frac37"] = _frac37
+    ledger.record("backtest", strategy="frac37", symbol="DIPMA", leak_check=_LK_OK)
+    _fbma = _FakeBroker(lose_reply=True, lookup_raises=True)
+    _ru = autopilot.run(["DIPMA"], "frac37", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                        broker_api=_fbma, now=_ap_now, notional=1000)
+    _fbma.held = {"DIPMA": 3.7}           # it landed and filled at the open
+    _fbma.lose_reply = False
+    _ru2 = autopilot.run(["DIPMA"], "frac37", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                         broker_api=_fbma, now=_ap_now, notional=1000)
+    check("MP-1: while the broker still cannot be asked, the symbol waits — nothing sent",
+          len(_fbma.orders) == 1 and "still UNKNOWN" in _ru2[0]["action"], _ru2[0]["action"])
+    _fbma.lookup_raises = False
+    _ru3 = autopilot.run(["DIPMA"], "frac37", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                         broker_api=_fbma, now=_ap_now, notional=1000)
+    check("MP-1: once asked, the unknown buy is recorded and NOT traded against (no sell)",
+          [o[2] for o in _fbma.orders] == ["buy"] and autopilot.last_target("paper", "DIPMA") == 0.37,
+          f"{_fbma.orders} {_ru3[0]['action']}")
+    _ru4 = autopilot.run(["DIPMA"], "frac37", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                         broker_api=_fbma, now=_ap_now + dt.timedelta(days=1), notional=1000)
+    check("MP-1: ...nor on the next bar, where the recorded target makes it aligned",
+          [o[2] for o in _fbma.orders] == ["buy"], _ru4[0]["action"])
+    # An unknown order that never landed is 'not_sent', and the bar is open to it again.
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPMC", leak_check=_LK_OK)
+    _fbmc = _FakeBroker(lose_reply=True, lookup_raises=True)
+    autopilot.run(["DIPMC"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                  fetch_fn=_ap_fetch, broker_api=_fbmc, now=_ap_now)
+    _fbmc.coids.clear()                  # the broker never had it
+    _fbmc.lose_reply = _fbmc.lookup_raises = False
+    _rv = autopilot.run(["DIPMC"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbmc, now=_ap_now)
+    check("an unknown order the broker never had is recorded not_sent, and the bar's order is sent",
+          len(_fbmc.orders) == 2 and "not_sent" in [e.get("status") for e in ledger.events("paper", symbol="DIPMC")],
+          _rv[0]["action"])
+    # MISS-3: a lookup that already shows the order filled is recorded filled once.
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPMB", leak_check=_LK_OK)
+    _fbmb = _FakeBroker(lose_reply=True, fill_on_post=True)
+    autopilot.run(["DIPMB"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                  fetch_fn=_ap_fetch, broker_api=_fbmb, now=_ap_now)
+    check("MISS-3: an order found already filled is recorded filled ONCE",
+          len([e for e in ledger.events("paper", symbol="DIPMB") if (e.get("filled_qty") or 0) > 0]) == 1,
+          [e.get("status") for e in ledger.events("paper", symbol="DIPMB")])
     # Two runs at once: the second finds the lock held and sends nothing.
     ledger.record("backtest", strategy="trend_filter_20", symbol="DIPS", leak_check=_LK_OK)
     import fcntl as _fcntl
-    _held = open(autopilot.LOCK_FILE, "a")
+    _held = open(autopilot.lock_path("paper"), "a")
     _fcntl.flock(_held, _fcntl.LOCK_EX)
     _fbs = _FakeBroker()
     _rs = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                         fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now)
     check("an overlapping run finds the lock held and sends nothing",
-          _fbs.orders == [] and "holds the lock" in _rs[0]["action"], _rs[0]["action"])
+          _fbs.orders == [] and "held the lock" in _rs[0]["action"], _rs[0]["action"])
+    _rsl = autopilot.run(["DIPS"], "trend_filter:20", "live", qty=2, root=_ap_root,
+                         fetch_fn=_ap_fetch, broker_api=_FakeBroker(), now=_ap_now)
+    check("MP-8: a paper run's lock does not stop a live run (it is refused by its own gate instead)",
+          "lock" not in _rsl[0]["action"], _rsl[0]["action"])
     _rsd = autopilot.run(["DIPS"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                          fetch_fn=_ap_fetch, broker_api=_fbs, now=_ap_now, dry_run=True)
     check("a dry run needs no lock (it sends nothing)", "would buy" in _rsd[0]["action"], _rsd[0]["action"])
@@ -2084,6 +2187,7 @@ finally:
     ledger.LEDGER = _ap_ledger_real
     autopilot.STOP_FILE = _sf
     autopilot.LOCK_FILE = _lf
+    autopilot.LOCK_WAIT = _lw
     shutil.rmtree(_ap_sand)
 
 # ---------------------------------------------------------------- aggregate
