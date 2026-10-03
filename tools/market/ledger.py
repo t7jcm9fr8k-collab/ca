@@ -308,6 +308,12 @@ def build_report(led, out_dir):
     return path
 
 
+def _mask(number):
+    """As broker.mask_account: the last four characters."""
+    s = str(number or "")
+    return ("…" + s[-4:]) if len(s) > 4 else s
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -321,8 +327,12 @@ def main():
     except Corrupt as e:                 # a clean refusal, not a traceback
         raise SystemExit(f"REFUSED: {e}")
     if a.show:
-        got = events(strategy=a.show[0], symbol=a.show[1])
-        print(json.dumps(got, indent=2, default=str) if got else
+        # The account number stays in out/ledger.json; what is printed may end
+        # up in a transcript or a committed runs/ file, so it is masked as
+        # run.py masks it.
+        got = [{**e, "account": _mask(e["account"])} if e.get("account") else e
+               for e in events(strategy=a.show[0], symbol=a.show[1])]
+        print(json.dumps(got, indent=2, default=str, ensure_ascii=False) if got else
               f"no events for {a.show[0]} {a.show[1]}")
         return
     path = build_report(led, a.out)

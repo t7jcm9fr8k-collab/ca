@@ -16,7 +16,9 @@ TWO ENDPOINTS, KEPT APART BY NAME
 
 WHAT IT REFUSES
     No credentials → NoCredentials. They come from the environment
-    (ALPACA_KEY_ID, ALPACA_SECRET_KEY), never from arguments.
+    (ALPACA_KEY_ID, ALPACA_SECRET_KEY) or, when the environment holds neither,
+    the macOS login keychain (services alpaca-key-id, alpaca-secret-key;
+    CA_NO_KEYCHAIN=1 turns that off) — never from arguments.
     A rejected order → Rejected, with Alpaca's own message.
     An unreachable host → Unreachable.
     None of those ever return a fake order.
@@ -30,6 +32,7 @@ FILLS ARE ASYNCHRONOUS
 """
 
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -75,26 +78,41 @@ def _keychain(service):
         return ""
     try:
         r = subprocess.run(["security", "find-generic-password", "-s", service, "-w"],
-                           capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError):
+                           capture_output=True, timeout=10)
+        out = r.stdout.decode("ascii").strip()      # a key pair is ASCII; anything else is not one
+    except (OSError, subprocess.SubprocessError, ValueError):
         return ""
-    return r.stdout.strip() if r.returncode == 0 else ""
+    return out if r.returncode == 0 else ""
 
 
 def credentials():
-    """The Alpaca key pair. A malformed value is refused by NAME, never shown:
-    a two-line paste used to reach http.client, whose error quoted both halves
-    into stderr, the cron log and any transcript saved from it."""
-    vals = {name: os.environ.get(name, "").strip() or _keychain(svc)
-            for name, svc in KEYCHAIN.items()}
+    """
+    The Alpaca key pair — both halves from ONE place: the environment when it
+    holds either, the keychain only when it holds neither. A mixed pair used
+    to form silently, so unsetting one variable to disarm a run was undone by
+    the keychain. A malformed value is refused by NAME and source, never
+    shown: a two-line paste used to reach http.client, whose error quoted both
+    halves into stderr, the cron log and any transcript saved from it.
+    """
+    env = {name: os.environ.get(name, "").strip() for name in KEYCHAIN}
+    if any(env.values()):
+        vals, where = env, {name: "the environment" for name in KEYCHAIN}
+        if not all(vals.values()):
+            missing = [n for n, v in vals.items() if not v][0]
+            raise NoCredentials(f"only one of ALPACA_KEY_ID / ALPACA_SECRET_KEY is set in the "
+                                f"environment ({missing} is not); the keychain is not consulted "
+                                f"for half a pair. Set both, or unset both.")
+    else:
+        vals = {name: _keychain(svc) for name, svc in KEYCHAIN.items()}
+        where = {name: f"the keychain item {svc}" for name, svc in KEYCHAIN.items()}
     if not all(vals.values()):
         raise NoCredentials("ALPACA_KEY_ID / ALPACA_SECRET_KEY are not set — neither in the "
                             "environment nor in the macOS keychain (services alpaca-key-id and "
                             "alpaca-secret-key). Never pass them as arguments.")
     for name, v in vals.items():
         if any(c.isspace() or not c.isprintable() or ord(c) > 126 for c in v):
-            raise NoCredentials(f"{name} contains whitespace or a non-printing character — "
-                                f"a two-line paste? (its value is not shown)")
+            raise NoCredentials(f"{name} (from {where[name]}) contains whitespace or a "
+                                f"non-printing character — a two-line paste? (its value is not shown)")
     return {"APCA-API-KEY-ID": vals["ALPACA_KEY_ID"], "APCA-API-SECRET-KEY": vals["ALPACA_SECRET_KEY"]}
 
 
@@ -123,16 +141,26 @@ def _call(base, path, hdr, body=None, method=None):
         with tlsctx.opener(follow_redirects=False).open(req, timeout=TIMEOUT) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as e:
-        msg = redact(e.read().decode("utf-8", "replace")[:400], hdr)
+        try:
+            body = e.read().decode("utf-8", "replace")
+        except (OSError, http.client.HTTPException):
+            body = "(the error body could not be read)"
+        # Redacted BEFORE it is cut: a secret straddling the cut used to leave
+        # its first part in the message. `from None` everywhere a message is
+        # redacted: the chained original still holds the raw text.
+        msg = redact(body, hdr)[:400]
         if e.code in (401, 403):
-            raise Unreachable(f"HTTP {e.code} — credentials refused for {base}: {msg}")
+            raise Unreachable(f"HTTP {e.code} — credentials refused for {base}: {msg}") from None
         if 400 <= e.code < 500:
-            raise Rejected(f"HTTP {e.code}: {msg}")
-        raise Unreachable(f"HTTP {e.code}: {msg}")
-    except (urllib.error.URLError, OSError, ValueError) as e:
+            raise Rejected(f"HTTP {e.code}: {msg}") from None
+        raise Unreachable(f"HTTP {e.code}: {msg}") from None
+    except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as e:
+        # http.client's IncompleteRead / BadStatusLine — a reply cut short after
+        # the broker may have accepted the order — escaped as a traceback and
+        # skipped the lookup that settles it. Now Unreachable like any other.
         if tlsctx.is_cert_failure(e):
-            raise Unreachable(tlsctx.explain(e))
-        raise Unreachable(redact(f"{type(e).__name__}: {e}", hdr))
+            raise Unreachable(tlsctx.explain(e)) from None
+        raise Unreachable(redact(f"{type(e).__name__}: {e}", hdr)) from None
 
 
 def account(base, hdr):

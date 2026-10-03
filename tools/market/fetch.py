@@ -23,8 +23,9 @@ SOURCES
              the `.us` for you. Stooq does not document its adjustment policy —
              the series is recorded as adjustment-not-stated and barqc reports
              any split-sized gap so you can check against a known split.
-    alpaca   daily and intraday, JSON, needs a key pair in the environment:
-                 ALPACA_KEY_ID, ALPACA_SECRET_KEY
+    alpaca   daily and intraday, JSON, needs a key pair: ALPACA_KEY_ID and
+             ALPACA_SECRET_KEY in the environment, or the macOS keychain items
+             alpaca-key-id and alpaca-secret-key (broker.credentials()).
              Never passed as arguments — arguments land in shell history. The
              free tier serves the IEX feed. Adjustment is requested explicitly
              and recorded.
@@ -79,6 +80,12 @@ class Unreachable(Exception):
 Unparseable = B.Unparseable      # reached it; body is not bars. NOT zero bars.
 
 
+class Empty(Unparseable):
+    """Reached it, read it, and it held no bars for the range. Still PARSE —
+    never an empty Series — but for --merge-into it is the answer being asked
+    for: the source has nothing there, and the hole is real."""
+
+
 # A 429 or a 5xx is the host saying "not now", not "no". Wait and ask again,
 # a few times, then it is NETWORK like anything else. Yahoo answered 429 to a
 # clean request on 2026-09-04; one retry a few seconds later is usually enough.
@@ -127,9 +134,10 @@ def _get(url, headers=None, waits=RETRY_WAITS):
             # A certificate failure is NETWORK — nothing was read — but it is the
             # one network failure with a fix on this machine, so say what it is.
             if tlsctx.is_cert_failure(e):
-                raise Unreachable(tlsctx.explain(e)) from e
+                raise Unreachable(tlsctx.explain(e)) from None
             import broker
-            raise Unreachable(broker.redact(f"{type(e).__name__}: {e}", headers)) from e
+            # from None: the chained original still holds the unredacted text
+            raise Unreachable(broker.redact(f"{type(e).__name__}: {e}", headers)) from None
 
 
 # ---------------------------------------------------------------- stooq
@@ -193,8 +201,10 @@ def _nonempty(series, source):
     reads exactly like a flat market, and as OK it overwrote the bars file and
     then crashed autopilot on series.last."""
     if not series.bars:
-        raise Unparseable(f"{source} answered for {series.symbol} with no bars at all — "
-                          f"nothing written")
+        dropped = (series.provenance or {}).get("extended_bars_dropped") or 0
+        raise Empty(f"{source} answered for {series.symbol} with no "
+                    + (f"regular-session bars ({dropped} pre/post-market bar(s) dropped)"
+                       if dropped else "bars at all") + " — nothing written")
     return series
 
 
@@ -469,6 +479,14 @@ def main():
         print(f"NETWORK  {e}", file=sys.stderr)
         print("Nothing was written. No bars means no bars, not zero bars.", file=sys.stderr)
         sys.exit(6)
+    except Empty as e:
+        if a.merge_into:
+            # The feed-hole workflow: an empty answer is the finding, as before.
+            sys.exit(f"NOTHING  {e}; {a.merge_into} untouched. If the source has no data "
+                     f"for those dates, the hole is real.")
+        print(f"PARSE    {e}", file=sys.stderr)
+        print("Reached the source, read no bars. Nothing was written.", file=sys.stderr)
+        sys.exit(2)
     except Unparseable as e:
         print(f"PARSE    {e}", file=sys.stderr)
         print("Reached the source, could not read bars. Nothing was written.", file=sys.stderr)

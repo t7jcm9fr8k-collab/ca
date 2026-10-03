@@ -24,6 +24,8 @@ import sys
 import tempfile
 import urllib.error
 import urllib.parse
+import urllib.request
+import http.client
 
 import bars as B
 import barqc
@@ -36,6 +38,23 @@ import strategies
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FAILURES = []
+
+# The suite is offline, and enforced, not hoped for: a regression that put a
+# real urlopen back under broker._call would otherwise send the test's fake
+# key headers to Alpaca. Every HTTP(S) connection to anything but this machine
+# is refused — through a proxy too, which is why the TUNNEL target is checked.
+import http.client as _hc
+_hc_connect = _hc.HTTPConnection.connect
+
+
+def _offline_connect(self):
+    target = getattr(self, "_tunnel_host", None) or self.host
+    if target not in ("127.0.0.1", "::1", "localhost"):
+        raise OSError(f"the test suite is offline: refused a connection to {target}")
+    return _hc_connect(self)
+
+
+_hc.HTTPConnection.connect = _offline_connect
 
 
 def check(name, cond, detail=""):
@@ -561,6 +580,16 @@ check("a ledger that does not exist yet is empty, not an error", ledger.load() =
 ledger.record("backtest", strategy="y")
 check("save leaves no temp file behind",
       [n for n in os.listdir(os.path.dirname(ledger.LEDGER)) if n.endswith(".tmp")] == [])
+_replaced = []
+_os_replace = os.replace
+os.replace = lambda a, b: (_replaced.append(a), _os_replace(a, b))[1]
+try:
+    ledger.record("backtest", strategy="tmpname")
+finally:
+    os.replace = _os_replace
+check("save writes through a tmp file of its own, never the shared ledger.json.tmp",
+      len(_replaced) == 1 and _replaced[0] != ledger.LEDGER + ".tmp"
+      and os.path.basename(_replaced[0]).startswith(".ledger-"), str(_replaced))
 # Two processes appending at once: without the lock each read-append-write
 # could overwrite the other's events.
 _conc = os.path.join(_tmp, "conc", "ledger.json")
@@ -607,8 +636,45 @@ check("alpaca error JSON is PARSE", _raises(B.Unparseable, fetch.parse_alpaca_pa
 check("alpaca non-JSON is PARSE", _raises(B.Unparseable, fetch.parse_alpaca_page, "<html>"))
 page, tok = fetch.parse_alpaca_page('{"bars":[{"t":"2026-01-05T05:00:00Z","o":1,"h":2,"l":0.5,"c":1.5,"v":9}],"next_page_token":"abc"}')
 check("alpaca page parses with its token", len(page) == 1 and tok == "abc")
-check("alpaca empty bars is OK-with-zero, a true statement about the range",
+check("an empty alpaca PAGE parses — one page of a range may hold nothing",
       fetch.parse_alpaca_page('{"bars":[],"next_page_token":null}') == ([], None))
+_fg, _fc = fetch._get, fetch.credentials
+fetch.credentials = lambda: {"APCA-API-KEY-ID": "k", "APCA-API-SECRET-KEY": "s"}
+fetch._get = lambda url, headers=None, waits=None: '{"bars":[],"next_page_token":null}'
+try:
+    check("TI-7: but a whole alpaca RANGE with no bars is PARSE (Empty), never an empty series",
+          _raises(fetch.Empty, fetch.fetch_alpaca, "AAPL", "1d", "2026-01-05", "2026-01-06")
+          and issubclass(fetch.Empty, B.Unparseable))
+    fetch._get = lambda url, headers=None, waits=None: (
+        '{"bars":[{"t":"2026-01-05T13:00:00Z","o":1,"h":2,"l":0.5,"c":1.5,"v":9},'
+        '{"t":"2026-01-05T23:00:00Z","o":1,"h":2,"l":0.5,"c":1.5,"v":9}],"next_page_token":null}')
+    try:
+        fetch.fetch_alpaca("AAPL", "1m", "2026-01-05", "2026-01-06")
+        _em = ""
+    except fetch.Empty as e:
+        _em = str(e)
+    check("SN-2: a range of only pre/post-market bars says so — not 'no bars at all'",
+          "2 pre/post-market" in _em, _em)
+    _merge = os.path.join(_tmp, "MRG-1m.csv")
+    B.to_csv(B.Series("AAPL", "1m", [_bar(dt.datetime(2026, 1, 2, 15, 0, tzinfo=B.UTC), 1, 2, 0.5, 1.5)],
+                      dict(PROV, source="alpaca")), _merge)
+    _mb = open(_merge, "rb").read()
+    fetch._get = lambda url, headers=None, waits=None: '{"bars":[],"next_page_token":null}'
+    _argv = sys.argv
+    sys.argv = ["fetch.py", "--source", "alpaca", "--symbol", "AAPL", "--timeframe", "1m",
+                "--start", "2026-01-05", "--end", "2026-01-06", "--merge-into", _merge]
+    try:
+        fetch.main()
+        _mx = "returned"
+    except SystemExit as e:
+        _mx = e.code
+    finally:
+        sys.argv = _argv
+    check("SN-2: --merge-into on an empty range is NOTHING (exit 1), the hole is real; file untouched",
+          isinstance(_mx, str) and _mx.startswith("NOTHING") and "hole is real" in _mx
+          and open(_merge, "rb").read() == _mb, repr(_mx))
+finally:
+    fetch._get, fetch.credentials = _fg, _fc
 check("an unreachable host is NETWORK", _raises(fetch.Unreachable, fetch._get, "https://127.0.0.1:9/x"))
 for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
     os.environ.pop(k, None)
@@ -766,19 +832,40 @@ import types as _ty
 _kc_saved = (broker.sys, broker.shutil, broker.subprocess)
 broker.sys = _ty.SimpleNamespace(platform="darwin")
 broker.shutil = _ty.SimpleNamespace(which=lambda name: "/usr/bin/security")
+_kc_out = {"alpaca-key-id": b"FROMKEYCHAIN-id\n", "alpaca-secret-key": b"FROMKEYCHAINkey\n"}
 broker.subprocess = _ty.SimpleNamespace(
-    run=lambda argv, **k: _ty.SimpleNamespace(returncode=0, stdout=f"FROMKEYCHAIN{argv[3][-3:]}\n"),
-    SubprocessError=Exception)
+    run=lambda argv, **k: _ty.SimpleNamespace(returncode=0, stdout=_kc_out[argv[3]]),
+    # its own class, as the real module's is: `Exception` here caught everything
+    # and hid a decode error the real code would let escape
+    SubprocessError=type("SubprocessError", (Exception,), {}))
 try:
     check("CA_NO_KEYCHAIN keeps the keychain shut (the tests run with it set)",
           _raises(broker.NoCredentials, broker.credentials))
     os.environ.pop("CA_NO_KEYCHAIN")
     _kc = broker.credentials()
+    # TI-9: the detail names which half matched, never the values themselves.
     check("without it, a Mac's keychain supplies the keys",
-          _kc == {"APCA-API-KEY-ID": "FROMKEYCHAIN-id", "APCA-API-SECRET-KEY": "FROMKEYCHAINkey"}, str(_kc))
+          _kc == {"APCA-API-KEY-ID": "FROMKEYCHAIN-id", "APCA-API-SECRET-KEY": "FROMKEYCHAINkey"},
+          f"key matched: {_kc.get('APCA-API-KEY-ID') == 'FROMKEYCHAIN-id'}, "
+          f"secret matched: {_kc.get('APCA-API-SECRET-KEY') == 'FROMKEYCHAINkey'}")
     os.environ["ALPACA_KEY_ID"], os.environ["ALPACA_SECRET_KEY"] = "PKFROMENV001", "SECRETFROMENV"
     check("the environment still wins over the keychain",
           broker.credentials()["APCA-API-KEY-ID"] == "PKFROMENV001")
+    os.environ.pop("ALPACA_SECRET_KEY")
+    check("SN-6: half a pair in the environment is refused — never completed from the keychain",
+          _raises(broker.NoCredentials, broker.credentials))
+    os.environ.pop("ALPACA_KEY_ID")
+    _kc_out["alpaca-key-id"] = b"FROMKEY\nCHAIN-id\n"
+    try:
+        broker.credentials()
+        _kcm = ""
+    except broker.NoCredentials as e:
+        _kcm = str(e)
+    check("SN-6: a malformed keychain value is named with its keychain item, not the variable alone",
+          "keychain item alpaca-key-id" in _kcm and "FROMKEY" not in _kcm, _kcm)
+    _kc_out["alpaca-key-id"] = b"\xff\xfe\x00junk"
+    check("SN-4: a keychain reply that is not ASCII is no key — NoCredentials, not UnicodeDecodeError",
+          _raises(broker.NoCredentials, broker.credentials))
 finally:
     for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
         os.environ.pop(k, None)
@@ -812,6 +899,62 @@ finally:
     _tls.opener = _real_opener
 check("broker._call never follows a redirect", _asked == [False], str(_asked))
 check("an error that quotes the secret is redacted", _umsg and "SECRETVISIBLE" not in _umsg and "<redacted>" in _umsg, _umsg)
+
+import traceback as _tb
+_SEC = "SECRETSTRADDLE0123456789abcdefghijklmn"     # a fake 38-character secret
+_HDR = {"APCA-API-KEY-ID": "PKSTRADDLE01", "APCA-API-SECRET-KEY": _SEC}
+
+
+class _Opener:
+    """An opener that raises what it is given, with the request in hand."""
+    def __init__(self, make):
+        self.make = make
+
+    def open(self, req, timeout=None):
+        raise self.make(req)
+
+
+def _call_with(make, fn=None):
+    real = _tls.opener
+    _tls.opener = lambda follow_redirects=True: _Opener(make)
+    try:
+        (fn or (lambda: broker._call(broker.PAPER, "/v2/orders", _HDR, {"x": 1})))()
+        return None
+    except Exception as e:
+        return e
+    finally:
+        _tls.opener = real
+
+
+for _off in (380, 395, 399):
+    _e = _call_with(lambda req, o=_off: urllib.error.HTTPError(
+        req.full_url, 422, "x", {}, io.BytesIO(("A" * o + _SEC + " echoed").encode())))
+    check(f"SN-1: a secret straddling the 400-character cut (at {_off}) leaves no part of itself",
+          isinstance(_e, broker.Rejected) and _SEC[:12] not in str(_e), str(_e)[-60:].replace(_SEC[:12], "<LEAK>"))
+_e = _call_with(lambda req: http.client.IncompleteRead(b"partial"))
+check("SN-M1: a reply cut short (IncompleteRead) is Unreachable, so run.py looks the order up",
+      isinstance(_e, broker.Unreachable), type(_e).__name__)
+_e = _call_with(lambda req: http.client.BadStatusLine("garbled " + _SEC))
+check("SN-M1: ...and a garbled status line too, redacted",
+      isinstance(_e, broker.Unreachable) and _SEC not in str(_e), type(_e).__name__)
+_e = _call_with(lambda req: urllib.error.URLError("bad header " + _SEC))
+check("SN-5: the redacted error carries no unredacted original in its chain",
+      isinstance(_e, broker.Unreachable) and _SEC not in "".join(_tb.format_exception(_e)))
+_asked2 = []
+_real_op = _tls.opener
+_tls.opener = lambda follow_redirects=True: (_asked2.append(follow_redirects),
+                                             _Opener(lambda req: urllib.error.URLError("bad " + _SEC)))[1]
+try:
+    try:
+        fetch._get("https://data.alpaca.markets/v2/x", _HDR, waits=())
+        _fe = None
+    except fetch.Unreachable as e:
+        _fe = e
+finally:
+    _tls.opener = _real_op
+check("TI-7: fetch._get with the key headers refuses redirects, as broker._call does", _asked2 == [False], str(_asked2))
+check("TI-7: ...and redacts the secret from its error, chain included",
+      _fe is not None and _SEC not in "".join(_tb.format_exception(_fe)) and "<redacted>" in str(_fe))
 check("an account number is printed as its last four", broker.mask_account("PA00001234") == "…1234")
 check("a bad side is refused before any request",
       _raises(ValueError, broker.place_order, broker.PAPER, {}, "AAPL", "short", 1))
@@ -1020,6 +1163,8 @@ try:
     check("run.py: ...and says NOT SENT, exit 8 — never 'recorded' for a run that wrote nothing",
           _code == 8 and "NOT SENT" in _out and "recorded paper run" not in _out
           and "nothing new to record" in _out, f"{_code} {_out!r}")
+    check("TI-7: run.py prints the account as its last four, never the whole number",
+          "account  …1234" in _out and "PA00001234" not in _out + _err)
     _code = _run(["--mode", "paper", "--side", "buy", "--qty", "2", "--repeat", "2"] + SMA + BASE)
     check("run.py: --repeat 2 sends a deliberate second copy on the same bar (0)",
           _code == 0 and len(_alp.orders) == 2 and len(_coid_events(_alp)) == 4,
@@ -1055,6 +1200,10 @@ try:
           _run(["--mode", "paper", "--side", "buy", "--qty", "7"] + SMA + BASE) == 3)
     check("but a dry run still answers while STOP is present (0)",
           _run(["--mode", "paper", "--qty", "7", "--dry-run"] + SMA + BASE) == 0)
+    os.remove(_ap_mod.STOP_FILE)
+    os.symlink(os.path.join(_tmp, "nowhere"), _ap_mod.STOP_FILE)
+    check("TI-7: a dangling symlink named STOP stops run.py too (3)",
+          _run(["--mode", "paper", "--side", "buy", "--qty", "7"] + SMA + BASE) == 3)
     os.remove(_ap_mod.STOP_FILE)
 
     # --- the review's money-path findings, each against the real broker.py
@@ -1166,6 +1315,25 @@ except SystemExit as e:
 finally:
     ledger.LEDGER, sys.argv = _lk_keep, _argv_keep
 check("MP-10: ledger.py --report refuses an unreadable ledger cleanly", _lmsg.startswith("REFUSED"), _lmsg)
+_lk_keep, _argv_keep = ledger.LEDGER, sys.argv
+ledger.LEDGER = os.path.join(_tmp, "show", "ledger.json")
+ledger.record("paper", strategy="s3", symbol="SYN", account="PA3FAKE98765", status="filled")
+sys.argv = ["ledger.py", "--show", "s3", "SYN"]
+_shown = io.StringIO()
+try:
+    with contextlib.redirect_stdout(_shown):
+        ledger.main()
+finally:
+    ledger.LEDGER, sys.argv = _lk_keep, _argv_keep
+check("SN-3: ledger.py --show masks the account number as run.py does",
+      "…8765" in _shown.getvalue() and "PA3FAKE98765" not in _shown.getvalue())
+try:
+    urllib.request.urlopen("https://example.com/", timeout=5)
+    _offline = "connected"
+except Exception as e:
+    _offline = str(e)
+check("the suite is offline: a connection to any outside host is refused, proxy or not",
+      "the test suite is offline" in _offline, _offline[:120])
 for _script, _args in (
         ("nulltest.py", ["--csv", _fix, _fix, "--symbol", "SYN", "SYN", "--rule", "rsi_oversold",
                          "--shuffles", "3"] + _PROVA),
@@ -2123,10 +2291,13 @@ try:
     _stop_keep_c = autopilot.STOP_FILE
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP-c")
     _fbn = _FakeBroker(equity="NaN")
-    _rn = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+    ledger.record("backtest", strategy="trend_filter_20", symbol="DIPNAN", leak_check=_LK_OK)
+    _n_runs = len(ledger.events("autopilot_run"))
+    _rn = autopilot.run(["DIPNAN"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                         fetch_fn=_ap_fetch, broker_api=_fbn, now=_ap_now)
     check("a NaN equity reading is no reading: nothing traded, nothing recorded as a peak",
-          _fbn.orders == [] and "no equity" in _rn[0]["action"], _rn[0]["action"])
+          _fbn.orders == [] and "no equity" in _rn[0]["action"]
+          and len(ledger.events("autopilot_run")) == _n_runs, _rn[0]["action"])
     for _md in (float("nan"), 1.0, 0.0, -0.1):
         _rmd = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                              fetch_fn=_ap_fetch, broker_api=_FakeBroker(), now=_ap_now, max_drawdown=_md)
@@ -2182,6 +2353,33 @@ try:
     check("the run records its equity and the peak each time",
           [e["equity"] for e in ledger.events("autopilot_run", mode="paper")][-3:] == [1000.0, 900.0, 840.0]
           and ledger.events("autopilot_run", mode="paper")[-1]["peak"] == 1000.0)
+    # TI-6: a NaN that reached the ledger as the FIRST equity once made every
+    # later peak NaN, and a NaN peak never halts.
+    _led_keep6 = ledger.LEDGER
+    ledger.LEDGER = os.path.join(_ap_sand, "ledger-nan-first.json")
+    autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP-nan")
+    ledger.record("autopilot_run", mode="paper", equity=float("nan"), peak=float("nan"))
+    autopilot.run(["NOPE"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                  broker_api=_FakeBroker(equity="1000"), now=_ap_now)
+    _r6 = autopilot.run(["NOPE"], "trend_filter:20", "paper", root=_ap_root, fetch_fn=_ap_fetch,
+                        broker_api=_FakeBroker(equity="840"), now=_ap_now)
+    check("TI-6: a NaN recorded as the first equity does not disable the drawdown halt",
+          "HALTED" in _r6[0]["action"], _r6[0]["action"])
+    ledger.LEDGER = _led_keep6
+    _uni = os.path.join(_ap_sand, "empty-universe.txt")
+    open(_uni, "w").close()
+    for _flag, _v in (("--qty", "nan"), ("--qty", "inf"), ("--notional", "0")):
+        _argv = sys.argv
+        sys.argv = ["autopilot.py", "--universe", _uni, "--dry-run", _flag, _v]
+        try:
+            autopilot.main()
+            _am = "returned"
+        except SystemExit as e:
+            _am = str(e.code)
+        finally:
+            sys.argv = _argv
+        check(f"TI-7: autopilot.py {_flag} {_v} is refused at the command line",
+              _am.startswith(f"REFUSING {_flag}"), _am)
     autopilot.STOP_FILE = _sf
 finally:
     ledger.LEDGER = _ap_ledger_real

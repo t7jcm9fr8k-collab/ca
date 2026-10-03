@@ -24,7 +24,7 @@ out/              everything generated
 | `history.py` | append-only ledger + the change history you can look at |
 | `demo.sh` | the whole loop end to end, reproducibly |
 | `printable.py` | the November printables: four sizes at 300 DPI, never stretched or enlarged, PNG plus a hand-written PDF with no metadata at all, scrubbed against strings you pass with `--forbid`, gated on a recorded inspection of those exact bytes. |
-| `test_tools.py` | 163 checks. `python3 test_tools.py` |
+| `test_tools.py` | 211 checks; one needs `./demo.sh` run first. `python3 test_tools.py` |
 
 ## The order
 

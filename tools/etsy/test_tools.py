@@ -846,6 +846,34 @@ for _rid, _src in (("escapee", "../outside.png"), ("plain", "fine.png")):
 check("ED-M3: a recipe whose layer source leaves sources/ is not 'ready'",
       _schedule.renderable([{"id": "escapee"}, {"id": "plain"}], _rdir, _sdir) == {"plain"})
 
+# TI-7: each CLI that turns a name into a path refuses "../" itself — not
+# only names.safe_name in isolation.
+_cout = _os.path.join(_odir, "compose-out")
+for _rid, _src in (("../escaped-recipe", "fine.png"), ("plain-id", "../outside.png")):
+    _rp = _os.path.join(_odir, f"r-{_rid.strip('./')}.json")
+    with open(_rp, "w") as _f:
+        _f.write(_json.dumps({"id": _rid, "layers": [
+            {"source": _src, "provenance": base["layers"][0]["provenance"]}]}))
+    _code, _txt = _cli(compose, ["--recipe", _rp, "--draft", "--sources", _sdir, "--out", _cout])
+    check(f"TI-7: compose.py refuses {'a recipe id' if _rid.startswith('..') else 'a layer source'} "
+          f"that leaves its folder", _code != 0 and "REFUSED" in _txt
+          and not _os.path.exists(_os.path.join(_odir, "escaped-recipe-onlight.png")), _txt[-160:])
+_code, _txt = _cli(_mockup, ["--design", "../escaped", "--version", "1", "--print", _any, "--out", _cout])
+check("TI-7: mockup.py refuses a --design that leaves out/", _code != 0 and "REFUSED" in _txt, _txt[-160:])
+_code, _txt = _cli(render_plate, ["--src", _any, "--slug", "../escaped", "--out", _cout])
+check("TI-7: render_plate.py refuses a --slug that leaves out/", _code != 0 and "REFUSED" in _txt, _txt[-160:])
+
+# TI-M1: every free-text field in the history report is escaped, not only --change.
+H.save({"designs": {}})
+H.record_version("<b>name", 1, {}, changes=["plain"], note="a & b <i>")
+H.record_version("<b>name", 2, {}, changes=["plain"], forced=True, force_reason="<u>because</u>")
+H.record_inspection("<b>name", 1, {"verdict": "pass", "failed": [], "unrun": [], "checks": {
+    "<em>check": {"ok": True, "value": "1", "want": "1", "note": ""}}}, _any)
+_rep2 = open(H.build_report(H.load(), _os.path.dirname(H.LEDGER))).read()
+check("TI-M1: the report escapes a version's note, a force reason, a design name and a check name",
+      all(x not in _rep2 for x in ("<i>", "<u>because", "<b>name", "<em>check"))
+      and all(x in _rep2 for x in ("&lt;i&gt;", "&lt;u&gt;because", "&lt;em&gt;check")))
+
 check("safe_name keeps a plain name", _names.safe_name("orchid-skull", "x") == "orchid-skull")
 check("safe_name refuses a path, '..' or an absolute path",
       all(_raises(ValueError, _names.safe_name, v, "x") for v in ("../evil", "a/b", "/etc/x", "..", "", "a\\b")))
