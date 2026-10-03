@@ -1009,6 +1009,16 @@ check("a sessions file round-trips every measured field exactly",
           a["date"] == b["date"] and a["r_first30"] == b["r_first30"] and a["open_1530"] == b["open_1530"]
           and abs(a["r_last30"] - b["r_last30"]) < 1e-15 and a["fill_slipped"] == b["fill_slipped"]
           for a, b in zip(_rows_f, _rows_m)))
+check("a path inside this folder is written relative to it",
+      intraday.portable({"path": os.path.join(intraday.HERE, "bars", "X-1m.csv")})["path"]
+      == os.path.join("bars", "X-1m.csv"))
+check("a path outside this folder is written as its file name only",
+      intraday.portable({"path": "/Users/someone/Desktop/X-1m.csv"})["path"] == "X-1m.csv")
+_sf_home = os.path.join(tempfile.mkdtemp(prefix="sess-"), "HOME-sessions.csv")
+intraday.write_sessions(_sf_home, _rows_m, _skip_m,
+                        dict(_syn3.provenance, path="/Users/someone/ca/tools/market/bars/SYN-1m.csv"),
+                        _syn3.symbol, "1m")
+check("no absolute path reaches a sessions header", "/Users/" not in open(_sf_home).read(2000))
 check("the header carries symbol, timeframe, provenance and skip counts",
       _sym_f == _syn3.symbol and _tf_f == "1m" and _prov_f.get("source") == "synthetic-intraday" and _skip_f == _skip_m)
 _from_file = intraday.analyse(_rows_f, _skip_f, _prov_f, _sym_f, _tf_f, "first30", 2.0, "2024-02-01", 5)

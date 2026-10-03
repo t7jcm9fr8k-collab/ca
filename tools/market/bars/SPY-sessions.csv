@@ -1,5 +1,5 @@
 # intraday sessions v1 — one row per complete regular session; the rules, the null and trial 3 run from this file anywhere
-# {"symbol": "SPY", "timeframe": "1m", "provenance": {"source": "alpaca", "fetched_at": "2026-09-03T18:45:53+00:00", "adjusted": null, "path": "/Users/danielalba/Desktop/ca/tools/market/bars/SPY-1m.csv"}, "skipped": {"202 bars": 1, "185 bars": 1, "300 bars": 1, "233 bars": 1, "214 bars": 1, "206 bars": 1, "212 bars": 1, "207 bars": 1, "204 bars": 2, "47 bars": 1, "215 bars": 1, "213 bars": 2}, "sessions": 1518, "measured_by": "intraday.measure v1", "exported_at": "2026-09-04T02:44:31+00:00"}
+# {"symbol": "SPY", "timeframe": "1m", "provenance": {"source": "alpaca", "fetched_at": "2026-09-03T18:45:53+00:00", "adjusted": null, "path": "bars/SPY-1m.csv"}, "skipped": {"202 bars": 1, "185 bars": 1, "300 bars": 1, "233 bars": 1, "214 bars": 1, "206 bars": 1, "212 bars": 1, "207 bars": 1, "204 bars": 2, "47 bars": 1, "215 bars": 1, "213 bars": 2}, "sessions": 1518, "measured_by": "intraday.measure v1", "exported_at": "2026-09-04T02:44:31+00:00"}
 date,r_first30,r_open_to_1530,open_1530,last_print,fill_slipped,exit_time
 2020-07-27,0.003109211037699122,0.004850369218810657,323.21,323.26,0,15:59
 2020-07-28,-0.0021080695662957227,-0.0017670583129243411,322.0,321.24,0,15:59

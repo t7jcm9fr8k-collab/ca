@@ -237,9 +237,24 @@ SESSION_COLS = ["date", "r_first30", "r_open_to_1530", "open_1530", "last_print"
                 "fill_slipped", "exit_time"]
 
 
+def portable(prov):
+    """
+    Provenance safe to commit. bars.load_csv records the file's ABSOLUTE path,
+    which on a Mac is /Users/<account name>/... — and this header is committed
+    to a repository anyone can read. Keep the path relative to this folder, or
+    just the file name when it lives elsewhere; nothing reads the field back.
+    """
+    prov = dict(prov or {})
+    p = prov.get("path")
+    if p and os.path.isabs(p):
+        rel = os.path.relpath(p, HERE)
+        prov["path"] = os.path.basename(p) if rel.startswith("..") else rel
+    return prov
+
+
 def write_sessions(path, rows, skipped, prov, symbol, timeframe):
     """One row per measured session, provenance and skip counts in the header."""
-    head = {"symbol": symbol, "timeframe": timeframe, "provenance": prov, "skipped": skipped,
+    head = {"symbol": symbol, "timeframe": timeframe, "provenance": portable(prov), "skipped": skipped,
             "sessions": len(rows), "measured_by": "intraday.measure v1",
             "exported_at": dt.datetime.now(B.UTC).isoformat(timespec="seconds")}
     with open(path, "w", newline="") as f:
