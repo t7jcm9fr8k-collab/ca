@@ -291,7 +291,7 @@ def main():
         refuse(5, f"REFUSED: {e}")
     except (broker.Rejected, broker.Unreachable) as e:
         refuse(6, f"NETWORK  {e}", "  Nothing sent.")
-    print(f"account  {acct['account_number']} {'PAPER' if acct['paper'] else 'LIVE'} "
+    print(f"account  {broker.mask_account(acct['account_number'])} {'PAPER' if acct['paper'] else 'LIVE'} "
           f"status {acct['status']}, equity {acct['equity']}, "
           f"buying power {acct['buying_power']}")
     if side == "sell":

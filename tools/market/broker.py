@@ -33,6 +33,9 @@ import hashlib
 import json
 import math
 import os
+import shutil
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -58,26 +61,69 @@ class Rejected(Exception):
     """Alpaca said no, and said why."""
 
 
+# Where the keys may live, in order: the environment (as before), then the macOS
+# login keychain under these service names — which keeps the secret out of
+# ~/.zshrc, out of shell history, and out of the environment every shell and
+# every agent inherits. CA_NO_KEYCHAIN=1 turns the keychain off (the tests set
+# it, so a machine whose keychain holds real keys can never trade from them).
+KEYCHAIN = {"ALPACA_KEY_ID": "alpaca-key-id", "ALPACA_SECRET_KEY": "alpaca-secret-key"}
+
+
+def _keychain(service):
+    """A secret from the macOS login keychain, or "" — never raises."""
+    if os.environ.get("CA_NO_KEYCHAIN") or sys.platform != "darwin" or not shutil.which("security"):
+        return ""
+    try:
+        r = subprocess.run(["security", "find-generic-password", "-s", service, "-w"],
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
 def credentials():
-    key = os.environ.get("ALPACA_KEY_ID", "").strip()
-    sec = os.environ.get("ALPACA_SECRET_KEY", "").strip()
-    if not key or not sec:
-        raise NoCredentials("ALPACA_KEY_ID / ALPACA_SECRET_KEY are not set. "
-                            "Export them in the shell; never pass them as arguments.")
-    return {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": sec}
+    """The Alpaca key pair. A malformed value is refused by NAME, never shown:
+    a two-line paste used to reach http.client, whose error quoted both halves
+    into stderr, the cron log and any transcript saved from it."""
+    vals = {name: os.environ.get(name, "").strip() or _keychain(svc)
+            for name, svc in KEYCHAIN.items()}
+    if not all(vals.values()):
+        raise NoCredentials("ALPACA_KEY_ID / ALPACA_SECRET_KEY are not set — neither in the "
+                            "environment nor in the macOS keychain (services alpaca-key-id and "
+                            "alpaca-secret-key). Never pass them as arguments.")
+    for name, v in vals.items():
+        if any(c.isspace() or not c.isprintable() or ord(c) > 126 for c in v):
+            raise NoCredentials(f"{name} contains whitespace or a non-printing character — "
+                                f"a two-line paste? (its value is not shown)")
+    return {"APCA-API-KEY-ID": vals["ALPACA_KEY_ID"], "APCA-API-SECRET-KEY": vals["ALPACA_SECRET_KEY"]}
+
+
+def redact(text, hdr):
+    """Remove the key and secret from any text that might be printed or logged."""
+    for v in (hdr or {}).values():
+        if isinstance(v, str) and len(v) >= 6:
+            text = text.replace(v, "<redacted>")
+    return text
+
+
+def mask_account(number):
+    """An account number as it may be printed: the last four characters."""
+    s = str(number or "")
+    return ("…" + s[-4:]) if len(s) > 4 else s
 
 
 def _call(base, path, hdr, body=None, method=None):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
-        base + path, data=data, method=method or ("POST" if data else "GET"),
-        headers={"User-Agent": UA, "Content-Type": "application/json",
-                 "Accept": "application/json", **hdr})
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
+        req = urllib.request.Request(
+            base + path, data=data, method=method or ("POST" if data else "GET"),
+            headers={"User-Agent": UA, "Content-Type": "application/json",
+                     "Accept": "application/json", **hdr})
+        # Credentialed: a redirect is refused, never followed with the keys attached.
+        with tlsctx.opener(follow_redirects=False).open(req, timeout=TIMEOUT) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as e:
-        msg = e.read().decode("utf-8", "replace")[:400]
+        msg = redact(e.read().decode("utf-8", "replace")[:400], hdr)
         if e.code in (401, 403):
             raise Unreachable(f"HTTP {e.code} — credentials refused for {base}: {msg}")
         if 400 <= e.code < 500:
@@ -86,7 +132,7 @@ def _call(base, path, hdr, body=None, method=None):
     except (urllib.error.URLError, OSError, ValueError) as e:
         if tlsctx.is_cert_failure(e):
             raise Unreachable(tlsctx.explain(e))
-        raise Unreachable(f"{type(e).__name__}: {e}")
+        raise Unreachable(redact(f"{type(e).__name__}: {e}", hdr))
 
 
 def account(base, hdr):

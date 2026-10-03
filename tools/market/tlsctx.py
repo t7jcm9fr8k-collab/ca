@@ -37,6 +37,7 @@ USAGE
 """
 
 import ssl
+import urllib.request
 import sys
 
 
@@ -111,3 +112,21 @@ if __name__ == "__main__":
     print(f"hostname    : {'checked' if ctx.check_hostname else 'NOT CHECKED'}")
     print(f"verify mode : {ctx.verify_mode.name}")
     print(f"python      : {sys.executable}")
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A 30x is an error, not an instruction: urllib would otherwise re-send
+    every header — the Alpaca key and secret included — to whatever host the
+    redirect names, even over plain http."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def opener(follow_redirects=True):
+    """An opener on the one verifying context; follow_redirects=False for any
+    request that carries credentials."""
+    handlers = [urllib.request.HTTPSHandler(context=context())]
+    if not follow_redirects:
+        handlers.append(_NoRedirect)
+    return urllib.request.build_opener(*handlers)

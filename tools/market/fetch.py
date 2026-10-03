@@ -95,7 +95,12 @@ def _get(url, headers=None, waits=RETRY_WAITS):
     attempt = 0
     while True:
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context()) as r:
+            if "APCA-API-KEY-ID" in (headers or {}):
+                # Credentialed: a redirect is refused, never followed with the keys attached.
+                resp = tlsctx.opener(follow_redirects=False).open(req, timeout=TIMEOUT)
+            else:
+                resp = urllib.request.urlopen(req, timeout=TIMEOUT, context=tlsctx.context())
+            with resp as r:
                 if r.status != 200:
                     raise Unreachable(f"HTTP {r.status}")
                 return r.read().decode("utf-8", "replace")
@@ -123,7 +128,8 @@ def _get(url, headers=None, waits=RETRY_WAITS):
             # one network failure with a fix on this machine, so say what it is.
             if tlsctx.is_cert_failure(e):
                 raise Unreachable(tlsctx.explain(e)) from e
-            raise Unreachable(f"{type(e).__name__}: {e}") from e
+            import broker
+            raise Unreachable(broker.redact(f"{type(e).__name__}: {e}", headers)) from e
 
 
 # ---------------------------------------------------------------- stooq
@@ -251,12 +257,13 @@ def fetch_yahoo(symbol, adjusted_close=False):
 # ---------------------------------------------------------------- alpaca
 
 def credentials():
-    key = os.environ.get("ALPACA_KEY_ID", "").strip()
-    sec = os.environ.get("ALPACA_SECRET_KEY", "").strip()
-    if not key or not sec:
-        raise Unreachable("ALPACA_KEY_ID / ALPACA_SECRET_KEY not set in the "
-                          "environment; export them, never pass them as arguments")
-    return {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": sec}
+    """broker.credentials() — one definition, so the keychain route, the
+    malformed-value refusal and the wording cannot drift between the two."""
+    import broker
+    try:
+        return broker.credentials()
+    except broker.NoCredentials as e:
+        raise Unreachable(str(e))
 
 
 def parse_alpaca_page(body):

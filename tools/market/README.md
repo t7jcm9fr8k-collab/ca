@@ -283,8 +283,9 @@ python3 autopilot.py --strategy "vol_target[trend_or_dip:200,14,30,5]:0.10,20" -
 #     Sharpe 0.89, three times the fills). Paper first, for weeks. Neither is an income.
 #     Schedule on the Mac with cron; the keys come from the shell environment, never from a file:
 #       20 16 * * 1-5  cd /PATH/TO/ca/tools/market && python3 autopilot.py >> out/autopilot.log 2>&1
-#     (cron does not read your .zshrc: put the two export lines in ~/.zshenv, or run it from a
-#     launchd agent that inherits your login environment). Stop it: touch STOP in tools/market.
+#     (with the keys in the keychain, schedule it as a launchd agent: it runs in your login
+#     session and can read the keychain, which cron may not. Keys exported in ~/.zshenv also
+#     work, with the exposure step 2 describes.) Stop it: touch STOP in tools/market.
 #     Live: --mode live --confirm-live, and only after the ledger shows paper runs that filled —
 #     the gate refuses otherwise. Before live, the backtest must be recorded per symbol:
 #       for X in $(grep -v '^#' universe.txt); do python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/$X-1d.csv --symbol $X --source yahoo --adjusted yes --cost-bps 5 --cash-yield 0.03; done#     Replication of the one survivor on a universe fixed IN ADVANCE (universe.txt), with the
@@ -313,12 +314,19 @@ later. Nothing here is committed to the repo; keys live in your shell.
 
 1. Sign up at alpaca.markets. Choose **Paper Trading** first; generate an API
    key pair from the paper dashboard.
-2. Put them in your shell, not in a file in this repo:
+2. Put them in the macOS keychain — not in a file in this repo, and not in your
+   shell profile. Each command prompts for the value, so it never lands in your
+   shell history:
    ```bash
-   echo 'export ALPACA_KEY_ID="…"'     >> ~/.zshrc
-   echo 'export ALPACA_SECRET_KEY="…"' >> ~/.zshrc
-   source ~/.zshrc
+   security add-generic-password -a "$USER" -s alpaca-key-id -w
+   security add-generic-password -a "$USER" -s alpaca-secret-key -w
    ```
+   `broker.py` and `fetch.py` read the environment first and the keychain
+   second, so an exported `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY` still works. But
+   anything in `~/.zshrc` sits in the environment of every shell and every agent
+   you start, and the old `echo 'export …' >> ~/.zshrc` route wrote the secret
+   into your shell history as well. A value containing a space or a line break
+   (a two-line paste) is refused by name, and never printed.
 3. Fetch. Minute bars are big — a decade of SPY is ~1M bars — and the fetch
    prints progress every ten pages. Extended-hours bars are dropped by default
    so `barqc` and `intraday.py` see the regular session only.

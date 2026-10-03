@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
 
 import bars as B
@@ -593,6 +594,9 @@ check("alpaca empty bars is OK-with-zero, a true statement about the range",
 check("an unreachable host is NETWORK", _raises(fetch.Unreachable, fetch._get, "https://127.0.0.1:9/x"))
 for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
     os.environ.pop(k, None)
+# The keychain too, for this process and every child it starts: on a Mac whose
+# keychain holds real keys, "no keys" tests would otherwise place real orders.
+os.environ["CA_NO_KEYCHAIN"] = "1"
 check("alpaca without keys refuses before any request", _raises(fetch.Unreachable, fetch.fetch_alpaca, "AAPL"))
 _yj = json.dumps({"chart": {"result": [{"timestamp": [1704207600, 1704294000, 1704380400],
     "indicators": {"quote": [{"open": [1, 2, None], "high": [2, 3, 4], "low": [0.5, 1.5, 2.5],
@@ -708,6 +712,76 @@ check("nothing in the tree loosens TLS",
 print("\nbroker — refuses before it sends")
 
 check("no credentials is NoCredentials", _raises(broker.NoCredentials, broker.credentials))
+
+# A two-line paste is refused by NAME; neither half may reach a message.
+os.environ["ALPACA_KEY_ID"], os.environ["ALPACA_SECRET_KEY"] = "PKTESTKEY0001", "SECRETHALFA\nSECRETHALFB"
+try:
+    broker.credentials()
+    _cmsg = ""
+except broker.NoCredentials as e:
+    _cmsg = str(e)
+try:
+    fetch.credentials()
+    _fmsg = ""
+except fetch.Unreachable as e:
+    _fmsg = str(e)
+check("a malformed secret is refused by name, its value never shown",
+      "ALPACA_SECRET_KEY" in _cmsg and "SECRETHALF" not in _cmsg and "SECRETHALF" not in _fmsg and _fmsg, _cmsg)
+for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+    os.environ.pop(k, None)
+
+# The keychain: read only after the environment, and CA_NO_KEYCHAIN turns it off.
+import types as _ty
+_kc_saved = (broker.sys, broker.shutil, broker.subprocess)
+broker.sys = _ty.SimpleNamespace(platform="darwin")
+broker.shutil = _ty.SimpleNamespace(which=lambda name: "/usr/bin/security")
+broker.subprocess = _ty.SimpleNamespace(
+    run=lambda argv, **k: _ty.SimpleNamespace(returncode=0, stdout=f"FROMKEYCHAIN{argv[3][-3:]}\n"),
+    SubprocessError=Exception)
+try:
+    check("CA_NO_KEYCHAIN keeps the keychain shut (the tests run with it set)",
+          _raises(broker.NoCredentials, broker.credentials))
+    os.environ.pop("CA_NO_KEYCHAIN")
+    _kc = broker.credentials()
+    check("without it, a Mac's keychain supplies the keys",
+          _kc == {"APCA-API-KEY-ID": "FROMKEYCHAIN-id", "APCA-API-SECRET-KEY": "FROMKEYCHAINkey"}, str(_kc))
+    os.environ["ALPACA_KEY_ID"], os.environ["ALPACA_SECRET_KEY"] = "PKFROMENV001", "SECRETFROMENV"
+    check("the environment still wins over the keychain",
+          broker.credentials()["APCA-API-KEY-ID"] == "PKFROMENV001")
+finally:
+    for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+        os.environ.pop(k, None)
+    os.environ["CA_NO_KEYCHAIN"] = "1"
+    broker.sys, broker.shutil, broker.subprocess = _kc_saved
+
+# Credentialed calls refuse redirects, and errors never carry the key.
+import tlsctx as _tls
+check("a credentialed opener refuses to follow a redirect",
+      any(isinstance(h, _tls._NoRedirect) for h in _tls.opener(follow_redirects=False).handlers)
+      and _tls._NoRedirect().redirect_request(None, None, 302, "Found", {}, "http://evil.invalid/") is None)
+check("an uncredentialed opener still follows them (stooq, yahoo)",
+      not any(isinstance(h, _tls._NoRedirect) for h in _tls.opener().handlers))
+_asked = []
+
+
+class _FailingOpener:
+    def open(self, req, timeout=None):
+        raise urllib.error.URLError(f"bad header {req.get_header('Apca-api-secret-key')}")
+
+
+_real_opener = _tls.opener
+_tls.opener = lambda follow_redirects=True: (_asked.append(follow_redirects), _FailingOpener())[1]
+try:
+    try:
+        broker._call(broker.PAPER, "/v2/account", {"APCA-API-KEY-ID": "PKVISIBLE01", "APCA-API-SECRET-KEY": "SECRETVISIBLE"})
+        _umsg = ""
+    except broker.Unreachable as e:
+        _umsg = str(e)
+finally:
+    _tls.opener = _real_opener
+check("broker._call never follows a redirect", _asked == [False], str(_asked))
+check("an error that quotes the secret is redacted", _umsg and "SECRETVISIBLE" not in _umsg and "<redacted>" in _umsg, _umsg)
+check("an account number is printed as its last four", broker.mask_account("PA00001234") == "…1234")
 check("a bad side is refused before any request",
       _raises(ValueError, broker.place_order, broker.PAPER, {}, "AAPL", "short", 1))
 check("a zero qty is refused before any request",
