@@ -1331,8 +1331,11 @@ try:
     check("a symbol with no bars is skipped, not traded", _r[1]["action"] == "skipped: no bars")
     check("a long target with no recorded backtest is REFUSED",
           _r[0]["action"].startswith("REFUSED") and _fb.orders == [], _r[0]["action"])
+    # A backtest run.py records always carries its leak check. A bare record is
+    # what combine.py writes, and the gate refuses it (review fix 6, completed).
+    _LK_OK = {"checked": 25, "differences": []}
     for _sym in ("DIPX", "DIPY", "DIPZ", "DIPW", "DIPU"):
-        ledger.record("backtest", strategy="trend_filter_20", symbol=_sym)
+        ledger.record("backtest", strategy="trend_filter_20", symbol=_sym, leak_check=_LK_OK)
     _r = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now, dry_run=True)
     check("dry run decides and sends nothing",
@@ -1349,7 +1352,7 @@ try:
                        fetch_fn=_ap_fetch, broker_api=_fb, now=_ap_now)
     check("re-running the same day sends nothing twice",
           len(_fb.orders) == 1 and "already acted" in _r[0]["action"], _r[0]["action"])
-    ledger.record("backtest", strategy="sma_cross_5_10", symbol="DIPX")
+    ledger.record("backtest", strategy="sma_cross_5_10", symbol="DIPX", leak_check=_LK_OK)
     _fbx = _FakeBroker()
     _r = autopilot.run(["DIPX"], "sma_cross:5,10", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fbx, now=_ap_now)
@@ -1360,7 +1363,7 @@ try:
                        fetch_fn=_ap_fetch, broker_api=_fb2, now=_ap_now)
     check("long wanted and already long → nothing, never adds",
           _fb2.orders == [] and "aligned" in _r[0]["action"], _r[0]["action"])
-    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPY")
+    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPY", leak_check=_LK_OK)
     _fb3 = _FakeBroker(held={"DIPY": 3})
     _r = autopilot.run(["DIPY"], "rsi_dip:14,30,5", "paper", qty=2, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fb3, now=_ap_now)
@@ -1436,7 +1439,7 @@ try:
           autopilot.last_target("paper", "DIPZ") == 1.0 and autopilot.last_target("paper", "NEVER") is None)
 
     # --- the position reaches the strategy: a position-reading rule exits when held, does nothing when flat
-    ledger.record("backtest", strategy="rsi_dip_exit_14_30_50_10", symbol="DIPU")
+    ledger.record("backtest", strategy="rsi_dip_exit_14_30_50_10", symbol="DIPU", leak_check=_LK_OK)
     _fbu = _FakeBroker(held={"DIPU": 1})
     _r = autopilot.run(["DIPU"], "rsi_dip_exit:14,30,50,10", "paper", qty=1, root=_ap_root,
                        fetch_fn=_ap_fetch, broker_api=_fbu, now=_ap_now)
@@ -1493,6 +1496,29 @@ try:
                                  strategy="breakout:20", qty=1)
     check("run.py's gate refuses it too", _raises(SystemExit, run.gate, _ns, "breakout_20"))
 
+    # --- review fix 6, completed 2026-10-03. Both gates asked "did the check
+    # fail?" instead of "did it pass?", so a record with no check, or a check
+    # that sampled nothing, read as clean — and a combine.py run, which records
+    # its trials without a check, laundered a FAILED one by becoming the latest.
+    check("leak_refusal: a check that ran and found nothing is evidence",
+          ledger.leak_refusal({"leak_check": {"checked": 25, "differences": []}}) is None)
+    check("leak_refusal: no check at all is not evidence",
+          "no leak check" in (ledger.leak_refusal({}) or ""))
+    check("leak_refusal: a check that sampled 0 bars is not evidence",
+          "0 bars" in (ledger.leak_refusal({"leak_check": {"checked": 0, "differences": []}}) or ""))
+    ledger.record("backtest", strategy="breakout_20", symbol="DIPX", combine_run=True)
+    check("a combine record after a FAILED check does not launder it (autopilot)",
+          "leak check" in (autopilot.gate("paper", "breakout_20", "DIPX", False) or ""))
+    check("a combine record after a FAILED check does not launder it (run.py)",
+          _raises(SystemExit, run.gate, _ns, "breakout_20"))
+    ledger.record("backtest", strategy="zero_sample", symbol="DIPX",
+                  leak_check={"checked": 0, "differences": []})
+    check("a check that sampled 0 bars is refused by the gate",
+          "0 bars" in (autopilot.gate("paper", "zero_sample", "DIPX", False) or ""))
+    _ns0 = _types.SimpleNamespace(mode="paper", symbol="DIPX", force=False, force_reason="",
+                                  strategy="zero_sample", qty=1)
+    check("run.py's gate refuses a 0-bar check too", _raises(SystemExit, run.gate, _ns0, "zero_sample"))
+
     # --- the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP2")
     _fb8 = _FakeBroker(equity="1000")
@@ -1503,7 +1529,7 @@ try:
                         broker_api=_fb9, now=_ap_now)
     check("a 10% drawdown from the recorded peak does not halt",
           not os.path.exists(autopilot.STOP_FILE) and "HALTED" not in _r9[0]["action"], _r9[0]["action"])
-    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPX")
+    ledger.record("backtest", strategy="rsi_dip_14_30_5", symbol="DIPX", leak_check=_LK_OK)
     _fb10 = _FakeBroker(equity="840", held={"DIPX": 5, "DIPY": 2})
     _r10 = autopilot.run(["DIPX", "DIPY"], "rsi_dip:14,30,5", "paper", root=_ap_root, fetch_fn=_ap_fetch,
                          broker_api=_fb10, now=_ap_now + dt.timedelta(days=2))

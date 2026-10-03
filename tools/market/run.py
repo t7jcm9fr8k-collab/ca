@@ -89,10 +89,11 @@ def gate(a, strat_name):
     need = []
     if a.mode in ("paper", "live"):
         bt = ledger.latest("backtest", strategy=strat_name, symbol=a.symbol)
+        why = ledger.leak_refusal(bt) if bt is not None else None
         if bt is None:
             need.append("a recorded backtest")
-        elif (bt.get("leak_check") or {}).get("differences"):
-            need.append("a backtest that passed its leak check (the recorded one did not)")
+        elif why:
+            need.append(f"a backtest that passed its leak check — the latest one {why}")
     if a.mode == "live":
         if not ledger.filled_paper_runs(strat_name, a.symbol):
             need.append("a paper run that filled")

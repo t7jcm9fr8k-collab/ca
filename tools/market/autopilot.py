@@ -242,10 +242,10 @@ def gate(mode, strategy_name, symbol, confirm_live):
     bt = ledger.latest("backtest", strategy=strategy_name, symbol=symbol)
     if bt is None:
         return "no recorded backtest for this strategy on this symbol"
-    lk = bt.get("leak_check") or {}
-    if lk.get("differences"):
-        return (f"the recorded backtest failed its leak check "
-                f"({len(lk['differences'])} of {lk.get('checked')} bars) — fix the strategy")
+    why = ledger.leak_refusal(bt)
+    if why:
+        return (f"the latest recorded backtest {why}; "
+                f"record one that passes with run.py --mode backtest")
     if mode == "live":
         if not confirm_live:
             return "live needs --confirm-live"

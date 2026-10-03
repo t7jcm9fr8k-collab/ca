@@ -88,6 +88,29 @@ def filled_paper_runs(strategy, symbol):
             if (e.get("filled_qty") or 0) > 0]
 
 
+def leak_refusal(backtest):
+    """
+    The paper gate's evidence: why this backtest does NOT show the strategy is
+    free of look-ahead, or None when it does.
+
+    Only a check that ran and found nothing counts. Both gates used to ask
+    "did it fail?" rather than "did it pass?", so a record with no check at all
+    read as clean — and combine.py records its trials without one. A combine
+    run after a FAILED check therefore made the newest record checkless and
+    the gate waved the strategy through; a check that sampled zero bars passed
+    the same way. One definition here, so run.py and autopilot.py cannot drift.
+    """
+    lk = backtest.get("leak_check")
+    if not lk:
+        return "has no leak check (combine.py records its trials without one)"
+    if not lk.get("checked"):
+        return "has a leak check that sampled 0 bars"
+    if lk.get("differences"):
+        return (f"failed its leak check ({len(lk['differences'])} of "
+                f"{lk['checked']} bars decided differently with the future removed)")
+    return None
+
+
 # ---------------------------------------------------------------- report
 
 CSS = """
