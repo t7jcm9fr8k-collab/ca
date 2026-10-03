@@ -159,31 +159,31 @@ usable window is the intersection, not the longest file.
 SPY is not in the cross-section universe at all: `crosstest.py:50` fixes it as
 the nine non-SPY names, while `universe.txt` lists ten including SPY.
 
-## 4 · The SPY naming deviation, and one hazard it creates
+## 4 · The SPY naming deviation — and a hazard that turned out not to exist
 
 For nine symbols the convention is `X-1d.csv` = Alpaca short, `X-1d-long.csv`
 = stooq long. For SPY there is no Alpaca short file, and `SPY-1d.csv` holds the
 **stooq long** series. Several tools document that deliberately
 (`nulltest.py:102`, `combine.py:31`, `intraday.py:63`).
 
-The hazard is that one tool constructs the same path by convention and
-**writes** to it:
+**Corrected 2026-10-03.** The first version of this section said `autopilot.py`
+would overwrite `bars/SPY-1d.csv` — the 5413-bar, 21-year file — with about two
+years of bars on its next networked run. **That is false.** It was checked by
+executing autopilot's production path (`run()` with its default root and its
+default `refresh`, under `--dry-run`, with the fetch and the write intercepted):
+`run()` sets `root = root or LIVE_ROOT` (`autopilot.py:281`), `LIVE_ROOT` is
+`bars/live` (`autopilot.py:96`), and the one write landed at
+`bars/live/SPY-1d.csv`. The research file was untouched. The error came from
+following `autopilot.py:125` into `bars.bars_path` without tracing `root` back
+through `run()`; an adversarial verifier made the same error and reported it
+confirmed. The same run also showed autopilot refusing to decide on the
+29-period-old bars it was handed, which is the staleness guard working.
 
-- `bars.py:354` — `bars_path(symbol, timeframe)` → `bars/{SYMBOL}-{timeframe}.csv`
-- `autopilot.py:125` — `B.to_csv(s, B.bars_path(symbol, "1d", root))`, after a
-  fetch windowed to roughly 600 calendar days (`autopilot.py:119`)
-- `universe.txt` — lists SPY
-
-So `autopilot.py --universe universe.txt`, run where it has network, overwrites
-`bars/SPY-1d.csv` — the 5413-bar, 21-year file — with about two years of freshly
-fetched bars, with no prompt, backup or diff. For the other nine symbols
-overwriting `X-1d.csv` is harmless, because that is already the short Alpaca
-file autopilot fetches. SPY is the only landmine, and it is a landmine because
-the long series is parked under the short series' name.
-
-This is also the one way the standing rule *do not modify or delete existing
-files under `bars/`* can be broken by the repository's own tooling rather than
-by a person.
+What remains is minor and manual. `fetch.py --symbol SPY` with no `--out`
+writes `bars_path("SPY", "1d")`, which is `bars/SPY-1d.csv` (`fetch.py:427`,
+`fetch.py:482`), and `fetch.py` has no overwrite guard. That is a deliberate
+operator command — it is how the file was made — not something any scheduled
+tool does.
 
 ## 5 · Provenance: what is stored and what is re-asserted each time
 
