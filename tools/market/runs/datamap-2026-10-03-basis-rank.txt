@@ -1,0 +1,27 @@
+shared window: 1536 sessions, 2020-07-27 -> 2026-09-04
+basis U = stooq *-1d-long.csv (measured unadjusted)
+basis A = alpaca *-1d.csv     (measured total-return)
+definition: portfolio.xsmom() as implemented — trailing_return(12, skip_months=1), top 3
+
+rebalances with a full 13-month window on both bases: 62
+  first 2021-08-31   last 2026-09-04
+
+Spearman rank correlation of the nine scores, U vs A:
+  median 0.9833   min 0.9333   max 1.0000
+  mean   0.9871
+
+top-3 set identical on both bases: 55 of 62 rebalances (88.7%)
+names differing when it differs: 1.00 of 3 on average
+  distribution of names-differing: 0:55, 1:7
+
+rebalances where the top-3 set differs:
+DATE             RHO  U picks                      A picks                     
+--------------------------------------------------------------------------------
+2022-03-31    0.9500  QQQ,XLE,XLF                  DIA,XLE,XLF                 
+2023-02-28    0.9833  GLD,IWM,XLE                  DIA,GLD,XLE                 
+2024-11-29    0.9833  GLD,QQQ,XLF                  IWM,QQQ,XLF                 
+2025-05-30    0.9833  GLD,QQQ,XLF                  EFA,GLD,XLF                 
+2025-07-31    0.9333  GLD,QQQ,XLF                  EFA,GLD,XLF                 
+2025-12-31    0.9833  EEM,GLD,QQQ                  EEM,EFA,GLD                 
+2026-05-29    0.9833  EEM,QQQ,XLE                  EEM,IWM,XLE                 
+(7 rows)

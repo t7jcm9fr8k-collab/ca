@@ -1,0 +1,29 @@
+Basis comparison — stooq long file close vs alpaca short file close, common dates only.
+Method reproduces EVIDENCE §E-15: a dividend-adjusted series sits BELOW an
+unadjusted one in the past and converges to it at the final bar.
+gap% = (stooq - alpaca) / alpaca * 100, per common date.
+
+SYM    COMMON   MEDIAN%    FIRST%     LAST%      MIN%      MAX%
+--------------------------------------------------------------
+DIA      1536     5.103    10.734     0.007    -0.008    10.813
+EEM      1536     2.929     2.980    -0.029    -0.053     3.431
+EFA      1536     9.874    14.303    -0.009    -0.024    14.377
+GLD      1536     0.000     0.000    -0.002    -0.305     0.111
+IWM      1536     3.585     4.749     0.024    -0.024     4.942
+QQQ      1536     0.638     0.833    -0.019    -0.035     1.572
+TLT      1536     2.222     2.273    -0.012    -0.012     2.397
+XLE      1536     1.375     1.393    -0.016    -0.056     2.495
+XLF      1536     4.861     6.609     0.000    -0.035     6.762
+
+SPY has no alpaca short file, so it cannot be compared this way.
+SPY-1d.csv (stooq) vs SPY-1d-raw.csv (nasdaq, unadjusted):
+SPY      1551    -2.304    -6.617     0.057    -6.623     0.057
+
+Shared-window intersection across the nine long files (what crosstest/portfolio get):
+  nine long files intersect to 5415 common dates, 2005-02-25 -> 2026-09-04
+  QQQ alone has 6915 dates; the other eight intersect to 5415
+  QQQ dates earlier than the other eight's first date: 1499
+
+Including SPY-1d.csv in the intersection:
+  ten-file intersection: 5413 dates, 2005-02-25 -> 2026-09-02
+  cost of adding SPY to the shared window: 2 dates lost

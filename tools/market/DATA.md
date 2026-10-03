@@ -1,0 +1,319 @@
+# The data, conjugated — every investment file, measured
+
+*Written 2026-10-03. The pipeline had a README for how it works, an EVIDENCE
+for what it found and a PREREG for what was promised, but nothing that
+inventoried the data itself. This is that file.*
+
+Every number below comes from one of two outputs saved in this session:
+
+- `runs/datamap-2026-10-03-barqc.txt` — `barqc.py` run over all 21 bar files.
+- `runs/datamap-2026-10-03-basis.txt` — the dividend-basis and shared-window
+  measurement, reproducing §E-15's method against the files now on disk.
+- `runs/datamap-2026-10-03-basis-rank.txt` — the basis-sensitivity diagnostic on
+  the `xsmom` ranking, driving the repository's own cursor and weigh function.
+
+Nothing here is quoted from memory, and nothing here measures a trading rule.
+
+## 1 · The inventory
+
+All 21 files return **VERDICT: PASS** from `barqc.py`. There is no bad data in
+this repository. What differs between files is *coverage* and *basis*.
+
+| File(s) | Source | Bars | Span | Sessions / missing |
+|---|---|---|---|---|
+| `{DIA,EEM,EFA,GLD,IWM,TLT,XLE,XLF}-1d-long.csv` | stooq | 5415 | 2005-02-25 → 2026-09-04 | 5421 / 6 |
+| `QQQ-1d-long.csv` | stooq | 6915 | 1999-03-10 → 2026-09-04 | 6926 / 11 |
+| `{DIA,EEM,EFA,GLD,IWM,QQQ,TLT,XLE,XLF}-1d.csv` | alpaca | 1536 | 2020-07-27 → 2026-09-04 | 1537 / 1 |
+| `SPY-1d.csv` | stooq | 5413 | 2005-02-25 → 2026-09-02 | 5419 / 6 |
+| `SPY-1d-raw.csv` | nasdaq | 1553 | 2020-07-01 → 2026-09-04 | 1554 / 1 |
+| `SPY-1d-agg.csv` | alpaca (minute → daily) | 1532 | 2020-07-27 → 2026-09-01 | 1534 / 2 |
+| `SPY-sessions.csv` | alpaca 1m, aggregated | 1518 sessions | → 2026-09-01 | n/a |
+
+Two tiers, then: a 21-year stooq tier and a 6-year Alpaca tier, with SPY
+represented in neither cleanly (§4).
+
+## 2 · The basis, measured rather than asserted
+
+`--adjusted` "records what you tell it; nothing in the pipeline measures it"
+(README). So it was measured. For each symbol holding both a stooq long file
+and an Alpaca short file, over their 1536 common dates:
+
+`gap% = (stooq − alpaca) / alpaca × 100`
+
+| Symbol | median | first | last |
+|---|---|---|---|
+| GLD | 0.000 | 0.000 | −0.002 |
+| QQQ | 0.638 | 0.833 | −0.019 |
+| XLE | 1.375 | 1.393 | −0.016 |
+| TLT | 2.222 | 2.273 | −0.012 |
+| EEM | 2.929 | 2.980 | −0.029 |
+| IWM | 3.585 | 4.749 | 0.024 |
+| XLF | 4.861 | 6.609 | 0.000 |
+| DIA | 5.103 | 10.734 | 0.007 |
+| EFA | 9.874 | 14.303 | −0.009 |
+
+Every pair converges to zero at the last bar and diverges going back — the
+signature of one series carrying reinvested dividends and the other not. The
+stooq file sits **above** the Alpaca file in the past, so the **stooq long
+files are the unadjusted ones** and Alpaca's are total-return. GLD is the
+control that makes the comparison trustworthy: it pays no distribution, and it
+measures 0.000, so nothing else is scaling these series apart.
+
+The ordering tracks distribution yield, which is the result one would expect if
+this is dividends and nothing else: GLD lowest, then QQQ, and EFA highest.
+
+**SPY goes the other way.** Against `SPY-1d-raw.csv` (nasdaq, official
+consolidated closes, unadjusted) over 1551 common dates, `SPY-1d.csv` measures
+a median of **−2.304%**, first −6.617%, last +0.057%. Below an unadjusted
+reference means **SPY's stooq file *is* dividend-adjusted** — the opposite of
+the other nine stooq files. This is a fact about the files, not an
+explanation; one vendor treating SPY differently from DIA is odd enough that
+the alternative — that one of the two reference labels is itself wrong — stays
+open. Nothing in the pipeline can settle it, because nothing in the pipeline
+measures adjustment.
+
+### What the tools were told
+
+`crosstest.py:245` calls `load_universe(source=a.source, adjusted=True)`. The
+flag is **hardcoded**; `crosstest.py` has no `--adjusted` argument at all
+(`crosstest.py:240` defines only `--source`). The saved §E-15 replication was
+likewise run with `--adjusted yes` for all nine long files
+(`runs/E15-nine-2026-09-07.txt`, line 1).
+
+Meanwhile the engine `crosstest` runs on states, in its own `not_modelled`
+field, that the dividends are unmodelled because **"these files are largely
+unadjusted"** (`portfolio.py:294`).
+
+So the repository asserts both things at once, and the measurement above says
+the `portfolio.py` comment is the correct one. The practical consequences are
+two, and they are different in kind:
+
+1. **Recorded provenance is wrong** for those runs. `adjusted` is only ever
+   recorded, never used in a calculation (`bars.py:109`, `bars.py:161`), so no
+   published number moved because of the flag.
+2. **The returns themselves omit dividends, unevenly.** This one is real. A
+   cross-sectional rank compares assets to each other, and the omitted amount
+   ranges from 0.000% (GLD) to 9.874% (EFA) over the span. High-distribution
+   assets are ranked below what their total return would warrant.
+
+Whether correcting that would change the 2026-09-11 verdicts is **not stated
+here and must not be guessed**: picking that apart after seeing p = 0.073 is
+precisely the move the pre-registration exists to prevent. It is a question for
+a new pre-registration, not for a re-reading of this one.
+
+### Does it move the ranking? Measured, on the window where both bases exist
+
+`runs/datamap-2026-10-03-basis-rank.txt` drives the repository's own
+`portfolio.PortfolioCursor` and `portfolio.xsmom()` — the implemented
+definition, `trailing_return(12, skip_months=1)`, top 3 — over the 1536
+sessions where an unadjusted and a total-return series both exist for all nine
+names. It produces no return, no Sharpe, no p-value and records nothing: it
+measures the signal's **input**, not its performance.
+
+Over the 62 rebalances with a full thirteen-month window on both bases
+(2021-08-31 → 2026-09-04):
+
+- Spearman rank correlation of the nine scores, unadjusted vs total-return:
+  **median 0.9833**, min 0.9333, max 1.0000.
+- The top-3 book is **identical on both bases at 55 of 62 rebalances (88.7%)**.
+- At the 7 where it differs, exactly **one** of the three names differs.
+
+And the direction is not random. In all **seven** disagreements the
+total-return basis swaps a lower-distribution name out for a higher-distribution
+one — QQQ or GLD replaced by DIA, EFA or IWM — which is precisely what the
+median gaps in the table above predict:
+
+| Rebalance | unadjusted picks | total-return picks |
+|---|---|---|
+| 2022-03-31 | QQQ, XLE, XLF | DIA, XLE, XLF |
+| 2023-02-28 | GLD, IWM, XLE | DIA, GLD, XLE |
+| 2024-11-29 | GLD, QQQ, XLF | IWM, QQQ, XLF |
+| 2025-05-30 | GLD, QQQ, XLF | EFA, GLD, XLF |
+| 2025-07-31 | GLD, QQQ, XLF | EFA, GLD, XLF |
+| 2025-12-31 | EEM, GLD, QQQ | EEM, EFA, GLD |
+| 2026-05-29 | EEM, QQQ, XLE | EEM, IWM, XLE |
+
+So the defect is real and its sign is confirmed, while its magnitude on the
+ranking is modest: nine times in ten the two bases choose the same book.
+
+**The limitation that matters.** This covers only 2021-08 → 2026-09, because
+that is the only span where a total-return reference exists on disk. The
+per-symbol gap at the *start* of the six-year overlap was already 10.7% (DIA)
+and 14.3% (EFA); across the full 2005–2026 span of the long files it is
+necessarily larger, and there is no adjusted series on disk to measure it
+against. **Nothing here licenses extending this result to 2005–2020.**
+
+## 3 · The shared windows
+
+`portfolio.load_aligned` intersects dates and never forward-fills, so the
+usable window is the intersection, not the longest file.
+
+- The nine long files intersect to **5415 dates, 2005-02-25 → 2026-09-04**.
+- `QQQ-1d-long.csv` holds 6915 dates. **1499 of them predate the other eight
+  files' first date** and are therefore dropped by every aligned run. The
+  1999–2005 window — which contains the dot-com peak and the 2000–02 bear —
+  exists on disk and is not reachable by any tool that aligns the universe.
+- Adding `SPY-1d.csv` to the intersection costs **2 dates** (5415 → 5413),
+  because it ends 2026-09-02 while the other eight end 2026-09-04.
+
+SPY is not in the cross-section universe at all: `crosstest.py:50` fixes it as
+the nine non-SPY names, while `universe.txt` lists ten including SPY.
+
+## 4 · The SPY naming deviation, and one hazard it creates
+
+For nine symbols the convention is `X-1d.csv` = Alpaca short, `X-1d-long.csv`
+= stooq long. For SPY there is no Alpaca short file, and `SPY-1d.csv` holds the
+**stooq long** series. Several tools document that deliberately
+(`nulltest.py:102`, `combine.py:31`, `intraday.py:63`).
+
+The hazard is that one tool constructs the same path by convention and
+**writes** to it:
+
+- `bars.py:354` — `bars_path(symbol, timeframe)` → `bars/{SYMBOL}-{timeframe}.csv`
+- `autopilot.py:125` — `B.to_csv(s, B.bars_path(symbol, "1d", root))`, after a
+  fetch windowed to roughly 600 calendar days (`autopilot.py:119`)
+- `universe.txt` — lists SPY
+
+So `autopilot.py --universe universe.txt`, run where it has network, overwrites
+`bars/SPY-1d.csv` — the 5413-bar, 21-year file — with about two years of freshly
+fetched bars, with no prompt, backup or diff. For the other nine symbols
+overwriting `X-1d.csv` is harmless, because that is already the short Alpaca
+file autopilot fetches. SPY is the only landmine, and it is a landmine because
+the long series is parked under the short series' name.
+
+This is also the one way the standing rule *do not modify or delete existing
+files under `bars/`* can be broken by the repository's own tooling rather than
+by a person.
+
+## 5 · Provenance: what is stored and what is re-asserted each time
+
+The bar CSVs carry **no embedded provenance**. `bars.load_csv` builds it from
+the `--source` / `--adjusted` flags at load time (`bars.py:322`), so
+`barqc.py`'s provenance line prints `fetched_at` as the moment of the run, not
+the moment of the fetch. Every file's source and basis is therefore an
+assertion made fresh at each invocation, and a wrong flag is unfalsifiable from
+the file.
+
+The one exception is `SPY-sessions.csv`, which carries a real provenance header
+as JSON on line 2: source, a true `fetched_at`, the skipped-session histogram,
+the session count and the measuring tool's version. That is the shape the bar
+files lack. (That header also embeds an absolute path from the machine that
+authored it, which is the separate scrub question already open.)
+
+## 6 · The audit trail
+
+EVIDENCE.md names 24 files by filename. **Twelve of them are absent from the
+repository:**
+
+`C-overnight-split.txt`, `E-barqc.txt`, `E-replication.txt`, `E15-barqc.txt`,
+`E15-derived.txt`, `E15-refute-local.txt`, `E15-refuters.txt`,
+`E15-replication.txt`, `F-neighbourhood.txt`, `F-prereg.txt`,
+`KNOWN-ISSUES.md`, `out/ledger.json`.
+
+Present and verifiable: `runs/E15-nine-2026-09-07.txt`,
+`runs/E15-nine-2026-09-07-barqc.txt`, `runs/crosstest-2026-09-11.txt`, the four
+`runs/trial3-2026-09-06*` files, `PREREG-2026-09-11-cross-section.md`,
+`tools/QUEUE-RUNNER.md`, and the bar files themselves.
+
+The absent ones were written to a scratchpad that was never committed. `out/`
+and `bars/` are both in `.gitignore`, so the ledger does not survive a clone —
+it is absent right now. The consequence is specific: `runs/crosstest-2026-09-11.txt`
+records "deflated sharpe 0.982 after 39 trials (37 prior from the ledger)", and
+that count of 37 is no longer readable from any committed file other than the
+prose that cites it. A future deflation cannot recompute it; it can only trust
+the sentence.
+
+### The lost ledger does not fail loudly — it fails optimistically
+
+This is the sharpest consequence and it was verified live in this clone:
+
+- `ledger.py:37` points at `out/ledger.json`; `ledger.load()` returns
+  `{"events": []}` when that file is absent (`ledger.py:45-50`), which is the
+  correct behaviour for a first run and the wrong behaviour for a lost one.
+- `crosstest.py:246` takes its prior trial count from
+  `len(ledger.events("backtest"))` and prints it at `crosstest.py:252`.
+- Run here, now: `len(ledger.events("backtest"))` returns **0**.
+
+So `crosstest.py` re-run from a fresh clone reports "prior trials in the
+ledger: 0" and deflates against 2 trials where EVIDENCE.md requires 39. It does
+not crash and it does not warn. It prints a **higher** deflated Sharpe than the
+truth, with the same confidence as a correct one.
+
+That is the exact failure this pipeline was built to refuse — `barqc.py`'s own
+docstring says a backtest on bad bars "converts an unchecked series into a
+result everyone believes was measured". The same hazard reached the trial
+accounting through the gitignore.
+
+Sections C, E, E-15 (its original run), F and I therefore state numbers a reader
+cloning this repository cannot check. §E-15's conclusion is the exception that
+got rescued: `runs/E15-nine-2026-09-07.txt` re-ran all nine and is committed,
+showing "REPLICATES: 9 of 9 symbols show t_ep > 2 with a positive mean".
+
+## 7 · Four corrections to the record, each verified here
+
+These are discrepancies between what EVIDENCE.md and the pre-registration say
+and what the code does. None of them changes a published verdict. All four were
+checked directly in this clone.
+
+**1. The basis table in §E-15 is reproduced exactly — and extended by one.**
+§E-15 reports the July-2020 gaps as DIA 10.7%, EFA 14.3%, XLF 6.6%, IWM 4.8%,
+TLT 2.3%, XLE 1.4%, QQQ 0.8%, GLD at parity. The independent measurement in
+`runs/datamap-2026-10-03-basis.txt` returns first-date gaps of 10.734, 14.303,
+6.609, 4.749, 2.273, 1.393, 0.833 and 0.000. Every one agrees. Since the five
+`E15-*.txt` files that section cites are not in the repository, this run is now
+the only in-repo attestation of those numbers, arrived at independently.
+
+The same run supplies the one value §E-15 never measured: **EEM, median
+2.929%, first 2.980%** — EEM entered the cross-section with its basis
+unmeasured, and it sits in the drifting group, between TLT and IWM. And the SPY
+row (−2.304% median) independently reproduces the 2.30% median gap at which
+trial 3's basis guard refused Stooq's closes.
+
+**2. The cross-section specifications were never recorded, and `--no-record`
+is not why.** `crosstest.py` contains exactly one `ledger.` call —
+`ledger.events("backtest")` at line 246, a read. There is no `ledger.record`
+anywhere in the file. The `--no-record` flag's only effect is to suppress a
+stderr note at `crosstest.py:283-285`, and that note prints when the flag is
+**absent**: *"not recorded to the ledger; pass --no-record explicitly or wire
+recording deliberately"*. EVIDENCE.md:1300 attributes the non-recording to the
+flag; recording was never wired.
+
+**3. The trial counter does not count what the pre-registration says it
+counts.** `PREREG-2026-09-11-cross-section.md:90` says the prior count is
+"carried forward from the ledger via `--count-ledger`". That flag exists only
+in `combine.py:222`, where it additionally filters by symbol
+(`combine.py:146`). `crosstest.py` has no such flag and counts
+`kind="backtest"` unfiltered. Meanwhile `nulltest.py` records its runs as
+`kind="nulltest"` (lines 479, 494), so the nine-symbol rule sweeps never enter
+the count at all. Whether they should is a policy question nobody has written
+down.
+
+**4. "QQQ's 1,500 earlier rows are discarded" is 1,499 plus one.**
+EVIDENCE.md:1229 reads 1,500; the tool prints 1500 dropped and that is correct,
+but `runs/datamap-2026-10-03-basis.txt` measures **1499** QQQ dates earlier
+than the other eight files' first date. The remaining dropped row is
+2011-02-17 — a session QQQ's file carries and the others do not, which is the
+in-window download hole §E-15 itself describes.
+
+### One more, about repair rather than record
+
+`replay.py` has a `dividend_yield` parameter — "an annual rate credited on the
+HELD position" (`replay.py:186,198`) — exposed as `--dividend-yield` by
+`run.py:133` and `combine.py:220`. `portfolio.replay_portfolio` takes
+`cash_yield` only (`portfolio.py:196`), and `crosstest.py:238` exposes only
+`--cash-yield`. So the engine the cross-section ran on has no way to apply the
+correction for the very defect `portfolio.py:294` admits to. That is a missing
+capability, not a wrong number.
+
+Finally, and usefully: **`runs/` is not gitignored.** `.gitignore` covers only
+`out/`, `bars/`, `__pycache__/` and `*.tmp`. The twelve absent evidence files
+were never committed rather than excluded, so nothing stands in the way of
+committing saved outputs from here on.
+
+## 8 · What this file does not establish
+
+It measures data, not edge. Nothing here is a backtest, nothing here proposes a
+rule, and no verdict in EVIDENCE.md is revised by it. The one finding that
+touches a published result — that the long files omit dividends unevenly — is
+recorded as a question for a future pre-registration and deliberately not
+resolved against the existing one.
