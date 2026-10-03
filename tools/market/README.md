@@ -32,7 +32,8 @@ out/              the ledger and its report (gitignored)
 | `COMPETITORS.md` | ten frameworks, eight retail products, the verified witnesses on retail returns, a SWOT, five features worth copying and six not. |
 | `portfolio.py` | the engine that can hold more than one thing at once. `replay()` takes one series, which expresses "SPY or cash" and cannot express "of these nine, which three". Same look-ahead guard, same fill-at-the-next-open, same barqc gate; dates **intersected, never forward-filled**; weights long-only and unlevered; monthly schedule. Its benchmark is an equal-weight hold of the same universe, not SPY — a diversified book measured against one index measures diversification and calls it skill. |
 | `crosstest.py` | runs the two specifications pre-registered in `PREREG-2026-09-11-cross-section.md` — time-series momentum and cross-sectional 12-1 momentum across the nine long files — and prints WORKS / PARTIAL / NULL against the four conditions fixed **before** the data was touched, with the permutation null and the deflated Sharpe after the ledger's prior trials. |
-| `test_tools.py` | 510 checks. `python3 test_tools.py` |
+| `basis.py` | **measures** the dividend basis `--adjusted` only records: the gap between two files' closes on every shared date, which for an unadjusted-vs-total-return pair starts at several percent and converges to zero at the last bar. `--windows` shows where each file's dates fall against the aligned universe's shared window; `--rank` drives `portfolio.xsmom()` on both bases and counts how often they pick the same book. Numbers, not a verdict; regenerates every figure in `DATA.md`. |
+| `test_tools.py` | 531 checks. `python3 test_tools.py` |
 
 ### If you see `CERTIFICATE_VERIFY_FAILED`
 

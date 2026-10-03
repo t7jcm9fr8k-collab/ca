@@ -1836,6 +1836,80 @@ check("idle cash earns the stated yield, so sitting out is not scored as zero",
 
 # ---------------------------------------------------------------- cleanup
 
+# ---------------------------------------------------------------- basis
+
+print("\nbasis — measuring the dividend basis instead of asserting it")
+
+import basis
+
+
+def _scaled(s, f):
+    """Every close times f(i, n): a stand-in for the same prices on another basis."""
+    n = len(s.bars)
+    return B.Series(s.symbol, s.timeframe,
+                    tuple(B.Bar(b.ts, b.open, b.high, b.low, b.close * f(i, n), b.volume)
+                          for i, b in enumerate(s.bars)), dict(s.provenance))
+
+
+_bs_a = _pf_series("BA", seed=11)
+_bs_same = basis.gap(_bs_a, _bs_a)
+check("an identical pair has a zero gap on every shared date",
+      _bs_same["common"] == len(_bs_a.bars) and _bs_same["min"] == 0.0 and _bs_same["max"] == 0.0)
+_bs_flat = basis.gap(_scaled(_bs_a, lambda i, n: 1.05), _bs_a)
+check("a constant 5% offset reads 5.000 at every date",
+      abs(_bs_flat["min"] - 5.0) < 1e-9 and abs(_bs_flat["max"] - 5.0) < 1e-9)
+_bs_conv = basis.gap(_scaled(_bs_a, lambda i, n: 1 + 0.10 * (n - 1 - i) / (n - 1)), _bs_a)
+check("the unadjusted-vs-total-return signature: 10% at the start, 0 at the last bar",
+      abs(_bs_conv["first"] - 10.0) < 1e-9 and abs(_bs_conv["last"]) < 1e-9)
+_bs_early = B.Series("BD", "1d", _bs_a.bars[:100], dict(_bs_a.provenance))
+_bs_late = B.Series("BD", "1d", _bs_a.bars[200:300], dict(_bs_a.provenance))
+check("a pair that shares no dates is refused, never printed as an empty table",
+      _raises(basis.NoOverlap, basis.gap, _bs_early, _bs_late))
+
+# W1 complete; W2 has one hole at index 500; W3 starts ten sessions late.
+_bs_w = basis.windows([_pf_series("W1", seed=1), _pf_series("W2", seed=2, skip=(500,)),
+                       B.Series("W3", "1d", _pf_series("W3", seed=3).bars[10:], dict(PROV))])
+check("the shared window is the intersection, never the union", _bs_w["shared"] == len(_PF_SESS) - 11)
+check("dates before the shared start count as BEFORE",
+      (_bs_w["per"]["W1"]["before"], _bs_w["per"]["W2"]["before"], _bs_w["per"]["W3"]["before"]) == (10, 10, 0))
+check("a hole in one file shows as INSIDE in every file that has the date",
+      [len(_bs_w["per"][s]["inside"]) for s in ("W1", "W2", "W3")] == [1, 0, 1]
+      and _bs_w["per"]["W1"]["inside"] == [_PF_SESS[500]])
+
+_bs_u = [_pf_series(s, seed=k) for k, s in enumerate(("R1", "R2", "R3", "R4", "R5"), 20)]
+_bs_r = basis.rank(_bs_u, _bs_u)
+check("identical bases pick the identical book at every rebalance",
+      len(_bs_r["rows"]) > 100 and all(x["same"] and abs(x["rho"] - 1.0) < 1e-12 for x in _bs_r["rows"]))
+check("rank drives portfolio.xsmom as implemented, not a copy of it",
+      _bs_r["weigh"] == PF.xsmom().__name__)
+check("rank refuses a universe too small to rank", _raises(ValueError, basis.rank, _bs_u[:3], _bs_u[:3]))
+
+_bs_tmp = tempfile.mkdtemp()
+B.to_csv(_bs_early, os.path.join(_bs_tmp, "X-a.csv"))
+B.to_csv(_bs_late, os.path.join(_bs_tmp, "X-b.csv"))
+
+
+def _basis_cli(argv):
+    real = sys.argv
+    sys.argv = ["basis.py"] + argv
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            basis.main()
+        return 0
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 1
+    finally:
+        sys.argv = real
+
+
+check("the CLI exits 2 on a pair with no shared dates",
+      _basis_cli(["--a", os.path.join(_bs_tmp, "X-a.csv"), "--b", os.path.join(_bs_tmp, "X-b.csv"),
+                  "--symbols", "X"]) == 2)
+check("the CLI refuses a gap with no reference file",
+      _basis_cli(["--a", os.path.join(_bs_tmp, "X-a.csv"), "--symbols", "X"]) != 0)
+shutil.rmtree(_bs_tmp, ignore_errors=True)
+
+
 ledger.LEDGER = _real_ledger
 shutil.rmtree(_tmp, ignore_errors=True)
 check("the real ledger path was restored", ledger.LEDGER.endswith(os.path.join("out", "ledger.json")))
