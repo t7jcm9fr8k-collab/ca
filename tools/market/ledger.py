@@ -30,8 +30,10 @@ USAGE
 
 import argparse
 import datetime as dt
+import contextlib
 import json
 import os
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LEDGER = os.path.join(HERE, "out", "ledger.json")
@@ -42,28 +44,76 @@ def _now():
     return dt.datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
+class Corrupt(Exception):
+    """The ledger exists and cannot be read. Nothing may be written over it."""
+
+
+def _name():
+    return os.path.join(os.path.basename(os.path.dirname(LEDGER)), os.path.basename(LEDGER))
+
+
 def load():
-    if os.path.exists(LEDGER):
-        try:
-            return json.load(open(LEDGER))
-        except Exception:
-            pass
-    return {"events": []}
+    """
+    The ledger, or an empty one when the file does not exist yet. A file that
+    EXISTS but cannot be read raises Corrupt instead of reading as empty: an
+    empty ledger means "never backtested, never traded, no equity peak", and
+    the next record() used to save that over the whole history — silently
+    resetting the drawdown peak and the paper evidence the live gate reads.
+    """
+    if not os.path.exists(LEDGER):
+        return {"events": []}
+    try:
+        with open(LEDGER) as f:
+            led = json.load(f)
+    except Exception as e:
+        raise Corrupt(f"{_name()} exists but cannot be read ({type(e).__name__}: {e}). "
+                      f"Nothing was written. Every gate reads it, so nothing that "
+                      f"records or trades runs until it is repaired or moved aside.")
+    if not isinstance(led, dict) or not isinstance(led.get("events"), list):
+        raise Corrupt(f"{_name()} is not a ledger (no 'events' list). Nothing was written.")
+    return led
 
 
 def save(led):
+    d = os.path.dirname(LEDGER)
+    os.makedirs(d, exist_ok=True)
+    # A tmp name of its own: two writers sharing one fixed '.tmp' could each
+    # replace the ledger with the other's half-written file.
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".ledger-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(led, f, indent=2, default=str)
+        os.replace(tmp, LEDGER)     # atomic; a half-written ledger is worse than none
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+
+
+@contextlib.contextmanager
+def _locked():
+    """One writer at a time: record() is read-append-write, and two overlapping
+    runs (a cron run and a hand run) used to lose each other's events."""
+    try:
+        import fcntl
+    except ImportError:                       # not POSIX: no lock, as before
+        yield
+        return
     os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
-    tmp = LEDGER + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(led, f, indent=2, default=str)
-    os.replace(tmp, LEDGER)     # atomic; a half-written ledger is worse than none
+    with open(LEDGER + ".lock", "a") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lk, fcntl.LOCK_UN)
 
 
 def record(kind, **fields):
-    led = load()
-    entry = {"kind": kind, "at": _now(), **fields}
-    led["events"].append(entry)
-    save(led)
+    with _locked():
+        led = load()
+        entry = {"kind": kind, "at": _now(), **fields}
+        led["events"].append(entry)
+        save(led)
     return entry
 
 

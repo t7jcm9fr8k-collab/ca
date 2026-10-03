@@ -517,6 +517,39 @@ check("with no register the count is the ledger's alone", ledger.prior_trials()[
 ledger.REGISTER = _reg_keep
 ledger.LEDGER = _led_keep
 
+# A ledger that exists but cannot be read must stop everything, not read as
+# empty: the next record() used to save "no history" over it — paper fills,
+# the drawdown peak and the trial count, gone, with no message.
+_led_keep = ledger.LEDGER
+ledger.LEDGER = os.path.join(_tmp, "corrupt", "ledger.json")
+os.makedirs(os.path.dirname(ledger.LEDGER), exist_ok=True)
+with open(ledger.LEDGER, "w") as _f:
+    _f.write('{"events": [{"kind": "paper", "filled_qty": 5}, {"kind": "backt')
+_corrupt_bytes = open(ledger.LEDGER, "rb").read()
+check("a truncated ledger raises Corrupt instead of reading as empty", _raises(ledger.Corrupt, ledger.load))
+check("record() refuses to write over it", _raises(ledger.Corrupt, ledger.record, "backtest", strategy="x"))
+check("and the file is byte-for-byte untouched", open(ledger.LEDGER, "rb").read() == _corrupt_bytes)
+with open(ledger.LEDGER, "w") as _f:
+    _f.write('["not", "a", "ledger"]')
+check("valid JSON that is not a ledger raises Corrupt too", _raises(ledger.Corrupt, ledger.load))
+ledger.LEDGER = os.path.join(_tmp, "fresh", "ledger.json")
+check("a ledger that does not exist yet is empty, not an error", ledger.load() == {"events": []})
+ledger.record("backtest", strategy="y")
+check("save leaves no temp file behind",
+      [n for n in os.listdir(os.path.dirname(ledger.LEDGER)) if n.endswith(".tmp")] == [])
+# Two processes appending at once: without the lock each read-append-write
+# could overwrite the other's events.
+_conc = os.path.join(_tmp, "conc", "ledger.json")
+_writer = ("import sys; sys.path.insert(0, %r); import ledger; ledger.LEDGER = %r\n"
+           "for i in range(60): ledger.record('backtest', strategy=sys.argv[1] + str(i))") % (HERE, _conc)
+_procs = [subprocess.Popen([sys.executable, "-c", _writer, w]) for w in ("a", "b")]
+for _p in _procs:
+    _p.wait()
+ledger.LEDGER = _conc
+check("two processes writing at once lose nothing (120 of 120)", len(ledger.events("backtest")) == 120,
+      str(len(ledger.events("backtest"))))
+ledger.LEDGER = _led_keep
+
 # ---------------------------------------------------------------- fetch
 
 print("\nfetch — NETWORK / PARSE / OK kept apart")
@@ -1557,6 +1590,20 @@ try:
     _ns0 = _types.SimpleNamespace(mode="paper", symbol="DIPX", force=False, force_reason="",
                                   strategy="zero_sample", qty=1)
     check("run.py's gate refuses a 0-bar check too", _raises(SystemExit, run.gate, _ns0, "zero_sample"))
+
+    # A ledger that cannot be read stops the loop before the broker is asked anything.
+    _ap_led_keep = ledger.LEDGER
+    ledger.LEDGER = os.path.join(_ap_sand, "corrupt-ledger.json")
+    with open(ledger.LEDGER, "w") as _f:
+        _f.write("{not json")
+    _fbc = _FakeBroker()
+    _rc = autopilot.run(["DIPX"], "trend_filter:20", "paper", qty=2, root=_ap_root,
+                        fetch_fn=_ap_fetch, broker_api=_fbc, now=_ap_now)
+    check("a corrupt ledger halts autopilot with nothing sent",
+          _fbc.orders == [] and "ledger unreadable" in _rc[0]["action"], _rc[0]["action"])
+    check("run.py refuses with exit 7 on a corrupt ledger",
+          _run(["--mode", "paper"] + SMA + BASE + ["--qty", "1", "--dry-run"]) == 7)
+    ledger.LEDGER = _ap_led_keep
 
     # --- the kill switch: equity 15% under the recorded peak writes STOP and trades nothing
     autopilot.STOP_FILE = os.path.join(_ap_sand, "STOP2")

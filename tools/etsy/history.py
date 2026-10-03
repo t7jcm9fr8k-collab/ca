@@ -32,6 +32,7 @@ import datetime as dt
 import io
 import json
 import os
+import tempfile
 from PIL import Image, ImageChops
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -44,21 +45,58 @@ def _now():
     return dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+class Corrupt(Exception):
+    """The history exists and cannot be read. Nothing may be written over it."""
+
+
 def load():
-    if os.path.exists(LEDGER):
-        try:
-            return json.load(open(LEDGER))
-        except Exception:
-            pass
-    return {"designs": {}}
+    """
+    The history, or an empty one when the file does not exist yet. A file that
+    EXISTS but cannot be read raises instead of reading as empty: the next save
+    used to write "no design was ever inspected" over every inspection record
+    the v2 and listing gates rely on.
+    """
+    if not os.path.exists(LEDGER):
+        return {"designs": {}}
+    try:
+        with open(LEDGER) as f:
+            led = json.load(f)
+    except Exception as e:
+        raise Corrupt(f"out/history.json exists but cannot be read ({type(e).__name__}: {e}). "
+                      f"Nothing was written; repair it or move it aside.")
+    if not isinstance(led, dict) or not isinstance(led.get("designs"), dict):
+        raise Corrupt("out/history.json has no 'designs' map. Nothing was written.")
+    return led
 
 
 def save(led):
-    os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
-    tmp = LEDGER + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(led, f, indent=2)
-    os.replace(tmp, LEDGER)          # atomic; a half-written ledger is worse than none
+    d = os.path.dirname(LEDGER)
+    os.makedirs(d, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".history-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(led, f, indent=2)
+        os.replace(tmp, LEDGER)      # atomic; a half-written ledger is worse than none
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+
+
+def forget(design):
+    """
+    Drop one PROOF design's records so demo.sh can run again from a clean
+    slate. demo.sh used to delete the whole file — every real design's
+    inspections with it. Only a design named proof-* can be forgotten.
+    """
+    if not design.startswith("proof-"):
+        raise ValueError(f"refusing to forget '{design}': only proof-* designs can be "
+                         f"forgotten; real designs' inspections are the gate's evidence")
+    led = load()
+    if led["designs"].pop(design, None) is None:
+        return False
+    save(led)
+    return True
 
 
 def _design(led, design):
@@ -396,8 +434,17 @@ def main():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--show", help="print one design's ledger entries")
+    ap.add_argument("--forget", metavar="DESIGN",
+                    help="drop a proof-* design's records (demo.sh uses this)")
     ap.add_argument("--out", default=os.path.join(HERE, "out"))
     a = ap.parse_args()
+
+    if a.forget:
+        try:
+            print(f"forgot {a.forget}" if forget(a.forget) else f"no records for {a.forget}")
+        except ValueError as e:
+            raise SystemExit(f"REFUSED: {e}")
+        return
 
     led = load()
     if a.show:

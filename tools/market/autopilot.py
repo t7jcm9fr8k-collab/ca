@@ -273,6 +273,10 @@ def run(universe, strategy_spec, mode="paper", qty=1.0, max_positions=3,
     """
     if os.path.exists(STOP_FILE):
         return [{"symbol": "*", "action": "STOP file present — nothing run"}]
+    try:
+        ledger.load()
+    except ledger.Corrupt as e:
+        return [{"symbol": "*", "action": f"ledger unreadable — nothing run: {e}"}]
     if mode not in ("paper", "live"):
         raise ValueError("mode must be paper or live")
     strat = strategies.make(strategy_spec)

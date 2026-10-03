@@ -39,6 +39,7 @@ EXIT CODES
     4  --force without --force-reason
     5  no broker credentials
     6  broker unreachable or order rejected
+    7  the ledger exists but cannot be read — nothing that records or trades runs
 
 USAGE
     python3 run.py --mode signal   --strategy sma_cross:10,30 --csv bars/AAPL-1d.csv --symbol AAPL
@@ -160,6 +161,11 @@ def main():
     except (KeyError, ValueError) as e:
         refuse(2, f"REFUSED: {e}")
     strat_name = getattr(strat, "__name__", a.strategy)
+    if a.mode != "signal":
+        try:
+            ledger.load()
+        except ledger.Corrupt as e:
+            refuse(7, f"REFUSED: {e}")
 
     s, qc = load(a)
     if qc["unrun"]:

@@ -6,7 +6,10 @@
 # machinery; only the inputs are placeholders.
 set -e
 cd "$(dirname "$0")"
-rm -rf out/history.json out/proof-calavera-v*
+# Reset ONLY the proof design. This used to delete out/history.json whole —
+# every real design's inspection record, which the v2 and listing gates read.
+rm -rf out/proof-calavera-v*
+python3 history.py --forget proof-calavera
 
 echo "== 1. compose v1 =="
 python3 compose.py --recipe recipes/_proof.json >/dev/null 2>&1 || true

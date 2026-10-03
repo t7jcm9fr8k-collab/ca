@@ -11,8 +11,14 @@
 #   7. live without a filled paper run is refused (exit 3)
 #   8. the ledger report, bypass in red
 set -u
-cd "$(dirname "$0")"
-rm -rf out/ledger.json
+# Runs in a throwaway copy. The demo records a backtest and a gate bypass, and it
+# used to do that into the REAL out/ledger.json after deleting it — wiping the
+# paper fills the live gate reads, the drawdown peak and the trial history — and
+# it left bars/SYN-1d.csv among the research files.
+here="$(cd "$(dirname "$0")" && pwd)"
+work="$(mktemp -d "${TMPDIR:-/tmp}/market-demo.XXXXXX")"
+cp "$here"/*.py "$here"/universe.txt "$here"/trials.json "$work"/
+cd "$work"
 mkdir -p bars out
 
 if [ ! -f bars/SYN-1d.csv ]; then
@@ -76,7 +82,7 @@ python3 intraday.py --synth 300 --effect 0.5 --shuffles 200 --holdout-from 2025-
 step "12 · the ledger"
 python3 ledger.py --report
 echo
-echo "open out/ledger.html — the bypass is the red block."
+echo "open $work/out/ledger.html — the bypass is the red block. (A throwaway copy; nothing in $here was touched.)"
 echo "Nothing here touched a broker. Paper and live run on the Mac, by hand, with keys."
 echo "Steps 9–11 ran on SYNTHETIC bars: a random walk with drift. On those, nothing should"
 echo "hold up, and nothing does. Run them on bars/SPY-1d.csv and read the numbers there."

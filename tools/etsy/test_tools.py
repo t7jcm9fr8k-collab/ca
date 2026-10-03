@@ -613,6 +613,23 @@ print("\nthe v1 -> v2 gate")
 import history as H
 _led_backup = H.load()
 
+# The inspection history fails loudly too, and the demo can only forget proofs.
+_h_keep = H.LEDGER
+import tempfile as _tempfile
+H.LEDGER = _os.path.join(_tempfile.mkdtemp(prefix="hist-"), "history.json")
+with open(H.LEDGER, "w") as _f:
+    _f.write('{"designs": {"marigold": {"inspections": [')
+_hb = open(H.LEDGER, "rb").read()
+check("an unreadable history raises instead of reading as empty", _raises(H.Corrupt, H.load))
+check("and nothing is written over it", _raises(H.Corrupt, H.record_inspection, "x", 1, {"verdict": "pass"})
+      and open(H.LEDGER, "rb").read() == _hb)
+H.save({"designs": {"marigold-calavera": {"versions": [], "inspections": [{"version": 1}]},
+                    "proof-calavera": {"versions": [], "inspections": []}}})
+check("forget refuses a real design", _raises(ValueError, H.forget, "marigold-calavera"))
+check("forget drops a proof design and only that",
+      H.forget("proof-calavera") and sorted(H.load()["designs"]) == ["marigold-calavera"])
+H.LEDGER = _h_keep
+
 check("an uninspected version has no record",
       H.inspection_for("__nonexistent__", 1) is None)
 
