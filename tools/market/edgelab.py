@@ -1216,6 +1216,8 @@ def load(path, symbol=None, source=None, adjusted=None, total_return_through=Non
     s = B.load_csv(path, sym, "1d", source, adjusted)
     if total_return_through is not None:
         s.provenance["total_return_through"] = str(total_return_through)
+    with open(path, "rb") as f:
+        s.provenance["sha256"] = hashlib.sha256(f.read()).hexdigest()
     return s
 
 
@@ -2365,7 +2367,71 @@ def place_distributions(dist, series, first, last):
     return out
 
 
-def integrity_check(series, qc, leak, log, prereg=None, placed=None):
+def declared_windows(levels, baseline, dates, start_date):
+    """Each run of sessions whose declared exposure departs from baseline, as executed:
+    (entry close, exit close, sessions held). The entry close is the close before the run's first
+    session; the exit close is its last session's close; a run still open at the end says so."""
+    S = len(levels) // 2
+    dep = [abs(levels[2 * j] - baseline) > EPS or abs(levels[2 * j + 1] - baseline) > EPS
+           for j in range(S)]
+    out, j = [], 0
+    while j < S:
+        if dep[j]:
+            k = j
+            while k + 1 < S and dep[k + 1]:
+                k += 1
+            out.append({"entry_close": (start_date if j == 0 else dates[j - 1]).isoformat(),
+                        "exit_close": dates[k].isoformat(), "sessions": k - j + 1,
+                        "open_at_end": k == S - 1})
+            j = k + 1
+        else:
+            j += 1
+    return out
+
+
+def check_window_list(path, declared):
+    """G0: the declared exposure path against a frozen window list (CSV with entry_exec,
+    exit_exec, sessions_held_with_bars and complete columns; its complete rows are compared)."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    sha = hashlib.sha256(raw).hexdigest()
+    rows = list(csv.DictReader(raw.decode("utf-8").splitlines()))
+    need = {"entry_exec", "exit_exec", "sessions_held_with_bars", "complete"}
+    if not rows or not need <= set(rows[0]):
+        return False, f"{path}: needs columns {', '.join(sorted(need))}", sha
+    want = [(r["entry_exec"], r["exit_exec"], int(r["sessions_held_with_bars"]))
+            for r in rows if r["complete"].strip().lower() == "true"]
+    got = [(w["entry_close"], w["exit_close"], w["sessions"]) for w in declared]
+    if any(w["open_at_end"] for w in declared):
+        return False, f"the declared path is still away from baseline at the last scored close", sha
+    if got == want:
+        return True, f"{len(got)} windows reproduced exactly ({os.path.basename(path)} sha256 {sha})", sha
+    diff = next((i for i, (a, b) in enumerate(zip(got, want)) if a != b), min(len(got), len(want)))
+    return False, (f"{len(got)} declared vs {len(want)} listed; first difference at #{diff + 1}: "
+                   f"declared {got[diff] if diff < len(got) else None} vs listed "
+                   f"{want[diff] if diff < len(want) else None}"), sha
+
+
+def total_return_status(prov, last_date, applied):
+    """r1-redteam G0: the benchmark is total return over the scored window."""
+    adj, thru = prov.get("adjusted"), prov.get("total_return_through")
+    if adj is not True:
+        if applied:
+            return True, (f"declared adjusted={adj}; {len(applied)} payout(s) added back (completeness "
+                          f"is the add-back file's claim)")
+        return False, f"the file is not declared total-return (adjusted={adj})"
+    if not thru:
+        return True, "declared total-return throughout"
+    thru = dt.date.fromisoformat(str(thru))
+    if thru >= last_date:
+        return True, f"total-return through {thru}, after the last scored session"
+    if applied:
+        return True, f"total-return through {thru}; {len(applied)} later payout(s) added back"
+    return False, (f"price-only after {thru}, inside the scored window, and nothing added back "
+                   f"(--distributions)")
+
+
+def integrity_check(series, qc, leak, log, prereg=None, placed=None, extra=()):
     """G0 (r1-redteam §3.2): the items that make a run VOID. No performance number is printed
     unless every item passes."""
     items = [("barqc", qc["verdict"] == "pass", f"verdict {qc['verdict']}"),
@@ -2380,6 +2446,7 @@ def integrity_check(series, qc, leak, log, prereg=None, placed=None):
              ("dividend basis declared", series.provenance.get("adjusted") is not None,
               f"adjusted={series.provenance.get('adjusted')}, total-return through "
               f"{series.provenance.get('total_return_through') or 'not stated'}")]
+    items.extend(extra)
     if placed is not None:
         items.append(("distributions added back", placed["ok"],
                       placed["problem"] or (
@@ -2431,7 +2498,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                dsr_benchmark="constant", dsr_draws=5000, dsr_block=10, halves_mode="session",
                marks_mode="close", crises=DEFAULT_CRISES, leak_samples=100, leak_changes=200,
                prereg=None, sso=None, start_close=None, accrual="calendar", distributions=None,
-               closes_only=False):
+               closes_only=False, expect_sha256=None, window_list=None, expect_addbacks=None,
+               extra_integrity=(), integrity_only=False):
     """
     One margin-model rule, one file, every stress cell in one invocation.
     `cells` = [(cost_bps_per_side, CashRate, spread)]; the FIRST is primary. The
@@ -2487,7 +2555,27 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
     dates = dates_all[s0 + 1:last + 1]
     placed = place_distributions(distributions, series, dates[0], dates[-1]) if distributions else None
     applied = placed["applied"] if placed else None
-    integ = integrity_check(series, qc, leak, log, prereg, placed)
+    prov = series.provenance
+    extra = list(extra_integrity)
+    sha = prov.get("sha256")
+    if expect_sha256:
+        ok = sha == str(expect_sha256).strip().lower()
+        extra.append(("file sha256", ok, f"{os.path.basename(prov.get('path') or '')} {sha}"
+                      + ("" if ok else f" — expected {expect_sha256}")))
+    else:
+        extra.append(("file sha256", True, f"{sha} (no expected hash given)"))
+    declared = declared_windows(levels, r0.baseline, dates, start_date)
+    if window_list:
+        ok, note, _ = check_window_list(window_list, declared)
+        extra.append(("window list", ok, note))
+    if expect_addbacks is not None:
+        got = sorted(applied or {})
+        want = sorted(dt.date.fromisoformat(str(x)) for x in expect_addbacks)
+        extra.append(("add-backs as frozen", got == want,
+                      f"applied {', '.join(d.isoformat() for d in got) or 'none'}"
+                      + ("" if got == want else f" — expected {', '.join(d.isoformat() for d in want)}")))
+    extra.append(("total-return benchmark",) + total_return_status(prov, dates[-1], applied))
+    integ = integrity_check(series, qc, leak, log, prereg, placed, extra)
     cycles, anchors = session_cycles(dates, cal, r0.anchor or (lambda f: f.is_month_end))
     cut, split = split_halves(dates, start_date, halves_mode)
     spans = crisis_spans(dates, crises)
@@ -2513,7 +2601,6 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         gens["blocks"] = (bp.draw, tuple(rule_changes))
     aset = set(anchors)
     complete = start_date in aset and dates[-1] in aset
-    prov = series.provenance
     tail_note = None
     if prov.get("total_return_through") and not applied:
         tail_note = (f"the file is price-only after {prov['total_return_through']} and no distribution "
@@ -2553,10 +2640,11 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                         "bar_A": f"constant exposure {p_hat:.6f} = the rule's mean declared "
                                  f"exposure over its {len(levels)} scored legs; reset at the "
                                  f"{len(trade_legs)} auctions where the rule trades"},
-        "p_hat": p_hat, "p_hat_calendar_days": p_hat_days, "cells": [],
+        "p_hat": p_hat, "p_hat_calendar_days": p_hat_days, "declared_windows": declared,
+        "cells": [],
     }
-    if not integ["pass"]:
-        return out                      # VOID: nothing performance-related is computed
+    if not integ["pass"] or integrity_only:
+        return out                      # VOID (or asked for integrity only): no performance number
     for cost_bps, cash, spread in cells:
         cost = cost_bps / 1e4
         ML = margin_legs(bars, s0, last, cash, spread, cal, accrual, applied, closes_only)
