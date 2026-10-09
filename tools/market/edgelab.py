@@ -55,8 +55,9 @@ WHAT IT MEASURES
     total return (ROI on all capital), CAGR, volatility, Sharpe and Sortino in
     excess of the cash rate, max drawdown with its dates, exposure (share of
     legs held; mean and capital-weighted), return per unit of exposure, round
-    trips, turnover, cost paid, a per-year table, and halves split at the DATE
-    midpoint. The benchmark is buy-and-hold of the underlying, bought at the
+    trips, turnover, cost paid, a per-year table, and halves split at the
+    midpoint SESSION (r1-redteam D5) or DATE (round 1): --halves. The
+    benchmark is buy-and-hold of the underlying, bought at the
     SAME close auction the rule could first act at and scored over the
     identical legs: `buy_and_hold` run as a rule equals it to the last digit.
 
@@ -70,12 +71,30 @@ THE NULLS
                (1 + draws). With both, the LARGER p is the conservative reading.
                An exposure with no timing (every session alike) has no placebo
                and is reported as degenerate rather than given a p.
-    deflated   Bailey & López de Prado (2014), against the BENCHMARK's Sharpe
-               instead of zero (EVIDENCE.md, "One limitation in how the
-               deflation was wired"); the trial count is an argument.
+    deflated   Bailey & López de Prado (2014): the Sharpe DIFFERENCE against a
+               named benchmark, on returns in excess of cash, standardised by
+               its PAIRED circular-block bootstrap SE (round 2; round 1's
+               single-Sharpe form is printed beside it, never gated). The trial
+               count is an argument.
     bootstrap  stationary bootstrap (Politis & Romano 1994) of paired session
                returns: a CI for the CAGR difference and the Sharpe difference
                against buy-and-hold.
+
+ROUND 2 — THE MARGIN OVERLAY (rules registered with model="margin")
+    Exposure e in [0, 2] on the underlying itself, held as shares between
+    declared changes; the borrowed (e-1)+ pays cash + a REQUIRED spread, idle
+    (1-e)+ earns cash. One invocation computes every (cost, cash, spread) cell
+    (lists, the first primary, plus --cell extras) and every gate input: bar (A)
+    at the rule's mean exposure, reset where the rule trades; buy-and-hold; the
+    placebo (within_cycle_circular, within_cycle, shift, blocks; the first one
+    named gates); the log timing book d = ln(1+R) - ln(1+R_A) with its bootstrap
+    and analytic z (G5'); G6's per-cycle forms and drop-crisis CAGR; G7 on a
+    replication file (--veto-*). Integrity (G0) is computed first, for both
+    files: barqc, the leak check, file SHA-256s, the frozen window lists, the
+    dividend add-backs, a total-return benchmark, the synthetic self-checks and
+    the pre-registration's SHA-256. If any item fails the run is VOID: nothing
+    that depends on a price is computed or printed, and the exit code is 3.
+    --closes-only prices each session close-to-close and reads no open.
 
 ADDING A RULE (after the pre-registration is frozen, never before)
     @register("name_from_the_prereg", warmup=0)
@@ -102,6 +121,7 @@ import bisect
 import csv
 import datetime as dt
 import hashlib
+from array import array
 import json
 import math
 import os
@@ -2055,55 +2075,87 @@ def _sharpe(xs):
     return m / math.sqrt(v) * math.sqrt(SESSIONS_PER_YEAR) if v > 0 else 0.0
 
 
+_PLAN = {}
+
+
+def _block_plan(n, block, draws, seed):
+    """The circular-block resampling plan, drawn once and shared by every series and every cell of
+    a run: per draw, the start of each of the ceil(n/block) blocks (the last one rem = n mod block
+    long), uniform on 0..n-1, from the stream 'edgelab/{seed}/dsr-paired'. Starts are kept as arrays
+    of the full blocks' starts and ends, plus the last block's start."""
+    key = (n, block, draws, seed)
+    if key not in _PLAN:
+        full, rem = divmod(n, block)
+        rr = random.Random(f"edgelab/{seed}/dsr-paired").randrange
+        plan = []
+        for _ in range(draws):
+            st = array("l", (rr(n) for _ in range(full)))
+            last = rr(n) if rem else None
+            plan.append((st, array("l", (x + block for x in st)), last))
+        _PLAN.clear()
+        _PLAN[key] = (full, rem, plan)
+    return _PLAN[key]
+
+
+def block_sharpes(series, block=10, draws=5000, seed=0):
+    """
+    Circular-block bootstrap of several equal-length series with the SAME blocks
+    (a paired resample): per draw, the annualised Sharpe of each series over the
+    resampled sessions. Block sums come from prefix sums extended around the
+    circle, so a resample costs O(blocks) per series.
+    """
+    n = len(series[0])
+    if any(len(x) != n for x in series) or n < 3:
+        raise ValueError("series of equal length >= 3")
+    block = int(block)
+    if block < 1:
+        raise ValueError("block length >= 1")
+    full, rem, plan = _block_plan(n, block, draws, seed)
+    pre = []
+    for x in series:
+        P, Q = [0.0], [0.0]
+        for v in x + x:
+            P.append(P[-1] + v)
+            Q.append(Q[-1] + v * v)
+        pre.append((P, Q))
+    ann = math.sqrt(SESSIONS_PER_YEAR)
+    out = []
+    for st, en, last in plan:
+        row = []
+        for P, Q in pre:
+            gp, gq = P.__getitem__, Q.__getitem__
+            sa = sum(map(gp, en)) - sum(map(gp, st))
+            qa = sum(map(gq, en)) - sum(map(gq, st))
+            if last is not None:
+                sa += P[last + rem] - P[last]
+                qa += Q[last + rem] - Q[last]
+            va = (qa - sa * sa / n) / (n - 1)
+            row.append((sa / n) / math.sqrt(va) * ann if va > 0 else 0.0)
+        out.append(row)
+    return out
+
+
 def paired_block_se(a, b, block=10, draws=5000, seed=0):
     """
     The paired circular-block bootstrap standard error of dSR = SR(a) - SR(b),
     annualised: resample blocks of `block` consecutive sessions (wrapping at the
     end) at uniform random starts, the SAME blocks for both series, recompute
     both Sharpe ratios, and take the standard deviation of their difference.
-    Block sums come from prefix sums, so a resample costs O(blocks), not
-    O(sessions).
     """
-    n = len(a)
-    if n != len(b) or n < 3:
+    if len(a) != len(b) or len(a) < 3:
         raise ValueError("paired series of equal length >= 3")
-    block = int(block)
-    if block < 1:
-        raise ValueError("block length >= 1")
-    Pa, Qa, Pb, Qb = [0.0], [0.0], [0.0], [0.0]
-    for x, y in zip(a, b):
-        Pa.append(Pa[-1] + x)
-        Qa.append(Qa[-1] + x * x)
-        Pb.append(Pb[-1] + y)
-        Qb.append(Qb[-1] + y * y)
-    full, rem = divmod(n, block)
-    lengths = [block] * full + ([rem] if rem else [])
-    rng = random.Random(f"edgelab/{seed}/dsr-paired")
-    rr = rng.randrange
-    ann = math.sqrt(SESSIONS_PER_YEAR)
-    out = []
-    for _ in range(draws):
-        sa = qa = sb = qb = 0.0
-        for L in lengths:
-            s = rr(n)
-            e = s + L
-            if e <= n:
-                sa += Pa[e] - Pa[s]
-                qa += Qa[e] - Qa[s]
-                sb += Pb[e] - Pb[s]
-                qb += Qb[e] - Qb[s]
-            else:
-                e -= n
-                sa += Pa[n] - Pa[s] + Pa[e]
-                qa += Qa[n] - Qa[s] + Qa[e]
-                sb += Pb[n] - Pb[s] + Pb[e]
-                qb += Qb[n] - Qb[s] + Qb[e]
-        va = (qa - sa * sa / n) / (n - 1)
-        vb = (qb - sb * sb / n) / (n - 1)
-        out.append(((sa / n) / math.sqrt(va) if va > 0 else 0.0) * ann
-                   - ((sb / n) / math.sqrt(vb) if vb > 0 else 0.0) * ann)
+    if draws < 2:
+        raise ValueError("at least 2 bootstrap draws")
+    out = [x - y for x, y in block_sharpes([a, b], block, draws, seed)]
     m = sum(out) / draws
     return math.sqrt(sum((x - m) ** 2 for x in out) / (draws - 1)), out
+
+
+def block_se(x, block=10, draws=5000, seed=0):
+    """The circular-block bootstrap SE of one series' annualised Sharpe (the same plan)."""
+    out = [r[0] for r in block_sharpes([x], block, draws, seed)]
+    m = sum(out) / draws
+    return math.sqrt(sum((v - m) ** 2 for v in out) / (draws - 1))
 
 
 def dsr_paired(a, b, n_trials, n_sensitivity=100, block=10, draws=5000, seed=0):
@@ -2240,7 +2292,7 @@ def timing_book(r_rule, r_bar, n_trials=None, n_sensitivity=100, block=10, draws
         sr = st["sharpe_per_bar"]
         denom = math.sqrt(max(1e-12, 1.0 - st["skew"] * sr + (st["kurt"] - 1.0) / 4.0 * sr * sr))
         z_an = sr * math.sqrt(n - 1) / denom
-        se = paired_block_se(x, [0.0] * n, block, draws, seed)[0] if draws and draws >= 2 else None
+        se = block_se(x, block, draws, seed) if draws and draws >= 2 else None
         z_boot = st["sharpe"] / se if se else None
         z_used = z_an if z_boot is None else min(z_boot, z_an)
         row = {"sessions": n, "mean_per_session": m, "mean_annual": m * SESSIONS_PER_YEAR,
@@ -2530,8 +2582,9 @@ def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, bl
        above baseline; sigma = the synthetic underlying's session sd, annualised).
     3. With a known timing effect (20 bp a session added inside the windows), the
        G5' z (min of bootstrap and analytic) is within 5% of mean sqrt(years) / TE.
-    4. The Sharpe difference vs bar (A) is a paired one: corr in [0.90, 0.97], its
-       paired bootstrap SE in [0.05, 0.10], and under half the single-Sharpe SE.
+    4. The Sharpe difference vs bar (A) uses the paired SE: within 15% of
+       sqrt(2(1-corr)) single-Sharpe SEs (0.073 at corr 0.943 over 21.4 years), and
+       under half the single-Sharpe 1/(T-1) SE that round 1 used.
     """
     items = []
     kw = dict(placebo_methods=(), placebo_draws=0, start_close=start_close, end=end, seed=seed,
@@ -2545,9 +2598,12 @@ def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, bl
     rs0 = c0["accrual_residual"]["residual"]
     worst = max((abs(c["timing_book"]["log"]["mean_annual"] - m0)
                  - abs(c["accrual_residual"]["residual"]) - abs(rs0)) for c in r1["cells"])
+    mv = max(abs(c["timing_book"]["log"]["mean_annual"] - m0) for c in r1["cells"])
+    rs = max(abs(c["accrual_residual"]["residual"]) for c in r1["cells"])
     items.append(("self-check 1: cash/spread", worst <= 1e-5,
-                  f"largest |move of d's annual mean| minus the two residuals = {worst * 1e4:+.3f} bp/yr "
-                  f"(limit +0.1) over {len(r1['cells'])} cells"))
+                  f"d's annual mean moves at most {mv * 1e4:.2f} bp/yr across {len(r1['cells'])} cells; the "
+                  f"printed calendar-day residuals reach {rs * 1e4:.2f} bp/yr; worst excess {worst * 1e4:+.3f} "
+                  f"bp/yr (limit +0.1)"))
     p = r1["p_hat"] - r1["baseline"]
     bd = [b.ts.date() for b in base.bars]
     a0 = bd.index(dt.date.fromisoformat(r1["window"]["start_close"]))
@@ -2577,9 +2633,11 @@ def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, bl
     ds = c4["dsr"]
     single = math.sqrt(SESSIONS_PER_YEAR / (r4["window"]["sessions"] - 1))
     rho = ds["corr"]
-    ok = 0.90 <= rho <= 0.97 and 0.05 <= ds["se"] <= 0.10 and ds["se"] < 0.5 * single
+    theory = math.sqrt(max(2.0 * (1.0 - rho), 0.0)) * single
+    ok = ds["se"] < 0.5 * single and abs(ds["se"] / theory - 1.0) <= 0.15
     items.append(("self-check 4: paired SE", ok,
-                  f"corr {rho:.3f}; paired SE of dSR {ds['se']:.4f} vs single-Sharpe {single:.4f}"))
+                  f"corr {rho:.3f}; paired SE of dSR {ds['se']:.4f} vs sqrt(2(1-corr)) x single "
+                  f"{theory:.4f} (ratio {ds['se'] / theory:.3f}); the single-Sharpe SE would be {single:.4f}"))
     return items
 
 
@@ -2733,7 +2791,9 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                                    "leg, (open + D) / close[t-1] - 1"),
                         "cash": f"idle cash and borrowed money {ACCRUAL_NOTE[accrual]}",
                         "information": INFO_NOTE,
-                        "dividends": dividend_note(prov.get("adjusted"), prov.get("total_return_through")),
+                        "dividends": dividend_note(prov.get("adjusted"), prov.get("total_return_through"))
+                        + ("; in this closes-only run each session is one close-to-close step, so a payout "
+                           "already in the prices lands in its ex-date's session" if closes_only else ""),
                         "price_only_tail": tail_note,
                         "bar_A": f"constant exposure {p_hat:.6f} = the rule's mean declared "
                                  f"exposure over its {len(levels)} scored legs; reset at the "
@@ -2835,7 +2895,7 @@ def descriptives(d, levels, baseline, dates, start_date, cycles, spans=(), overl
         if n < 3:
             return {"sessions": n}
         st = replay._stats(x, SESSIONS_PER_YEAR)
-        se = paired_block_se(x, [0.0] * n, block, draws, seed)[0] if draws and draws >= 2 else None
+        se = block_se(x, block, draws, seed) if draws and draws >= 2 else None
         return {"sessions": n, "mean_per_session": sum(x) / n, "mean_annual": sum(x) / n * SESSIONS_PER_YEAR,
                 "z_iid": st["sharpe_per_bar"] * math.sqrt(n),
                 "z_boot": st["sharpe"] / se if se else None}
@@ -3106,7 +3166,7 @@ def render(r):
 def render_integrity(integ):
     L = [f"INTEGRITY (G0)   {'PASS' if integ['pass'] else 'FAIL — VOID'}"]
     for name, ok, note in integ["items"]:
-        L.append(f"   {'ok  ' if ok else 'FAIL'} {name:<26}{note}")
+        L.append(f"   {'ok  ' if ok else 'FAIL'} {name:<31}{note}")
     if not integ["pass"]:
         L.append("VOID — no performance number is printed when an integrity item fails (r1-redteam G0)")
     return "\n".join(L)
@@ -3116,13 +3176,17 @@ def _cell_label(c):
     return f"{c['cost_bps_per_side']:g} bp/side · cash {c['cash']} · spread {c['spread']:.2%}"
 
 
-def render_margin(r):
-    """The report of one margin-model run: integrity first; nothing else when it fails."""
+def render_margin(r, replication=None):
+    """The report of one margin-model run: integrity first (the replication file's too, when there is
+    one); nothing else when either fails."""
     w = r["window"]
     L = ["=" * 112,
          f"EDGELAB v{r['edgelab_version']} · MARGIN OVERLAY · rule {r['rule']} on {r['symbol']} · "
          f"{os.path.basename(r['path'] or '')}", "=" * 112, render_integrity(r["integrity"])]
-    if not r["integrity"]["pass"]:
+    if replication is not None:
+        L.append(render_integrity(replication["integrity"]).replace(
+            "INTEGRITY (G0)", f"INTEGRITY (G0, replication file {os.path.basename(replication.get('path') or '')})"))
+    if not r["integrity"]["pass"] or (replication is not None and not replication["integrity"]["pass"]):
         return "\n".join(L)
     c0 = r["cells"][0]
     cv = r["conventions"]
@@ -3236,7 +3300,7 @@ def render_margin(r):
                            f"{t['sensitivity']['dsr']:.4f} (z ≥ {t['sensitivity']['z_for_dsr_0.8']:.2f})")
             L.append(f"TIMING BOOK {form:<7}rule − bar A per session ({'ln(1+R) − ln(1+R_A)' if form == 'log' else 'R − R_A'}): "
                      f"mean {_p(t['mean_annual'], 3)}/yr, tracking error {_p(t['tracking_error'], 2).lstrip('+')}; "
-                     f"z boot {_f(t['z_boot'], '{:+.3f}')} (SE {t['se_boot']:.4f}), z analytic "
+                     f"z boot {_f(t['z_boot'], '{:+.3f}')} (SE {_f(t['se_boot'], '{:.4f}')}), z analytic "
                      f"{t['z_analytic']:+.3f}, z i.i.d. {t['z_iid']:+.3f}; used {t['z_used']:+.3f}{dsr_txt}")
     g = c0["g6"]
     L += ["-" * 112,
@@ -3629,12 +3693,12 @@ def main(argv=None):
     ap.add_argument("--event-name", default="events")
     ap.add_argument("--offset-profile", action="store_true",
                     help="descriptive: mean close-to-close return by offset from T, by group")
-    ap.add_argument("--offsets", default="-8:3", help="FIRST:LAST offsets from T")
+    ap.add_argument("--offsets", default="-8:3", help="FIRST:LAST offsets from T, written --offsets=-8:3")
     ap.add_argument("--group-labels", nargs="+", default=["all"])
     ap.add_argument("--group-breaks", nargs="*", default=[])
     ap.add_argument("--exclude-dates", nargs="*", default=[],
                     help="dates left out of the profile; the word 'addbacks' means the applied add-backs")
-    ap.add_argument("--contrast", help="OFFSET:GROUPS_A:GROUPS_B, e.g. -3:2,1:3")
+    ap.add_argument("--contrast", help="OFFSET:GROUPS_A:GROUPS_B, written --contrast=-3:2,1:3")
     ap.add_argument("--leak-samples", default="100", help="decisions re-run at random, or 'all'")
     ap.add_argument("--out", help="write the full output (text, then JSON) here")
     ap.add_argument("--curves", metavar="DIR",
@@ -3835,9 +3899,9 @@ def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_arg
         v_i = run_margin(veto, factory, cells, integrity_only=True, **veto_kw) if veto else None
         void = not r_i["integrity"]["pass"] or (v_i is not None and not v_i["integrity"]["pass"])
         if void:
-            text = render_margin(dict(r_i, integrity=dict(r_i["integrity"], **{"pass": False})))
-            if v_i:
-                text += "\n" + render_integrity(v_i["integrity"]).replace("INTEGRITY (G0)", "INTEGRITY (G0, replication file)")
+            text = render_margin(r_i, v_i)
+            if r_i["integrity"]["pass"]:
+                text += "\nVOID — the replication file failed G0"
             text += "\nVOID — G0 covers both files; nothing performance-related was computed or printed"
             print(text)
             if a.out:
@@ -3859,9 +3923,8 @@ def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_arg
     except (ValueError, LookAhead, Blocked) as e:
         print(f"REFUSED: {type(e).__name__}: {e}", file=sys.stderr)
         return 2
-    text = render_margin(r)
+    text = render_margin(r, v)
     if v:
-        text += "\n" + render_integrity(v["integrity"]).replace("INTEGRITY (G0)", "INTEGRITY (G0, replication file)")
         text += "\n" + render_veto(v)
     text += "\n" + render_descriptive(r) if r.get("descriptive") else ""
     if prof:
