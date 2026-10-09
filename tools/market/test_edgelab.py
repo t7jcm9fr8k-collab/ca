@@ -850,10 +850,15 @@ check("more trials raise the bar", E.deflated_sharpe_vs(0.06, 0.03, T, 100)["dsr
       < E.deflated_sharpe_vs(0.06, 0.03, T, 10)["dsr"])
 check("a run without --trials does not invent a deflated Sharpe", _m["deflated_sharpe"] is None
       and "not computed: pass --trials" in E.render(_m))
-_dsr_run = E.run(_win, _cal_rule, 2.0, 0.03, trials=40, **QUIET)
-check("a run with --trials deflates against the benchmark's own Sharpe",
-      _close(_dsr_run["deflated_sharpe"]["threshold_per_session"],
-             _dsr_run["benchmark"]["sharpe_per_session"] + _dsr_run["deflated_sharpe"]["sr0"], 1e-15))
+_dsr_run = E.run(_win, _cal_rule, 2.0, 0.03, trials=40, dsr_draws=300, **QUIET)
+check("a run with --trials keeps round 1's form beside the gate, deflated against the benchmark's Sharpe",
+      _close(_dsr_run["deflated_sharpe_round1"]["threshold_per_session"],
+             _dsr_run["benchmark"]["sharpe_per_session"] + _dsr_run["deflated_sharpe_round1"]["sr0"], 1e-15))
+check("a run with --trials gates on the PAIRED deflated Sharpe against buy-and-hold, excess of cash",
+      _dsr_run["deflated_sharpe"]["benchmark"] == "buy_and_hold"
+      and _dsr_run["deflated_sharpe"]["primary"]["trials"] == 40
+      and _dsr_run["deflated_sharpe"]["sensitivity"]["trials"] == 100
+      and "paired circular-block bootstrap vs buy & hold" in E.render(_dsr_run))
 
 # ================================================================== bootstrap
 

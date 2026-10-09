@@ -2599,7 +2599,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                marks_mode="close", crises=DEFAULT_CRISES, leak_samples=100, leak_changes=200,
                prereg=None, sso=None, start_close=None, accrual="calendar", distributions=None,
                closes_only=False, expect_sha256=None, window_list=None, expect_addbacks=None,
-               extra_integrity=(), integrity_only=False):
+               extra_integrity=(), integrity_only=False, spans=(), overlap=None, events=None):
     """
     One margin-model rule, one file, every stress cell in one invocation.
     `cells` = [(cost_bps_per_side, CashRate, spread)]; the FIRST is primary. The
@@ -2686,6 +2686,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
     days = [(d1 - d0).days for d0, d1 in zip([start_date] + dates[:-1], dates)]
     p_hat_days = sum(levels[2 * j] * D for j, D in enumerate(days)) / sum(days)
     lf_levels = [1.0 if e > r0.baseline + EPS else 0.0 for e in levels]
+    lf_changes = levels_to_changes(lf_levels)
+    p_lf = sum(lf_levels) / len(lf_levels)
     gens = {}
     if "within_cycle" in placebo_methods:
         wc = WithinCycle(levels, cycles, r0.baseline)
@@ -2752,11 +2754,14 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         a_changes = constant_changes(p_hat, trade_legs)
         ap = margin_walk(a_changes, ML, cost, detail=True)
         bp_ = margin_walk([(0, 1.0, False)], ML, cost, detail=True)
-        lp = margin_walk(levels_to_changes(lf_levels), ML, cost, detail=True)
+        lp = margin_walk(lf_changes, ML, cost, detail=True)
+        cp = margin_walk(constant_changes(p_lf, [leg for leg, e, f in lf_changes if leg > 0]), ML, cost,
+                         detail=True)
         S_rule = score_margin(rp, ML, start_date, levels, marks_mode)
         S_A = score_margin(ap, ML, start_date, [p_hat] * len(levels), marks_mode)
         S_B = score_margin(bp_, ML, start_date, [1.0] * len(levels), marks_mode)
         S_L = score_margin(lp, ML, start_date, lf_levels, marks_mode)
+        S_C = score_margin(cp, ML, start_date, [p_lf] * len(levels), marks_mode)
         books = {"rule": rp["marks"][2::2], "bar_A": ap["marks"][2::2], "buy_and_hold": bp_["marks"][2::2]}
         r_rets = session_returns(books["rule"])
         a_rets = session_returns(books["bar_A"])
@@ -2767,7 +2772,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                    - cagr_of(margin_walk(a_changes, ML2, cost)["final"], yrs))
         cell = {"cost_bps_per_side": cost_bps, "round_trip_bps": 2 * cost_bps, "cash": cash.label,
                 "spread": spread, "rule": S_rule, "bar_A": S_A, "buy_and_hold": S_B,
-                "long_flat_1x": S_L, "per_year": per_year_books(dates, books, rp["auctions"],
+                "long_flat_1x": S_L, "constant_p_1x": S_C,
+                "per_year": per_year_books(dates, books, rp["auctions"],
                                                                 ML.prev_dates),
                 "halves": halves_books(dates, start_date, books, ML.g_cash, halves_mode),
                 "accrual_residual": {"accrual": accrual, "other": other_accrual,
@@ -2804,7 +2810,76 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         wc_res = cell["placebo"].get(placebo_methods[0]) if placebo_methods else None
         cell["g6"]["drop_crises_minus_placebo_median"] = (wc_res or {}).get("ex_crises_minus_median")
         cell["g7"] = g7_inputs(wc_res, cell["timing_book"])
+        cell["_d"] = [math.log1p(x) - math.log1p(y) for x, y in zip(r_rets, a_rets)]
         out["cells"].append(cell)
+    if spans or overlap or events:
+        out["descriptive"] = descriptives(out["cells"][0]["_d"], levels, r0.baseline, dates, start_date,
+                                          cycles, spans, overlap, events, dsr_block, dsr_draws, seed)
+    return out
+
+
+def descriptives(d, levels, baseline, dates, start_date, cycles, spans=(), overlap=None, events=None,
+                 block=10, draws=5000, seed=0):
+    """
+    DECLARED DESCRIPTIVE outputs on the primary cell's log timing book d (never
+    gates, never a reason to trade):
+    - spans: for cycles whose entry close lies in [lo, hi], d's mean and z;
+    - overlap: the share of the rule's departing sessions on which another
+      strategy holds the underlying (`held` = the dates it holds, after its
+      open fill), and d's mean over the departing sessions it does not hold;
+    - events: among windows whose departing sessions all lie inside a coverage
+      span, the share containing an event date, and the mean cycle excess (the
+      sum of d over the cycle) with and without one.
+    """
+    S = len(dates)
+    dep = [abs(levels[2 * j] - baseline) > EPS or abs(levels[2 * j + 1] - baseline) > EPS for j in range(S)]
+
+    def zstats(x):
+        n = len(x)
+        if n < 3:
+            return {"sessions": n}
+        st = replay._stats(x, SESSIONS_PER_YEAR)
+        se = paired_block_se(x, [0.0] * n, block, draws, seed)[0] if draws and draws >= 2 else None
+        return {"sessions": n, "mean_per_session": sum(x) / n, "mean_annual": sum(x) / n * SESSIONS_PER_YEAR,
+                "z_iid": st["sharpe_per_bar"] * math.sqrt(n),
+                "z_boot": st["sharpe"] / se if se else None}
+    out = {"label": "DECLARED DESCRIPTIVE — cannot change or rescue the verdict, never a reason to trade"}
+    entry = [start_date if j0 == 0 else dates[j0 - 1] for j0, j1 in cycles]
+    if spans:
+        rows = []
+        for lo, hi in spans:
+            lo, hi = dt.date.fromisoformat(str(lo)), dt.date.fromisoformat(str(hi))
+            sel = [k for k, e in enumerate(entry) if lo <= e <= hi]
+            x = [d[j] for k in sel for j in range(*cycles[k])]
+            rows.append({"from": lo.isoformat(), "to": hi.isoformat(), "cycles": len(sel),
+                         "windows": sum(1 for k in sel if any(dep[j] for j in range(*cycles[k]))),
+                         **zstats(x)})
+        out["spans"] = rows
+    if overlap:
+        held = overlap["held"]
+        js = [j for j in range(S) if dep[j]]
+        inn = [j for j in js if dates[j] in held]
+        rest = [d[j] for j in js if dates[j] not in held]
+        out["overlap"] = {"strategy": overlap["name"], "departing_sessions": len(js),
+                          "held_by_it": len(inn), "share": len(inn) / len(js) if js else None,
+                          "d_mean_per_session_when_not_held": sum(rest) / len(rest) if rest else None,
+                          "sessions_not_held": len(rest), "definition": overlap.get("definition")}
+    if events:
+        cov = [(dt.date.fromisoformat(str(a)), dt.date.fromisoformat(str(b))) for a, b in events["coverage"]]
+        ev = events["dates"]
+        w_in, w_out, n_cov = [], [], 0
+        for j0, j1 in cycles:
+            js = [j for j in range(j0, j1) if dep[j]]
+            if not js or not any(a <= dates[js[0]] and dates[js[-1]] <= b for a, b in cov):
+                continue
+            n_cov += 1
+            ce = sum(d[j0:j1])
+            (w_in if any(dates[j] in ev for j in js) else w_out).append(ce)
+        out["events"] = {"name": events["name"], "coverage": [(a.isoformat(), b.isoformat()) for a, b in cov],
+                         "windows_covered": n_cov, "with_event": len(w_in),
+                         "share_with_event": len(w_in) / n_cov if n_cov else None,
+                         "mean_cycle_excess_with": sum(w_in) / len(w_in) if w_in else None,
+                         "mean_cycle_excess_without": sum(w_out) / len(w_out) if w_out else None}
     return out
 
 
@@ -3006,9 +3081,10 @@ def render(r):
     if ds:
         L.append(f"DEFLATED SHARPE  paired circular-block bootstrap vs buy & hold (excess of cash): dSR "
                  f"{ds['dSR']:+.4f}, SE {ds['se']:.4f} (corr {_f(ds['corr'], '{:.3f}')}; block {ds['block']}, "
-                 f"{ds['draws']} resamples); N={ds['primary']['trials']}: z {ds['primary']['z']:+.3f}, DSR "
-                 f"{ds['primary']['dsr']:.4f}; N={ds['sensitivity']['trials']}: DSR "
-                 f"{ds['sensitivity']['dsr']:.4f}")
+                 f"{ds['draws']} resamples); N={ds['primary']['trials']}: z {_f(ds['primary']['z'], '{:+.3f}')}, "
+                 f"DSR {_f(ds['primary']['dsr'], '{:.4f}')}; N={ds['sensitivity']['trials']}: DSR "
+                 f"{_f(ds['sensitivity']['dsr'], '{:.4f}')}"
+                 + ("  (SE 0: the rule IS its benchmark here)" if not ds["se"] else ""))
         d1 = r.get("deflated_sharpe_round1")
         if d1 and d1["dsr"] is not None:
             L.append(f"                 (round 1's single-Sharpe form, for comparison only, never a gate: "
@@ -3143,11 +3219,12 @@ def render_margin(r):
     if ds:
         L.append(f"DEFLATED SHARPE  paired circular-block bootstrap vs {ds['benchmark']}: dSR "
                  f"{ds['dSR']:+.4f} (rule {ds['sr_rule']:.4f} − {ds['sr_benchmark']:.4f}), SE {ds['se']:.4f} "
-                 f"(block {ds['block']}, {ds['draws']} resamples); N={ds['primary']['trials']}: z "
-                 f"{ds['primary']['z']:+.3f}, DSR {ds['primary']['dsr']:.4f}; N={ds['sensitivity']['trials']}: "
-                 f"DSR {ds['sensitivity']['dsr']:.4f}; dSR needed for DSR 0.5 / 0.8 at N="
+                 f"(corr {_f(ds['corr'], '{:.3f}')}; block {ds['block']}, {ds['draws']} resamples); "
+                 f"N={ds['primary']['trials']}: z {_f(ds['primary']['z'], '{:+.3f}')}, DSR "
+                 f"{_f(ds['primary']['dsr'], '{:.4f}')}; N={ds['sensitivity']['trials']}: DSR "
+                 f"{_f(ds['sensitivity']['dsr'], '{:.4f}')}; dSR needed for DSR 0.5 / 0.8 at N="
                  f"{ds['primary']['trials']}: {ds['primary']['dSR_for_dsr_0.5']:.3f} / "
-                 f"{ds['primary']['dSR_for_dsr_0.8']:.3f}")
+                 f"{ds['primary']['dSR_for_dsr_0.8']:.3f} — reported, never gated")
     else:
         L.append(f"DEFLATED SHARPE  not computed: pass --trials N ({_prior_trials_note()})")
     tb = c0.get("timing_book")
