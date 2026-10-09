@@ -931,8 +931,9 @@ check("--out holds the summary, both reports, the cost convention, then JSON",
       "COST CONVENTION  1 bp PER SIDE" in _txt and _txt.count("EDGELAB v") == 2 and "symbol" in _txt
       and json.loads(_txt[_txt.index("\n{"):])["runs"][1]["symbol"] == "BBB")
 _curv = os.path.join(_tmp, "curves")
-_c, _o, _ = _cli(["--rule", "buy_and_hold", "--csv", _pa, "--source", "test", "--cost-bps-per-side", "1",
-                  "--cash-yield", "0.03", "--placebo-draws", "0", "--boot-draws", "0", "--curves", _curv])
+_c, _o, _ = _cli(["--rule", "buy_and_hold", "--csv", _pa, "--source", "test", "--adjusted", "yes",
+                  "--cost-bps-per-side", "1", "--cash-yield", "0.03", "--placebo-draws", "0", "--boot-draws",
+                  "0", "--curves", _curv])
 _cf = os.path.join(_curv, "AAA-buy_and_hold-AAA-1d-curves.csv")
 _crows = list(__import__("csv").DictReader(open(_cf))) if os.path.exists(_cf) else []
 _ca = E.load(_pa, "AAA", "test")

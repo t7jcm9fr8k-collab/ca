@@ -2678,8 +2678,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
     integ = integrity_check(series, qc, leak, log, prereg, placed, extra)
     cycles, anchors = session_cycles(dates, cal, r0.anchor or (lambda f: f.is_month_end))
     cut, split = split_halves(dates, start_date, halves_mode)
-    spans = crisis_spans(dates, crises)
-    probes = ProbeSet(dates, start_date, cut, spans)
+    cspans = crisis_spans(dates, crises)
+    probes = ProbeSet(dates, start_date, cut, cspans)
     rule_changes = levels_to_changes(levels)
     trade_legs = [leg for leg, e, f in rule_changes if leg > 0]
     p_hat = sum(levels) / len(levels)
@@ -2689,18 +2689,14 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
     lf_changes = levels_to_changes(lf_levels)
     p_lf = sum(lf_levels) / len(lf_levels)
     gens = {}
-    if "within_cycle" in placebo_methods:
-        wc = WithinCycle(levels, cycles, r0.baseline)
-        gens["within_cycle"] = (wc.draw, wc.observed)
-    if "within_cycle_circular" in placebo_methods:
-        wcc = WithinCycle(levels, cycles, r0.baseline, wrap=True)
-        gens["within_cycle_circular"] = (wcc.draw, wcc.observed)
-    if "shift" in placebo_methods:
-        sp_ = ShiftPlacebo(levels)
-        gens["shift"] = (sp_.draw, 0)
-    if "blocks" in placebo_methods:
-        bp = BlocksPlacebo(levels, r0.baseline)
-        gens["blocks"] = (bp.draw, tuple(rule_changes))
+    for m in placebo_methods:                     # in the order given: the first one gates
+        if m in ("within_cycle", "within_cycle_circular"):
+            wc = WithinCycle(levels, cycles, r0.baseline, wrap=(m == "within_cycle_circular"))
+            gens[m] = (wc.draw, wc.observed)
+        elif m == "shift":
+            gens[m] = (ShiftPlacebo(levels).draw, 0)
+        else:
+            gens[m] = (BlocksPlacebo(levels, r0.baseline).draw, tuple(rule_changes))
     aset = set(anchors)
     complete = start_date in aset and dates[-1] in aset
     tail_note = None
@@ -2724,7 +2720,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                    "legs": len(levels), "cycles": len(cycles),
                    "window_starts_and_ends_on_anchors": bool(complete),
                    "halves": {"mode": halves_mode, "split": split.isoformat(), "cut": cut},
-                   "crisis_spans": [(dates[a].isoformat(), dates[b].isoformat()) for a, b in spans]},
+                   "crisis_spans": [(dates[a].isoformat(), dates[b].isoformat()) for a, b in cspans]},
         "settings": {"trials": trials, "trials_sensitivity": trials_sensitivity, "seed": seed,
                      "placebo_methods": list(placebo_methods), "placebo_draws": placebo_draws,
                      "dsr_benchmark": dsr_benchmark, "dsr_draws": dsr_draws, "dsr_block": dsr_block,
@@ -3134,13 +3130,14 @@ def render_margin(r):
           f"trip costs {c0['round_trip_bps']:g} bp. {COST_NOTE}",
           f"CASH, FINANCING  {c0['cash']}; borrowed money pays cash + {c0['spread']:.2%}/yr; {cv['cash']}",
           f"INSTRUMENT       {cv['instrument']}",
+          f"PRICES           {cv['prices']}",
           f"DRIFT            {cv['drift']}",
           f"DIVIDENDS        {cv['dividends']}"]
     if cv.get("price_only_tail"):
         L.append(f"                 WARNING: {cv['price_only_tail']}")
     if r.get("distributions"):
         d = r["distributions"]
-        L.append(f"                 added back on the ex-date's overnight leg, every book alike: "
+        L.append(f"                 added back, every book alike (as PRICES says): "
                  + (", ".join(f"{k} {v:g}" for k, v in d["applied"].items()) or "none in the window")
                  + f" (from {os.path.basename(d['path'])}, sha256 {d['sha256'][:16]}…)")
     L += [f"INFORMATION      {INFO_NOTE}",
@@ -3157,17 +3154,17 @@ def render_margin(r):
           f"BASELINE         {r['baseline']:g}x — placebos move departures from it",
           "-" * 112]
     cols = [("rule", c0["rule"]), ("bar (A)", c0["bar_A"]), ("buy & hold 1x", c0["buy_and_hold"]),
-            ("1x long/flat*", c0["long_flat_1x"])]
+            ("1x long/flat*", c0["long_flat_1x"]), ("const p 1x*", c0["constant_p_1x"])]
     sw = c0.get("sso_switch")
-    L.append(f"{'':32}" + "".join(f"{n:>17}" for n, _ in cols)
-             + (f"{'SSO switch*':>17}" if isinstance(sw, dict) else ""))
+    L.append(f"{'':32}" + "".join(f"{n:>15}" for n, _ in cols)
+             + (f"{'SSO switch*':>15}" if isinstance(sw, dict) else ""))
 
     def row(label, key, fmt):
         cells = [fmt(x.get(key)) for _, x in cols]
         extra = ""
         if isinstance(sw, dict):
-            extra = f"{fmt(sw.get(key)) if key in sw else '':>17}"
-        return f"{label:<32}" + "".join(f"{c:>17}" for c in cells) + extra
+            extra = f"{fmt(sw.get(key)) if key in sw else '':>15}"
+        return f"{label:<32}" + "".join(f"{c:>15}" for c in cells) + extra
     L += [row("total return (ROI on capital)", "total_return", _p),
           row("CAGR", "cagr", lambda x: _p(x, 2)),
           row("volatility (annualised)", "volatility", lambda x: _p(x, 1).lstrip("+")),
@@ -3182,8 +3179,9 @@ def render_margin(r):
           row("cash interest (x initial)", "interest_earned", lambda x: _f(x, "{:.4f}"))]
     L.append(f"{'max drawdown dates (rule)':<32}peak {c0['rule']['peak']} → trough {c0['rule']['trough']} "
              f"→ recovered {c0['rule']['recovered']}")
-    L.append("* declared descriptive lines, never gates: the window alone at 1x (cash outside), and the "
-             "cash-account switch into a modelled kx fund")
+    L.append("* declared descriptive lines, never gates: the window alone at 1x (cash outside); a constant "
+             "book at that line's mean exposure (reset where it trades); the cash-account switch into a "
+             "modelled kx fund")
     ar = c0["accrual_residual"]
     L.append(f"ACCRUAL RESIDUAL CAGR(rule) − CAGR(A) is {_p(ar['rule_minus_A_cagr'], 3)} with financing "
              f"accrued by {ar['accrual']}, {_p(ar['rule_minus_A_cagr_other'], 3)} by {ar['other']}: "
@@ -3208,9 +3206,9 @@ def render_margin(r):
         if p["degenerate"] or p.get("p_cagr") is None:
             why = (f"degenerate ({p['unique_arrangements']} arrangement(s)): no timing to test"
                    if p["degenerate"] else "not run (0 draws)")
-            L.append(f"PLACEBO {m:<13}{why}")
+            L.append(f"PLACEBO {m:<22}{why}")
             continue
-        L.append(f"PLACEBO {m:<13}{p['draws']} draws, seed {p['seed']}, {p['unique_arrangements']} unique: "
+        L.append(f"PLACEBO {m:<22}{p['draws']} draws, seed {p['seed']}, {p['unique_arrangements']} unique: "
                  f"p(CAGR) = {p['p_cagr']:.4f}; rule CAGR {_p(p['observed_cagr'], 2)} vs null median "
                  f"{_p(p['null_cagr_median'], 2)} [5% {_p(p['null_cagr_q05'], 2)}, 95% "
                  f"{_p(p['null_cagr_q95'], 2)}]; z {_f(p['z_cagr'])}; beats the median in each half: "
@@ -3252,8 +3250,9 @@ def render_margin(r):
             x = g[name]
             L.append(f"   {name:<13} per-cycle sum {x['sum']:+.5f}; 5 largest positive cycles {x['top5']:+.5f}; "
                      f"without them {x['sum_without_top5']:+.5f} (gate ≥ 0: {'pass' if x['pass'] else 'fail'})")
-    L.append(f"   drop-crises   CAGR(rule) − within-cycle placebo median, crisis spans removed from both: "
-             f"{_p(g['drop_crises_minus_placebo_median'], 3)}")
+    gate_m = r["settings"]["placebo_methods"][0] if r["settings"]["placebo_methods"] else "none"
+    L.append(f"   drop-crises   CAGR(rule) − the gating placebo's ({gate_m}) median, crisis spans removed "
+             f"from both: {_p(g['drop_crises_minus_placebo_median'], 3)}")
     g7 = c0.get("g7") or {}
     if g7:
         L.append("G7 INPUTS        (read on the replication file; veto forms: r1 'same sign' | r2 'z < −1')")
@@ -3266,10 +3265,10 @@ def render_margin(r):
     if len(r["cells"]) > 1:
         L += ["-" * 112, "STRESS GRID (every cell of the invocation; the first row is primary)",
               f"{'cost':>5}{'cash':>7}{'spread':>8}{'CAGR rule':>11}{'bar A':>8}{'B&H':>8}{'rule−A':>8}"
-              f"{'rule−B&H':>9}{'MDD rule':>9}{'MDD A':>8}{'p WC':>7}{'DSR':>7}{'DSR100':>7}"
+              f"{'rule−B&H':>9}{'MDD rule':>9}{'MDD A':>8}{'p G4':>7}{'DSR':>7}{'DSR100':>7}"
               f"{'z log':>7}{'DSRlog':>7}{'top5':>6}{'log-5':>8}{'crisis':>9}{'accr':>8}"]
         for c in r["cells"]:
-            p = (c["placebo"].get("within_cycle") or {})
+            p = (c["placebo"].get(gate_m) or {})
             ds = c["dsr"] or {}
             tl = (c.get("timing_book") or {}).get("log") or {}
             gl = c["g6"].get("book_log") or {}
@@ -3465,35 +3464,181 @@ def _per_file(values, n, what, ap):
     return values
 
 
+def _strip_private(o):
+    """Drop the per-session series kept for descriptives (keys starting with '_') before JSON."""
+    if isinstance(o, dict):
+        return {k: _strip_private(v) for k, v in o.items() if not str(k).startswith("_")}
+    if isinstance(o, list):
+        return [_strip_private(v) for v in o]
+    return o
+
+
+def load_event_dates(path, where=None):
+    """Dates from the first column whose name contains 'date'; `where` = 'column=value' filters rows."""
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    if not rows:
+        raise ValueError(f"{path}: no rows")
+    col = next((c for c in rows[0] if "date" in c.lower()), None)
+    if col is None:
+        raise ValueError(f"{path}: no date column")
+    if where:
+        k, _, v = where.partition("=")
+        rows = [r for r in rows if (r.get(k) or "").strip() == v.strip()]
+    return {dt.date.fromisoformat(r[col].strip()[:10]) for r in rows if r[col].strip()}
+
+
+def strategy_holdings(series, spec):
+    """The dates on which a repo strategy (strategies.make(spec), priced by replay.replay) holds the
+    underlying after that session's open fill — what it holds through the session's close."""
+    import strategies
+    strat = strategies.make(spec)
+    res = replay.replay(series, strat, cost_bps=0.0, warmup=max(1, getattr(strat, "warmup", 1)))
+    return {dt.datetime.fromisoformat(ts).date() for ts, pos in zip(res["equity_ts"], res["positions"])
+            if pos}
+
+
+def _span(text, what):
+    lo, sep, hi = str(text).partition(":")
+    if not sep:
+        raise ValueError(f"{what} {text!r} is FROM:TO")
+    return dt.date.fromisoformat(lo), dt.date.fromisoformat(hi)
+
+
+def render_veto(r):
+    """G7': the identical rule on the replication file, against its own bar (A)."""
+    w = r["window"]
+    L = ["-" * 112, f"G7' REPLICATION (veto only) · {r['symbol']} · {os.path.basename(r['path'] or '')} · from "
+         f"the close of {w['start_close']} to the close of {w['last_session']}: {w['sessions']} sessions, "
+         f"{w['cycles']} cycles; its own p̂ {r['p_hat'] - r['baseline']:.4f}",
+         f"{'cost':>5}{'cash':>7}{'spread':>8}{'CAGR rule':>11}{'bar A':>8}{'z used':>9}{'z boot':>8}"
+         f"{'z anal.':>8}{'mean d/yr':>11}{'veto z<-1':>11}{'veto sign':>11}"]
+    for c in r["cells"]:
+        t = c["timing_book"]["log"]
+        g = c["g7"].get("timing_log", {})
+        cash_v = c["cash"].split("%")[0] if "%" in c["cash"] else c["cash"][:6]
+        L.append(f"{c['cost_bps_per_side']:>5g}{cash_v:>7}{c['spread']:>8.2%}{_p(c['rule']['cagr'], 2):>11}"
+                 f"{_p(c['bar_A']['cagr'], 2):>8}{t['z_used']:>+9.3f}{_f(t['z_boot'], '{:+.3f}'):>8}"
+                 f"{t['z_analytic']:>+8.3f}{_p(t['mean_annual'], 2):>11}"
+                 f"{'YES' if g.get('veto_z_below_minus_1') else 'no':>11}"
+                 f"{'YES' if g.get('veto_same_sign') else 'no':>11}")
+    return "\n".join(L)
+
+
+def render_descriptive(r):
+    d = r.get("descriptive")
+    if not d:
+        return ""
+    L = ["-" * 112, f"DESCRIPTIVE      {d['label']}"]
+    for x in d.get("spans", []):
+        L.append(f"  span of entry closes {x['from']} → {x['to']}: {x['windows']} windows, {x['sessions']} "
+                 f"sessions; d mean {_p(x.get('mean_annual'), 2)}/yr, z i.i.d. {_f(x.get('z_iid'), '{:+.2f}')}, "
+                 f"z boot {_f(x.get('z_boot'), '{:+.2f}')}")
+    o = d.get("overlap")
+    if o:
+        L.append(f"  overlap with {o['strategy']}: holds on {o['held_by_it']} of the rule's {o['departing_sessions']} "
+                 f"departing sessions ({_p(o['share'], 1).lstrip('+')}); d's mean on the other "
+                 f"{o['sessions_not_held']}: {_f(o['d_mean_per_session_when_not_held'] and 1e4 * o['d_mean_per_session_when_not_held'], '{:+.2f}')} bp/session")
+    e = d.get("events")
+    if e:
+        L.append(f"  {e['name']}: {e['windows_covered']} windows inside the dated coverage "
+                 f"{', '.join(a + '..' + b for a, b in e['coverage'])}; {e['with_event']} contain one "
+                 f"({_p(e['share_with_event'], 1).lstrip('+')}); mean cycle excess (sum of d) with "
+                 f"{_f(e['mean_cycle_excess_with'] and 1e4 * e['mean_cycle_excess_with'], '{:+.1f}')} bp, without "
+                 f"{_f(e['mean_cycle_excess_without'] and 1e4 * e['mean_cycle_excess_without'], '{:+.1f}')} bp")
+    return "\n".join(L)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rule", help="a registered rule (see --list-rules)")
-    ap.add_argument("--csv", nargs="+", help="one or more daily bar files")
+    ap.add_argument("--csv", nargs="+", help="one or more daily bar files (a margin rule takes one)")
     ap.add_argument("--symbol", nargs="+", help="one per file; default: the file name up to its first '-'")
     ap.add_argument("--source", nargs="+", help="one for all files or one per file; recorded")
     ap.add_argument("--adjusted", nargs="+", choices=["yes", "no"], help="as stated, never measured")
-    ap.add_argument("--cost-bps-per-side", type=float,
-                    help="REQUIRED. Charged on the traded notional at every auction that trades; "
-                         "a round trip costs twice this")
-    ap.add_argument("--cash-yield", help="REQUIRED. An annual decimal (0.03), or a CSV of date,rate")
+    ap.add_argument("--total-return-through", type=dt.date.fromisoformat,
+                    help="the file is total-return through this date and price-only after it")
+    ap.add_argument("--cost-bps-per-side", type=float, nargs="+",
+                    help="REQUIRED. Charged on the traded notional at every auction that trades; a round "
+                         "trip costs twice this. A margin run takes a list; the FIRST is primary")
+    ap.add_argument("--cash-yield", nargs="+",
+                    help="REQUIRED. Annual decimals (0.03), or a CSV of date,rate; a margin run takes a "
+                         "list, the FIRST primary")
+    ap.add_argument("--spread", type=float, nargs="+",
+                    help="margin rules: REQUIRED financing spread(s) over cash, annual decimals; FIRST primary")
+    ap.add_argument("--cell", action="append", default=[], metavar="COST:CASH:SPREAD",
+                    help="margin rules: one more cell beyond the grid (repeatable), e.g. 2:0:0.0775")
     ap.add_argument("--leverage", type=int, default=1, choices=[1, 2, 3],
-                    help="the instrument: 1 = the file as traded; 2 or 3 = a MODELLED daily-reset fund")
+                    help="weight rules: 1 = the file as traded; 2 or 3 = a MODELLED daily-reset fund")
     ap.add_argument("--expense-ratio", type=float, help="annual, required with --leverage 2 or 3")
     ap.add_argument("--start", type=dt.date.fromisoformat, help="first session to score (YYYY-MM-DD)")
+    ap.add_argument("--start-close", type=dt.date.fromisoformat,
+                    help="margin rules: the close scoring starts at (must be a bar)")
     ap.add_argument("--end", type=dt.date.fromisoformat, help="last session to score (YYYY-MM-DD)")
     ap.add_argument("--trials", type=int, help="every specification ever tried, for the deflated Sharpe")
-    ap.add_argument("--sr-var", type=float, help="override the Sharpe variance used for deflation")
+    ap.add_argument("--trials-sensitivity", type=int, default=100)
+    ap.add_argument("--sr-var", type=float, help="round-1 form only: override the Sharpe variance")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--placebo-draws", type=int, default=1000)
-    ap.add_argument("--placebo", choices=["shift", "blocks", "both"], default="both")
+    ap.add_argument("--placebo", nargs="+", default=None,
+                    help="weight rules: shift, blocks or both. Margin rules: one or more of "
+                         + ", ".join(PLACEBO_METHODS) + " (the FIRST gates); default within_cycle_circular")
     ap.add_argument("--boot-draws", type=int, default=1000)
-    ap.add_argument("--block-len", type=float, default=20.0, help="mean block length, sessions")
-    ap.add_argument("--leak-samples", type=int, default=100)
+    ap.add_argument("--block-len", type=float, default=20.0, help="weight rules: mean block length")
+    ap.add_argument("--dsr-draws", type=int, default=5000, help="paired circular-block bootstrap resamples")
+    ap.add_argument("--dsr-block", type=int, default=10, help="its block length, sessions")
+    ap.add_argument("--dsr-benchmark", choices=["constant", "buy_and_hold"], default="constant")
+    ap.add_argument("--halves", choices=["session", "date"], default="session",
+                    help="split at the midpoint session index (r1-redteam D5) or the calendar midpoint "
+                         "(round 1). EVIDENCE §C's halves were a 2016-01-01 year split, neither of these")
+    ap.add_argument("--marks", choices=["close", "both"], default="close")
+    ap.add_argument("--accrual", choices=["calendar", "session"], default="calendar")
+    ap.add_argument("--closes-only", action="store_true",
+                    help="margin rules: price each session close-to-close; no open is read (refused for "
+                         "a rule that trades at an open auction)")
+    ap.add_argument("--crisis", action="append", metavar="FROM:TO",
+                    help="a span removed for G6's drop-crisis test (repeatable; default the two in "
+                         "r1-redteam §3.2)")
+    ap.add_argument("--distributions", help="CSV of ex_date,amount_usd payouts to add back")
+    ap.add_argument("--expect-addbacks", nargs="+", type=dt.date.fromisoformat,
+                    help="G0: the add-backs must be applied to exactly these dates")
+    ap.add_argument("--expect-sha256", help="G0: the bar file's SHA-256")
+    ap.add_argument("--window-list", help="G0: a frozen window list the declared path must reproduce")
+    ap.add_argument("--prereg", help="the frozen pre-registration; its SHA-256 is printed (G0)")
+    ap.add_argument("--selfcheck", action="store_true",
+                    help="G0: run the synthetic harness checks on the file's bar DATES before the run")
+    ap.add_argument("--sso-k", type=int, default=2)
+    ap.add_argument("--sso-expense", type=float, help="descriptive SSO-switch line: the fund's expense ratio")
+    ap.add_argument("--sso-cost-bps-per-side", type=float, help="its cost per side on the fund")
+    ap.add_argument("--veto-csv", help="G7': the replication file, run in the same invocation")
+    ap.add_argument("--veto-symbol")
+    ap.add_argument("--veto-source")
+    ap.add_argument("--veto-adjusted", choices=["yes", "no"])
+    ap.add_argument("--veto-total-return-through", type=dt.date.fromisoformat)
+    ap.add_argument("--veto-start-close", type=dt.date.fromisoformat)
+    ap.add_argument("--veto-end", type=dt.date.fromisoformat)
+    ap.add_argument("--veto-expect-sha256")
+    ap.add_argument("--veto-window-list")
+    ap.add_argument("--span", action="append", default=[], metavar="FROM:TO",
+                    help="descriptive: d's mean and z over cycles whose entry close lies in FROM..TO")
+    ap.add_argument("--overlap-strategy", help="descriptive: e.g. rsi_dip:14,30,5 (strategies.py)")
+    ap.add_argument("--event-dates", help="descriptive: CSV of event dates (first *date* column)")
+    ap.add_argument("--event-where", help="descriptive: keep rows where COLUMN=VALUE")
+    ap.add_argument("--event-coverage", action="append", default=[], metavar="FROM:TO")
+    ap.add_argument("--event-name", default="events")
+    ap.add_argument("--offset-profile", action="store_true",
+                    help="descriptive: mean close-to-close return by offset from T, by group")
+    ap.add_argument("--offsets", default="-8:3", help="FIRST:LAST offsets from T")
+    ap.add_argument("--group-labels", nargs="+", default=["all"])
+    ap.add_argument("--group-breaks", nargs="*", default=[])
+    ap.add_argument("--exclude-dates", nargs="*", default=[],
+                    help="dates left out of the profile; the word 'addbacks' means the applied add-backs")
+    ap.add_argument("--contrast", help="OFFSET:GROUPS_A:GROUPS_B, e.g. -3:2,1:3")
+    ap.add_argument("--leak-samples", default="100", help="decisions re-run at random, or 'all'")
     ap.add_argument("--out", help="write the full output (text, then JSON) here")
     ap.add_argument("--curves", metavar="DIR",
-                    help="also write DIR/<symbol>-<rule>-curves.csv: per session, the weight held in "
-                         "each leg, each leg's return, and both equity paths")
+                    help="weight rules: also write DIR/<symbol>-<rule>-curves.csv")
     ap.add_argument("--allow-test-rule", action="store_true",
                     help="let a TEST-ONLY rule run on a file (the test suite uses this)")
     ap.add_argument("--list-rules", action="store_true")
@@ -3504,7 +3649,7 @@ def main(argv=None):
     if a.list_rules:
         for name in sorted(RULES):
             r = RULES[name]()
-            print(f"{name:<24} warmup {r.warmup:<4} {'TEST ONLY  ' if r.test_only else ''}{r.doc}")
+            print(f"{name:<24} warmup {r.warmup:<4} {r.model:<7}{'TEST ONLY  ' if r.test_only else ''}{r.doc}")
         return 0
     if not a.csv:
         ap.error("--csv is required")
@@ -3514,6 +3659,7 @@ def main(argv=None):
     sources = _per_file(a.source, n, "--source", ap)
     adj = _per_file(a.adjusted, n, "--adjusted", ap)
     adj = [{"yes": True, "no": False}[x] for x in adj] if adj else None
+    leak_samples = 10 ** 9 if str(a.leak_samples).lower() == "all" else int(a.leak_samples)
 
     if a.calendar_report:
         text = []
@@ -3533,8 +3679,32 @@ def main(argv=None):
             _write(a.out, out)
         return 0
 
+    def profile_args(series, start=None, end=None, applied=()):
+        o0, _, o1 = a.offsets.partition(":")
+        excl = []
+        for x in a.exclude_dates:
+            excl += [d.isoformat() for d in applied] if x == "addbacks" else [x]
+        con = None
+        if a.contrast:
+            o, ga, gb = a.contrast.split(":")
+            con = (int(o), ga.split(","), gb.split(","))
+        return offset_profile(series, range(int(o0), int(o1) + 1), a.group_labels, a.group_breaks, excl,
+                              con, start, end)
+
     if not a.rule:
-        ap.error("--rule is required (or --list-rules / --calendar-report)")
+        if a.offset_profile and n == 1:
+            try:
+                s = load(a.csv[0], a.symbol[0] if a.symbol else None, sources[0] if sources else None,
+                         adj[0] if adj else None, a.total_return_through)
+                text = render_offset_profile(profile_args(s, a.start, a.end))
+            except (Blocked, ValueError, B.Unparseable, B.NoProvenance) as e:
+                print(f"REFUSED: {e}", file=sys.stderr)
+                return 2
+            print(text)
+            if a.out:
+                _write(a.out, text + "\n")
+            return 0
+        ap.error("--rule is required (or --list-rules / --calendar-report / --offset-profile)")
     if a.cost_bps_per_side is None:
         ap.error("--cost-bps-per-side is required: no default cost, because the repo has two "
                  "conventions and a silent one is how they get mixed")
@@ -3542,31 +3712,44 @@ def main(argv=None):
         ap.error("--cash-yield is required (0 is an answer; silence is not)")
     try:
         factory = get_rule(a.rule)
-        if factory().test_only and not a.allow_test_rule:
+        r0 = factory()
+        if r0.test_only and not a.allow_test_rule:
             ap.error(f"{a.rule} is a TEST-ONLY rule; it exists for test_edgelab.py "
                      f"(--allow-test-rule to run it anyway)")
-        cash = CashRate.parse(a.cash_yield)
+        cashes = [CashRate.parse(x) for x in a.cash_yield]
     except (KeyError, ValueError) as e:
         print(f"REFUSED: {e}", file=sys.stderr)
         return 2
-    kw = dict(cost_bps_per_side=a.cost_bps_per_side, cash=cash, leverage=a.leverage,
+    if r0.model == "margin":
+        return _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args)
+
+    if len(a.cost_bps_per_side) != 1 or len(a.cash_yield) != 1 or a.spread or a.cell:
+        ap.error("a weight-model rule takes one --cost-bps-per-side and one --cash-yield (grids and "
+                 "--spread are margin-run features)")
+    pm = (a.placebo or ["both"])
+    if len(pm) != 1 or pm[0] not in ("shift", "blocks", "both"):
+        ap.error("a weight-model rule's --placebo is shift, blocks or both")
+    kw = dict(cost_bps_per_side=a.cost_bps_per_side[0], cash=cashes[0], leverage=a.leverage,
               expense_ratio=a.expense_ratio, start=a.start, end=a.end, trials=a.trials,
               sr_var=a.sr_var, seed=a.seed, placebo_draws=a.placebo_draws,
-              placebo_method=a.placebo, boot_draws=a.boot_draws, block_len=a.block_len,
-              leak_samples=a.leak_samples, keep_curves=bool(a.curves))
+              placebo_method=pm[0], boot_draws=a.boot_draws, block_len=a.block_len,
+              leak_samples=leak_samples, keep_curves=bool(a.curves), halves_mode=a.halves,
+              trials_sensitivity=a.trials_sensitivity, dsr_draws=a.dsr_draws, dsr_block=a.dsr_block,
+              prereg=a.prereg)
     try:
         rows = run_many(a.csv, factory, a.symbol, sources, adj, **kw)
     except (ValueError, LookAhead) as e:
         print(f"REFUSED: {type(e).__name__}: {e}", file=sys.stderr)
         return 2
+    void = any(x["status"] == "ok" and not x["result"]["integrity"]["pass"] for x in rows)
     blocks = []
-    if n > 1:
-        blocks.append(f"EDGELAB · rule {a.rule} on {n} files · {a.cost_bps_per_side:g} bp PER SIDE "
-                      f"(a round trip costs {2 * a.cost_bps_per_side:g} bp) · cash {cash.label}\n"
+    if n > 1 and not void:
+        blocks.append(f"EDGELAB · rule {a.rule} on {n} files · {a.cost_bps_per_side[0]:g} bp PER SIDE "
+                      f"(a round trip costs {2 * a.cost_bps_per_side[0]:g} bp) · cash {cashes[0].label}\n"
                       + summary_table(rows))
     for x in rows:
         blocks.append(render(x["result"]) if x["status"] == "ok" else f"{x['symbol']}: {x['status']}")
-    if a.curves:
+    if a.curves and not void:
         for x in rows:
             if x["status"] == "ok":
                 p = write_curves(x["result"], os.path.join(
@@ -3575,17 +3758,120 @@ def main(argv=None):
     text = "\n\n".join(blocks)
     print(text)
     if a.out:
-        payload = [{"symbol": x["symbol"], "status": x["status"],
-                    "result": _json_safe({k: v for k, v in (x.get("result") or {}).items()
-                                          if k != "_curves"}) if x.get("result") else None}
-                   for x in rows]
+        payload = []
+        for x in rows:
+            res = x.get("result")
+            if res and not res["integrity"]["pass"]:
+                res = {k: res[k] for k in ("rule", "symbol", "path", "integrity", "leak_check")}
+            payload.append({"symbol": x["symbol"], "status": x["status"],
+                            "result": _json_safe({k: v for k, v in (res or {}).items()
+                                                  if k != "_curves"}) if res else None})
         _write(a.out, text + "\n\n" + json.dumps({"argv": sys.argv if argv is None else argv,
                                                   "runs": payload}, indent=1, default=str) + "\n")
         print(f"\nwrote {a.out}", file=sys.stderr)
     if any(x["status"] != "ok" for x in rows):
         return 2
-    if any(x["result"]["leak_check"]["differences"] for x in rows):
+    if void or any(x["result"]["leak_check"]["differences"] for x in rows):
         return 3
+    return 0
+
+
+def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args):
+    """A margin-model rule: one file (plus an optional G7' replication file), every cell, G0 first."""
+    if len(a.csv) != 1:
+        ap.error("a margin run takes one --csv (the replication file goes in --veto-csv)")
+    if not a.spread:
+        ap.error("a margin run needs --spread: the financing spread over cash, stated (0 is an answer)")
+    cells = [(c, cash, sp) for c in a.cost_bps_per_side for cash in cashes for sp in a.spread]
+    try:
+        for x in a.cell:
+            c, cash, sp = x.split(":")
+            cells.append((float(c), CashRate.parse(cash), float(sp)))
+        crises = [tuple(d.isoformat() for d in _span(x, "--crisis")) for x in a.crisis] \
+            if a.crisis else list(DEFAULT_CRISES)
+        spans = [_span(x, "--span") for x in a.span]
+        cov = [_span(x, "--event-coverage") for x in a.event_coverage]
+    except ValueError as e:
+        print(f"REFUSED: {e}", file=sys.stderr)
+        return 2
+    methods = tuple(a.placebo or ["within_cycle_circular"])
+    if a.placebo_draws and not methods:
+        ap.error("--placebo names the design that gates")
+    sso = None
+    if a.sso_expense is not None:
+        sso = {"k": a.sso_k, "expense_ratio": a.sso_expense}
+        if a.sso_cost_bps_per_side is not None:
+            sso["cost_bps_per_side_fund"] = a.sso_cost_bps_per_side
+    try:
+        series = load(a.csv[0], a.symbol[0] if a.symbol else None, sources[0] if sources else None,
+                      adj[0] if adj else None, a.total_return_through)
+        veto = (load(a.veto_csv, a.veto_symbol, a.veto_source,
+                     {"yes": True, "no": False}.get(a.veto_adjusted), a.veto_total_return_through)
+                if a.veto_csv else None)
+        dist = load_distributions(a.distributions) if a.distributions else None
+        events = ({"name": a.event_name, "dates": load_event_dates(a.event_dates, a.event_where),
+                   "coverage": cov} if a.event_dates else None)
+    except (OSError, ValueError, B.Unparseable, B.NoProvenance) as e:
+        print(f"REFUSED: {e}", file=sys.stderr)
+        return 2
+    common = dict(trials=a.trials, trials_sensitivity=a.trials_sensitivity, seed=a.seed,
+                  dsr_benchmark=a.dsr_benchmark, dsr_draws=a.dsr_draws, dsr_block=a.dsr_block,
+                  halves_mode=a.halves, marks_mode=a.marks, crises=crises, leak_samples=leak_samples,
+                  accrual=a.accrual, closes_only=a.closes_only)
+    main_kw = dict(common, start=a.start, end=a.end, start_close=a.start_close, placebo_methods=methods,
+                   placebo_draws=a.placebo_draws, prereg=a.prereg, sso=sso, distributions=dist,
+                   expect_sha256=a.expect_sha256, window_list=a.window_list,
+                   expect_addbacks=a.expect_addbacks, spans=spans, events=events)
+    veto_kw = dict(common, end=a.veto_end, start_close=a.veto_start_close, placebo_methods=(),
+                   placebo_draws=0, expect_sha256=a.veto_expect_sha256, window_list=a.veto_window_list)
+    try:
+        items = []
+        if a.selfcheck:
+            dates = [b.ts.date() for b in series.bars]
+            gated = [(a.cost_bps_per_side[0], cash, sp) for cash in cashes for sp in a.spread]
+            items = harness_selfcheck(dates, factory, gated, a.start_close, a.end, a.seed, a.dsr_block,
+                                      a.dsr_draws, a.closes_only, a.accrual)
+        r_i = run_margin(series, factory, cells, integrity_only=True, extra_integrity=items, **main_kw)
+        v_i = run_margin(veto, factory, cells, integrity_only=True, **veto_kw) if veto else None
+        void = not r_i["integrity"]["pass"] or (v_i is not None and not v_i["integrity"]["pass"])
+        if void:
+            text = render_margin(dict(r_i, integrity=dict(r_i["integrity"], **{"pass": False})))
+            if v_i:
+                text += "\n" + render_integrity(v_i["integrity"]).replace("INTEGRITY (G0)", "INTEGRITY (G0, replication file)")
+            text += "\nVOID — G0 covers both files; nothing performance-related was computed or printed"
+            print(text)
+            if a.out:
+                _write(a.out, text + "\n\n" + json.dumps(_json_safe(_strip_private(
+                    {"argv": sys.argv, "integrity": r_i["integrity"],
+                     "replication_integrity": v_i and v_i["integrity"]})), indent=1, default=str) + "\n")
+            return 3
+        if a.overlap_strategy:
+            main_kw["overlap"] = {"name": a.overlap_strategy, "held": strategy_holdings(series, a.overlap_strategy),
+                                  "definition": "held after that session's open fill (replay.py), i.e. "
+                                                "through the session's close"}
+        r = run_margin(series, factory, cells, extra_integrity=items, **main_kw)
+        v = run_margin(veto, factory, cells, **veto_kw) if veto else None
+        prof = None
+        if a.offset_profile:
+            applied = [dt.date.fromisoformat(k) for k in (r.get("distributions") or {}).get("applied", {})]
+            prof = profile_args(series, dt.date.fromisoformat(r["window"]["first_session"]),
+                                dt.date.fromisoformat(r["window"]["last_session"]), applied)
+    except (ValueError, LookAhead, Blocked) as e:
+        print(f"REFUSED: {type(e).__name__}: {e}", file=sys.stderr)
+        return 2
+    text = render_margin(r)
+    if v:
+        text += "\n" + render_integrity(v["integrity"]).replace("INTEGRITY (G0)", "INTEGRITY (G0, replication file)")
+        text += "\n" + render_veto(v)
+    text += "\n" + render_descriptive(r) if r.get("descriptive") else ""
+    if prof:
+        text += "\n" + "-" * 112 + "\n" + render_offset_profile(prof)
+    print(text)
+    if a.out:
+        payload = {"argv": sys.argv, "run": _strip_private(r), "replication": v and _strip_private(v),
+                   "offset_profile": prof}
+        _write(a.out, text + "\n\n" + json.dumps(_json_safe(payload), indent=1, default=str) + "\n")
+        print(f"\nwrote {a.out}", file=sys.stderr)
     return 0
 
 
