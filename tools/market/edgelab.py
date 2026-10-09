@@ -981,12 +981,11 @@ def per_year(legs, s_path, b_path, w_on, w_id):
     return rows
 
 
-def halves(legs, start_date, s_path, b_path):
-    """Split at the DATE midpoint of the scored window, never the bar midpoint."""
-    end = legs.dates[-1]
-    split = start_date + dt.timedelta(days=(end - start_date).days // 2)
-    cut = bisect.bisect_right(legs.dates, split)          # sessions [0, cut) are the first half
-    out = {"split_date": split.isoformat()}
+def halves(legs, start_date, s_path, b_path, mode="date"):
+    """Split at the DATE midpoint of the scored window (round 1), or at the midpoint SESSION
+    index (mode 'session', r1-redteam D5) — never the bar midpoint by accident."""
+    cut, split = split_halves(legs.dates, start_date, mode)  # sessions [0, cut) are the first half
+    out = {"split_date": split.isoformat(), "mode": mode, "cut": cut}
     for name, a, b in (("first", 0, cut), ("second", cut, len(legs.dates))):
         if b - a < 2:
             out[name] = None
@@ -1247,11 +1246,15 @@ def _as_factory(rule):
 
 def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, start=None,
         end=None, trials=None, sr_var=None, seed=0, placebo_draws=1000, placebo_method="both",
-        boot_draws=1000, block_len=20, leak_samples=100, leak_changes=200, keep_curves=False):
+        boot_draws=1000, block_len=20, leak_samples=100, leak_changes=200, keep_curves=False,
+        halves_mode="date", trials_sensitivity=100, dsr_draws=5000, dsr_block=10, prereg=None):
     """
     One rule, one file. `rule` is a registry name or a factory returning a
     fresh Rule. Raises Blocked (data), ValueError (arguments, or a weight out
     of range) and LookAhead (a rule that reached past its information set).
+    With `trials`, the deflated Sharpe is the paired one (dsr_paired, against
+    buy-and-hold, on returns in excess of cash); round 1's single-Sharpe form is
+    kept beside it as `deflated_sharpe_round1`, for comparison only.
     """
     factory = _as_factory(rule)
     if not isinstance(cash, CashRate):
@@ -1275,6 +1278,8 @@ def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, s
         raise ValueError("trials counts every specification tried, >= 1")
     if block_len < 1:
         raise ValueError("block length is >= 1 session")
+    if trials is not None and dsr_draws < 2:
+        raise ValueError("the paired deflated Sharpe needs at least 2 bootstrap draws")
 
     qc = gate(series)
     bars = series.bars
@@ -1341,10 +1346,11 @@ def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, s
         "strategy": strategy, "benchmark": benchmark, "leveraged_buy_and_hold": lev_bh,
         "instrument_wiped_out": legs.wiped,
         "per_year": per_year(legs, s_path, b_path, w_on, w_id),
-        "halves": halves(legs, start_date, s_path, b_path),
+        "halves": halves(legs, start_date, s_path, b_path, halves_mode),
         "not_modelled": NOT_MODELLED,
     }
     res["leak_check"] = leak_check(series, factory, log, cal, leak_samples, leak_changes, seed, k)
+    res["integrity"] = integrity_check(series, qc, res["leak_check"], log, prereg)
 
     res["placebo"] = {}
     if placebo_draws:
@@ -1361,12 +1367,17 @@ def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, s
     s_rets = session_returns(s_path["closes"])
     b_rets = session_returns(b_path["closes"])
     if trials is not None:
-        res["deflated_sharpe"] = deflated_sharpe_vs(
+        ex_s = [x - g for x, g in zip(s_rets, legs.g_on)]
+        ex_b = [x - g for x, g in zip(b_rets, legs.g_on)]
+        res["deflated_sharpe"] = dsr_paired(ex_s, ex_b, int(trials), trials_sensitivity, dsr_block,
+                                            dsr_draws, seed)
+        res["deflated_sharpe"]["benchmark"] = "buy_and_hold"
+        res["deflated_sharpe_round1"] = deflated_sharpe_vs(
             strategy["sharpe_per_session"], benchmark["sharpe_per_session"], S, int(trials),
             sr_var, strategy["skew"], strategy["kurt"])
-        res["deflated_sharpe"]["trials"] = int(trials)
+        res["deflated_sharpe_round1"]["trials"] = int(trials)
     else:
-        res["deflated_sharpe"] = None
+        res["deflated_sharpe"] = res["deflated_sharpe_round1"] = None
     res["bootstrap"] = bootstrap(s_rets, b_rets, legs.g_on, years, boot_draws, block_len, seed)
     if keep_curves:
         res["_curves"] = [
@@ -2106,8 +2117,14 @@ def dsr_paired(a, b, n_trials, n_sensitivity=100, block=10, draws=5000, seed=0):
     """
     d_sr = _sharpe(a) - _sharpe(b)
     se, _ = paired_block_se(a, b, block, draws, seed)
+    ma, mb = sum(a) / len(a), sum(b) / len(b)
+    sab = sum((x - ma) * (y - mb) for x, y in zip(a, b))
+    saa = sum((x - ma) ** 2 for x in a)
+    sbb = sum((y - mb) ** 2 for y in b)
     out = {"dSR": d_sr, "se": se, "block": block, "draws": draws, "seed": seed,
-           "sr_rule": _sharpe(a), "sr_benchmark": _sharpe(b)}
+           "sr_rule": _sharpe(a), "sr_benchmark": _sharpe(b),
+           "corr": sab / math.sqrt(saa * sbb) if saa > 0 and sbb > 0 else None,
+           "se_single_sharpe": math.sqrt(SESSIONS_PER_YEAR / (len(a) - 1))}
     for key, N in (("primary", int(n_trials)), ("sensitivity", int(n_sensitivity))):
         emz = combine.expected_max_sharpe(N, 1.0)
         z = d_sr / se - emz if se > 0 else None
@@ -2223,15 +2240,15 @@ def timing_book(r_rule, r_bar, n_trials=None, n_sensitivity=100, block=10, draws
         sr = st["sharpe_per_bar"]
         denom = math.sqrt(max(1e-12, 1.0 - st["skew"] * sr + (st["kurt"] - 1.0) / 4.0 * sr * sr))
         z_an = sr * math.sqrt(n - 1) / denom
-        se, _ = paired_block_se(x, [0.0] * n, block, draws, seed)
-        z_boot = st["sharpe"] / se if se > 0 else None
+        se = paired_block_se(x, [0.0] * n, block, draws, seed)[0] if draws and draws >= 2 else None
+        z_boot = st["sharpe"] / se if se else None
         z_used = z_an if z_boot is None else min(z_boot, z_an)
         row = {"sessions": n, "mean_per_session": m, "mean_annual": m * SESSIONS_PER_YEAR,
                "sd_per_session": sd, "tracking_error": st["volatility"], "sum": sum(x),
                "z_iid": sr * math.sqrt(n), "sharpe": st["sharpe"], "se_boot": se, "z_boot": z_boot,
                "skew": st["skew"], "kurt": st["kurt"], "z_analytic": z_an, "z_used": z_used,
                "block": block, "draws": draws, "seed": seed}
-        if n_trials is not None:
+        if n_trials is not None and se:
             for key, N in (("primary", int(n_trials)), ("sensitivity", int(n_sensitivity))):
                 emz = combine.expected_max_sharpe(N, 1.0)
                 row[key] = {"trials": N, "E_max_Z": emz, "dsr": NormalDist().cdf(z_used - emz),
@@ -2450,7 +2467,7 @@ def integrity_check(series, qc, leak, log, prereg=None, placed=None, extra=()):
     if placed is not None:
         items.append(("distributions added back", placed["ok"],
                       placed["problem"] or (
-                          f"{len(placed['applied'])} applied on their ex-date's overnight leg ("
+                          f"{len(placed['applied'])} applied ("
                           + ", ".join(f"{d.isoformat()} {a:g}" for d, a in sorted(placed["applied"].items()))
                           + f"); {len(placed['already_adjusted'])} already in the prices, "
                           f"{len(placed['outside_window'])} outside the window; {placed['path']} "
@@ -2481,6 +2498,89 @@ def _window(dates, warmup, start=None, end=None, start_close=None):
         s0 = max(warmup, first - 1, 0)
     last = len(dates) - 1 if end is None else bisect.bisect_right(dates, end) - 1
     return s0, last
+
+
+def synthetic_like(dates, seed=0, sigma=0.0121, mu=4.6e-4, extra=None, symbol="SYN"):
+    """SYNTHETIC bars on the given dates (dates only are taken from any real file): i.i.d.
+    normal session returns, mean `mu`, sd `sigma`, split 0.358 / 0.642 of the variance between the
+    overnight and intraday legs; `extra[j]` is added to session j's return."""
+    rng = random.Random(f"edgelab/synthetic/{seed}")
+    px, out = 100.0, []
+    for j, d in enumerate(dates):
+        ro = rng.gauss(mu * 0.67, sigma * math.sqrt(0.358))
+        ri = rng.gauss(mu * 0.33, sigma * math.sqrt(0.642)) + (extra[j] if extra else 0.0)
+        o = px * (1.0 + ro)
+        c = o * (1.0 + ri)
+        out.append(B.Bar(dt.datetime(d.year, d.month, d.day, tzinfo=B.UTC), o, max(o, c), min(o, c), c, 1e6))
+        px = c
+    return B.Series(symbol, "1d", out, {"source": "synthetic (edgelab.synthetic_like)",
+                                        "fetched_at": "1970-01-01T00:00:00+00:00", "adjusted": True})
+
+
+def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, block=10, draws=5000,
+                      closes_only=False, accrual="calendar"):
+    """
+    The pre-registration's synthetic harness checks 1-4, on SYNTHETIC prices laid
+    on the real file's bar DATES (no price of the file is read), with the frozen
+    rule and the gated (cash, spread) cells. Returns G0 items (name, ok, note).
+    1. Across the cells, the log timing book's annual mean moves by no more than
+       the calendar-day accrual residuals printed for them: for every cell,
+       |m(cell) - m(first)| <= |resid(cell)| + |resid(first)| + 0.1 bp/yr.
+    2. Its tracking error is within 5% of sqrt(p(1-p)) sigma (p = mean exposure
+       above baseline; sigma = the synthetic underlying's session sd, annualised).
+    3. With a known timing effect (20 bp a session added inside the windows), the
+       G5' z (min of bootstrap and analytic) is within 5% of mean sqrt(years) / TE.
+    4. The Sharpe difference vs bar (A) is a paired one: corr in [0.90, 0.97], its
+       paired bootstrap SE in [0.05, 0.10], and under half the single-Sharpe SE.
+    """
+    items = []
+    kw = dict(placebo_methods=(), placebo_draws=0, start_close=start_close, end=end, seed=seed,
+              leak_samples=10, leak_changes=10, closes_only=closes_only, accrual=accrual)
+    base = synthetic_like(dates, seed)
+    r1 = run_margin(base, rule, cells, dsr_draws=0, **kw)
+    if not r1["cells"]:
+        return [("harness self-check", False, "the synthetic run itself failed integrity")]
+    c0 = r1["cells"][0]
+    m0 = c0["timing_book"]["log"]["mean_annual"]
+    rs0 = c0["accrual_residual"]["residual"]
+    worst = max((abs(c["timing_book"]["log"]["mean_annual"] - m0)
+                 - abs(c["accrual_residual"]["residual"]) - abs(rs0)) for c in r1["cells"])
+    items.append(("self-check 1: cash/spread", worst <= 1e-5,
+                  f"largest |move of d's annual mean| minus the two residuals = {worst * 1e4:+.3f} bp/yr "
+                  f"(limit +0.1) over {len(r1['cells'])} cells"))
+    p = r1["p_hat"] - r1["baseline"]
+    bd = [b.ts.date() for b in base.bars]
+    a0 = bd.index(dt.date.fromisoformat(r1["window"]["start_close"]))
+    a1 = bd.index(dt.date.fromisoformat(r1["window"]["last_session"]))
+    cl = [b.close for b in base.bars[a0:a1 + 1]]
+    sig = replay._stats([y / x - 1.0 for x, y in zip(cl, cl[1:])], SESSIONS_PER_YEAR)["volatility"]
+    te = c0["timing_book"]["log"]["tracking_error"]
+    want = math.sqrt(p * (1 - p)) * sig
+    items.append(("self-check 2: tracking error", abs(te / want - 1) <= 0.05,
+                  f"TE(d) {te:.4%} vs sqrt(p(1-p)) sigma {want:.4%} (p {p:.4f}, sigma {sig:.2%}): "
+                  f"ratio {te / want:.4f}"))
+    inside = set()
+    for w in r1["declared_windows"]:
+        a = bd.index(dt.date.fromisoformat(w["entry_close"]))
+        for j in range(a + 1, a + 1 + w["sessions"]):
+            inside.add(j)
+    extra = [20e-4 if j in inside else 0.0 for j in range(len(bd))]
+    eff = synthetic_like(dates, seed, extra=extra)
+    r3 = run_margin(eff, rule, cells[:1], dsr_draws=draws, dsr_block=block, **kw)
+    t = r3["cells"][0]["timing_book"]["log"]
+    zt = t["mean_annual"] * math.sqrt(t["sessions"] / SESSIONS_PER_YEAR) / t["tracking_error"]
+    items.append(("self-check 3: G5' z", abs(t["z_used"] / zt - 1) <= 0.05,
+                  f"z used {t['z_used']:.3f} (boot {t['z_boot']:.3f}, analytic {t['z_analytic']:.3f}) vs "
+                  f"mean sqrt(years)/TE {zt:.3f}: ratio {t['z_used'] / zt:.4f}"))
+    r4 = run_margin(base, rule, cells[:1], dsr_draws=draws, dsr_block=block, trials=1, **kw)
+    c4 = r4["cells"][0]
+    ds = c4["dsr"]
+    single = math.sqrt(SESSIONS_PER_YEAR / (r4["window"]["sessions"] - 1))
+    rho = ds["corr"]
+    ok = 0.90 <= rho <= 0.97 and 0.05 <= ds["se"] <= 0.10 and ds["se"] < 0.5 * single
+    items.append(("self-check 4: paired SE", ok,
+                  f"corr {rho:.3f}; paired SE of dSR {ds['se']:.4f} vs single-Sharpe {single:.4f}"))
+    return items
 
 
 PLACEBO_METHODS = ("within_cycle", "within_cycle_circular", "shift", "blocks")
@@ -2698,8 +2798,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                        if trials is not None else None)
         if cell["dsr"] is not None:
             cell["dsr"]["benchmark"] = dsr_benchmark
-        cell["timing_book"] = (timing_book(r_rets, a_rets, trials, trials_sensitivity, dsr_block,
-                                           dsr_draws, seed) if dsr_draws else None)
+        cell["timing_book"] = timing_book(r_rets, a_rets, trials, trials_sensitivity, dsr_block,
+                                          dsr_draws, seed)
         cell["g6"] = g6_inputs(levels, r0.baseline, r_rets, ML, cycles, cut, a_rets)
         wc_res = cell["placebo"].get(placebo_methods[0]) if placebo_methods else None
         cell["g6"]["drop_crises_minus_placebo_median"] = (wc_res or {}).get("ex_crises_minus_median")
@@ -2793,6 +2893,13 @@ def render(r):
          f"EDGELAB v{r['edgelab_version']} · rule {r['rule']} on {r['symbol']} · "
          f"{os.path.basename(r['path'] or '')}",
          "=" * 100]
+    integ = r.get("integrity")
+    if integ and not integ["pass"]:
+        lk = r["leak_check"]
+        L += [render_integrity(integ),
+              f"LEAK CHECK       {lk['checked']} decisions re-run: {len(lk['differences'])} difference(s) "
+              f"— NOT A RESULT until this is zero"]
+        return "\n".join(L)
     if r["test_only_rule"]:
         L.append("TEST-ONLY RULE — exists for the test suite; its numbers are not a candidate's")
     L += [f"COST CONVENTION  {st['cost_bps_per_side']:g} bp PER SIDE on traded notional — a round "
@@ -2862,7 +2969,7 @@ def render(r):
                  f"{y['exposure_share']:>6.1%}  {y['sides']:>4}  "
                  f"{_f(y['cost_pct_of_start_equity'] and 100 * y['cost_pct_of_start_equity'], '{:.3f}')}%")
     h = r["halves"]
-    L += ["-" * 100, f"HALVES (split at the date midpoint {h['split_date']})"]
+    L += ["-" * 100, f"HALVES (split by {h.get('mode', 'date')} at {h['split_date']})"]
     for name in ("first", "second"):
         x = h.get(name)
         if not x:
@@ -2896,11 +3003,16 @@ def render(r):
     else:
         L.append("PLACEBO          not run (--placebo-draws 0)")
     ds = r["deflated_sharpe"]
-    if ds and ds["dsr"] is not None:
-        L.append(f"DEFLATED SHARPE  vs the BENCHMARK, {ds['trials']} trials: P(true Sharpe > "
-                 f"buy&hold's) = {ds['dsr']:.4f}; threshold {ds['threshold_per_session'] * math.sqrt(SESSIONS_PER_YEAR):.3f} "
-                 f"annualised = buy&hold {b['sharpe']:.3f} + expected best-of-{ds['trials']} "
-                 f"{ds['sr0'] * math.sqrt(SESSIONS_PER_YEAR):.3f}; z = {ds['z']:.2f}")
+    if ds:
+        L.append(f"DEFLATED SHARPE  paired circular-block bootstrap vs buy & hold (excess of cash): dSR "
+                 f"{ds['dSR']:+.4f}, SE {ds['se']:.4f} (corr {_f(ds['corr'], '{:.3f}')}; block {ds['block']}, "
+                 f"{ds['draws']} resamples); N={ds['primary']['trials']}: z {ds['primary']['z']:+.3f}, DSR "
+                 f"{ds['primary']['dsr']:.4f}; N={ds['sensitivity']['trials']}: DSR "
+                 f"{ds['sensitivity']['dsr']:.4f}")
+        d1 = r.get("deflated_sharpe_round1")
+        if d1 and d1["dsr"] is not None:
+            L.append(f"                 (round 1's single-Sharpe form, for comparison only, never a gate: "
+                     f"{d1['dsr']:.4f})")
     else:
         L.append(f"DEFLATED SHARPE  not computed: pass --trials N (every specification ever tried; "
                  f"{_prior_trials_note()})")
@@ -3222,7 +3334,7 @@ def summary_table(rows):
         r = x["result"]
         s, b, w = r["strategy"], r["benchmark"], r["window"]
         pc = (r.get("placebo_conservative") or {}).get("p_sharpe")
-        ds = (r.get("deflated_sharpe") or {}).get("dsr")
+        ds = ((r.get("deflated_sharpe") or {}).get("primary") or {}).get("dsr")
         bs = r.get("bootstrap")
         ci = (f"[{_p(bs['cagr_diff_ci95'][0], 2)}, {_p(bs['cagr_diff_ci95'][1], 2)}]" if bs else "n/a")
         L.append(f"{r['symbol']:<7}{w['start_close'] + ' → ' + w['last_session']:<25}{w['sessions']:>6}"
