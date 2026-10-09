@@ -115,7 +115,7 @@ import combine
 import replay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-EDGELAB_VERSION = 1
+EDGELAB_VERSION = 2
 
 LookAhead = replay.LookAhead          # one exception type for the whole pipeline
 Blocked = replay.Blocked
@@ -123,6 +123,7 @@ Blocked = replay.Blocked
 SESSIONS_PER_YEAR = 252               # annualises per-session statistics, as replay.py does
 ACCRUAL_DAYS = 365.0                  # calendar-day basis for cash, expense and financing
 MAX_LEVERAGE = 3
+MAX_MARGIN_EXPOSURE = 2.0             # a margin-model rule holds e in [0, 2] of the underlying
 EPS = 1e-12
 HOLIDAY_HORIZON = 10                  # pre/post-holiday ranks are reported up to this many sessions
 PARTIAL_BAR_VOLUME = 0.5              # final bar under this share of the trailing median → suspect
@@ -516,9 +517,25 @@ def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None):
 # =================================================================== rules
 
 class Rule:
-    """A named decision function plus the closed bars it needs before it can act."""
+    """
+    A named decision function, the closed bars it needs before it can act, and
+    the exposure model its numbers mean:
 
-    def __init__(self, name, decide, warmup=0, doc="", test_only=False):
+      model "weight"  a weight in [0, 1] of the instrument (round 1): the file
+                      as traded, or a modelled k-times fund with --leverage k.
+      model "margin"  an exposure e in [0, max_exposure <= 2] on the underlying
+                      itself, held as shares between declared changes; the
+                      borrowed (e-1)+ pays cash + spread, idle (1-e)+ earns cash.
+
+    `baseline` is the exposure the rule holds when it is not doing anything —
+    0 for a long/flat rule, 1 for an overlay. The placebos move departures from
+    it. `anchor(facts) -> bool` marks the scheduled sessions whose CLOSE starts
+    a new cycle for the within-cycle placebo (default: the last session of
+    each month).
+    """
+
+    def __init__(self, name, decide, warmup=0, doc="", test_only=False, model="weight",
+                 baseline=0.0, max_exposure=None, anchor=None):
         self.name = name
         self.decide = decide
         self.warmup = int(warmup)
@@ -526,18 +543,34 @@ class Rule:
         self.test_only = bool(test_only)
         if self.warmup < 0:
             raise ValueError("warmup is a count of closed bars, >= 0")
+        if model not in ("weight", "margin"):
+            raise ValueError(f"model {model!r} is 'weight' or 'margin'")
+        self.model = model
+        mx = (1.0 if model == "weight" else MAX_MARGIN_EXPOSURE) if max_exposure is None \
+            else float(max_exposure)
+        if model == "weight" and mx != 1.0:
+            raise ValueError("a weight-model rule's maximum is 1: leverage belongs to --leverage")
+        if model == "margin" and not 0.0 < mx <= MAX_MARGIN_EXPOSURE:
+            raise ValueError(f"a margin rule's maximum exposure is in (0, {MAX_MARGIN_EXPOSURE:g}]")
+        self.max_exposure = mx
+        self.baseline = float(baseline)
+        if not 0.0 <= self.baseline <= mx:
+            raise ValueError(f"baseline {baseline} is outside [0, {mx:g}]")
+        self.anchor = anchor
 
 
 RULES = {}
 
 
-def register(name, warmup=0, test_only=False):
-    """@register("name", warmup=N) over decide(view) -> weight in [0, 1]."""
+def register(name, warmup=0, test_only=False, model="weight", baseline=0.0, max_exposure=None,
+             anchor=None):
+    """@register("name", warmup=N, model=...) over decide(view) -> exposure (see Rule)."""
     def deco(fn):
         if name in RULES:
             raise ValueError(f"rule {name!r} is registered twice")
         doc = (fn.__doc__ or "").strip()
-        RULES[name] = lambda: Rule(name, fn, warmup, doc, test_only)
+        RULES[name] = lambda: Rule(name, fn, warmup, doc, test_only, model, baseline,
+                                   max_exposure, anchor)
         return fn
     return deco
 
@@ -660,16 +693,20 @@ class View:
 
 
 def _weight(x, rule, date, auction):
+    mx = getattr(rule, "max_exposure", 1.0)
     try:
         w = float(x)
     except (TypeError, ValueError):
         raise ValueError(f"rule {rule.name} returned {x!r} at the {auction} auction of {date}; "
                          f"a weight is a number") from None
-    if not math.isfinite(w) or w < -EPS or w > 1.0 + EPS:
+    if not math.isfinite(w) or w < -EPS or w > mx + EPS:
+        if getattr(rule, "model", "weight") == "weight":
+            raise ValueError(f"rule {rule.name} returned {x!r} at the {auction} auction of {date}: "
+                             f"a weight must be a finite number in [0, 1] of the instrument "
+                             f"(leverage belongs to the instrument, --leverage, not to the weight)")
         raise ValueError(f"rule {rule.name} returned {x!r} at the {auction} auction of {date}: a "
-                         f"weight must be a finite number in [0, 1] of the instrument (leverage "
-                         f"belongs to the instrument, --leverage, not to the weight)")
-    return min(1.0, max(0.0, w))
+                         f"margin exposure must be a finite number in [0, {mx:g}]")
+    return min(mx, max(0.0, w))
 
 
 def decide_all(series, rule, cal, s0, last, leverage=1):
