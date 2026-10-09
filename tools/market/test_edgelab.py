@@ -577,6 +577,9 @@ check("a weekend is not a holiday: an ordinary Monday spans 3 days and is not po
       CAL.facts(dt.date(2026, 3, 9)).days_since_prev_session == 3
       and CAL.facts(dt.date(2026, 3, 9)).post_holiday_rank is None)
 check("year end is the last session of December", CAL.facts(dt.date(2025, 12, 31)).is_year_end)
+check("a month end that is not a quarter end is not called one (2020-04-30)",
+      CAL.facts(dt.date(2020, 4, 30)).is_month_end and not CAL.facts(dt.date(2020, 4, 30)).is_quarter_end
+      and not CAL.facts(dt.date(2020, 3, 31)).is_year_end)
 check("a non-session date is refused, not guessed", _raises(ValueError, CAL.facts, dt.date(2026, 1, 19)))
 
 # A DATA HOLE: 2026-03-04 (the 3rd session of March) missing from the file.
@@ -675,16 +678,17 @@ for y in _yr:
 check("per-year returns compound to the total", _close(_prod, _m["strategy"]["final_equity"], 1e-12))
 check("per-year sides add up to the total", sum(y["sides"] for y in _yr) == _m["strategy"]["sides"])
 _h = _m["halves"]
-_split = (dt.date.fromisoformat(_m["window"]["start_close"])
-          + dt.timedelta(days=(dt.date.fromisoformat(_m["window"]["last_session"])
-                               - dt.date.fromisoformat(_m["window"]["start_close"])).days // 2))
-_scored = [b.ts.date() for b in _win.bars[1:]]
-_n_first = sum(1 for d in _scored if d <= _split)
+_hv = _walk_series(dt.date(2024, 11, 1), dt.date(2025, 6, 30), seed=9)   # holidays bunch in the first half
+_hv_h = E.run(_hv, _cal_rule, 2.0, 0.03, **QUIET)["halves"]
+_hv_dates = [b.ts.date() for b in _hv.bars]
+_split = _hv_dates[0] + dt.timedelta(days=(_hv_dates[-1] - _hv_dates[0]).days // 2)
+_n_first = sum(1 for d in _hv_dates[1:] if d <= _split)
 check("the date midpoint and the bar midpoint differ on this window, so the next check means something",
-      _n_first != len(_scored) // 2, f"{_n_first} vs {len(_scored) // 2}")
+      _n_first != (len(_hv_dates) - 1) // 2, f"{_n_first} vs {(len(_hv_dates) - 1) // 2}")
 check("the halves split at the DATE midpoint: the first half is every session on or before it",
-      _h["split_date"] == _split.isoformat() and _h["first"]["sessions"] == _n_first
-      and _h["second"]["sessions"] == len(_scored) - _n_first)
+      _hv_h["split_date"] == _split.isoformat() and _hv_h["first"]["sessions"] == _n_first
+      and _hv_h["second"]["sessions"] == len(_hv_dates) - 1 - _n_first)
+_scored = [b.ts.date() for b in _win.bars[1:]]
 check("the two halves compound to the whole",
       _close((1 + _h["first"]["strategy"]["return"]) * (1 + _h["second"]["strategy"]["return"]),
              _m["strategy"]["final_equity"], 1e-12)
@@ -710,6 +714,31 @@ check("max drawdown is peak-to-trough with its dates and recovery",
       and _dd["trough"] == "2026-01-05 close" and _dd["recovered"] == "2026-01-06 close")
 check("and agrees with replay.max_drawdown",
       _close(_dd["max_drawdown"], replay.max_drawdown([m[2] for m in _marks])))
+# A gap down at the open that is recovered by the close: invisible on closes,
+# and a book that holds overnight lives through it.
+GAPD = [(dt.date(2026, 3, 2), 100.0, 100.0), (dt.date(2026, 3, 3), 80.0, 100.0),
+        (dt.date(2026, 3, 4), 100.0, 100.0), (dt.date(2026, 3, 5), 100.0, 100.0)]
+_gd = E.run(_series(GAPD), "buy_and_hold", 0.0, 0.0, **QUIET)
+check("max drawdown is measured at the opens too: a -20% gap recovered by the close counts",
+      _close(_gd["strategy"]["max_drawdown"], -0.2) and _gd["strategy"]["trough"] == "2026-03-03 open"
+      and _gd["strategy"]["recovered"] == "2026-03-03 close", str(_gd["strategy"]["max_drawdown"]))
+_cg = E.run(_win, "buy_and_hold", 0.0, 0.0, **QUIET)
+_days = (_win.bars[-1].ts.date() - _win.bars[0].ts.date()).days
+check("CAGR compounds over calendar years (days / 365.25), not bars / 252",
+      _close(_cg["strategy"]["cagr"], (_win.bars[-1].close / _win.bars[0].close) ** (365.25 / _days) - 1))
+_ex = [r - g for r, g in zip(E.session_returns(
+    E.walk([1.0] * len(_scored), [1.0] * len(_scored),
+           *(lambda L: (L.r_on, L.r_id, L.g_on))(E.build_legs(_win.bars, 0, len(_win.bars) - 1,
+                                                              E.CashRate(rate=0.03))), 0.0)["closes"]),
+    E.build_legs(_win.bars, 0, len(_win.bars) - 1, E.CashRate(rate=0.03)).g_on)]
+_srt = E.run(_win, "buy_and_hold", 0.0, 0.03, **QUIET)
+check("Sortino is the mean excess return over the downside deviation (target 0), annualised",
+      _close(_srt["strategy"]["sortino"],
+             (sum(_ex) / len(_ex)) / math.sqrt(sum(x * x for x in _ex if x < 0) / len(_ex)) * math.sqrt(252)))
+check("turnover of overnight-only on a flat market is two sides a session, per year",
+      _close(_on["strategy"]["turnover_per_year"],
+             sum((1 - 1e-4) ** k for k in range(2 * _S)) / (sum((1 - 1e-4) ** (2 * j + 2) for j in range(_S)) / _S)
+             / _on["strategy"]["years"], 1e-9), str(_on["strategy"]["turnover_per_year"]))
 check("the reported Sharpe is in excess of the cash rate",
       _close(_m["strategy"]["sharpe"],
              replay._stats([r - g for r, g in zip(E.session_returns(
@@ -796,7 +825,9 @@ check("with both placebos the conservative reading is the larger p",
       _full["placebo_conservative"]["p_sharpe"] == max(_full["placebo"]["shift"]["p_sharpe"],
                                                         _full["placebo"]["blocks"]["p_sharpe"]))
 check("a p-value is (1 + hits) / (1 + draws), never zero",
-      _full["placebo"]["shift"]["p_sharpe"] >= 1 / 41)
+      _full["placebo"]["shift"]["p_sharpe"] >= 1 / 41
+      and _p1["p_sharpe"] == (1 + sum(1 for x in _p1["null_sharpe"] if x >= _p1["observed_sharpe"] - E.EPS)) / 51
+      and _p1["p_cagr"] == (1 + sum(1 for x in _p1["null_cagr"] if x >= _p1["observed_cagr"] - E.EPS)) / 51)
 
 # ================================================================== deflated sharpe
 
