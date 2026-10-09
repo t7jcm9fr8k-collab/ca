@@ -1,0 +1,334 @@
+registry — the benchmark, two test-only rules, and the one pre-registered rule
+  ok   the registry holds buy_and_hold, the two test-only rules and month_end_overlay, nothing else
+  ok   month_end_overlay is a margin rule at 1x baseline, 2x maximum, not test-only, citing its pre-registration and the file's SHA-256
+  ok   the two test rules are flagged test-only and buy_and_hold is not
+  ok   a name cannot be registered twice
+  ok   an unknown rule is refused by name
+  ok   a Rule instance is refused: the leak check needs a factory
+  ok   each factory call builds a fresh Rule
+
+fill math — a hand-computed series, both auctions
+  ok   the final equity matches the hand walk to 1e-12
+  ok   the cost paid matches the hand walk
+  ok   five sides traded, two of them entries from flat
+  ok   the scored window is close(03-02) → close(03-05), three sessions
+  ok   the overnight leg is close[t-1] → open[t] and the intraday leg open[t] → close[t]
+  ok   buy-and-hold buys at the first CLOSE auction and holds: (1 - c) * C_last / C_first
+  ok   a fractional weight is rebalanced to its declared value at every auction, at a cost
+  ok   at both auctions the view's last bar is the previous session's, never today's
+  ok   the decisions alternate close, open — the close auction of t-1 before the open of t
+
+cost — per side, a round trip is two sides
+  ok   one round trip at 1 bp a side leaves (1 - 0.0001)^2: two sides, ~2 bp
+  ok   the round trip is two sides and one entry
+  ok   the convention is stated in the result: per side, round trip twice
+  ok   the rendered output opens with the cost convention and names the other one
+  ok   zero cost on a flat market is exactly flat
+  ok   overnight-only trades twice a session: one entry and one exit each
+  ok   and on a flat market loses exactly (1 - c)^(2 * sessions)
+  ok   a negative cost is refused
+
+leverage — a modelled daily-reset fund, labelled as a model
+  ok   overnight: (1 + 3 r_on) less one day of expense + 2 x cash
+  ok   intraday: 3 r_id (1 + r_on) / (1 + 3 r_on) — the fund reset at the previous close
+  ok   close-to-close the two legs compound to exactly 3 x the session return, less the drag
+  ok   at 1x the instrument is the underlying, untouched
+  ok   a weekend overnight leg carries three days of drag
+  ok   a 40% gap wipes out a modelled 3x fund, and says so
+  ok   a leveraged run says MODEL, NOT DATA in its output
+  ok   a leveraged run reports a leveraged buy-and-hold reference beside the 1x benchmark
+  ok   weight 1 in the 3x fund is effective exposure 3
+  ok   a leveraged variant without a stated expense ratio is refused
+  ok   leverage above 3 is refused
+
+cash — calendar days, on the overnight leg, across a weekend and a holiday
+  ok   overnight legs span 1, 1, 4 (weekend + holiday), 1, 1 calendar days
+  ok   the leg across the weekend and MLK day accrues four days: 1.05^(4/365) - 1
+  ok   a holiday that the calendar knows is not a gap leg
+  ok   all cash from 01-14 to 01-22 earns exactly 1.05^(8/365)
+  ok   intraday legs accrue nothing: each open equals that session's close for cash
+  ok   a fully invested book earns no cash yield
+  ok   a dated series applies the rate in force at the start of the leg
+  ok   a date before the dated series starts is refused, not extrapolated
+  ok   a rate that looks like a percent is refused
+  ok   a dated series loads from a date,rate CSV
+  ok   a constant parses from text
+
+information sets — the view raises at both auctions
+  ok   at the open auction the view has the closed bars only
+  ok   at the open auction today's bar is out of reach
+  ok   at the open auction open_today raises — it is the price being set
+  ok   today's close, high, low and volume raise at the open auction
+  ok   at the close auction open_today is today's open
+  ok   at the close auction today's close, high, low and volume raise
+  ok   at the close auction today's bar is still out of reach by index
+  ok   a negative index before the start raises
+  ok   a slice clamps to the closed bars
+  ok   closes(n) returns at most n closed closes
+  ok   a view cannot be given a new attribute to smuggle state
+  ok   the view's calendar facts are today's, and next_cal the next scheduled session
+  ok   a rule that reads today's open at the OPEN auction is stopped (LookAhead)
+  ok   a rule that reads today's close at the CLOSE auction is stopped (LookAhead)
+  ok   a rule that indexes today's bar is stopped at either auction
+  ok   a rule that uses today's open at the close auction is allowed, and passes the leak check
+  ok   a weight of 1.5 is refused, never clamped
+  ok   a weight of -0.1 is refused, never clamped
+  ok   a weight of nan is refused, never clamped
+  ok   a weight of 'abc' is refused, never clamped
+  ok   a weight of None is refused, never clamped
+
+leak check — the future physically removed, the rule rebuilt per sample
+  ok   buy_and_hold is clean
+  ok   test_overnight_only is clean
+  ok   test_intraday_only is clean
+  ok   a legitimate price rule is clean at both auctions
+  ok   a rule that peeks at today's close at the CLOSE auction is caught
+  ok   a rule that peeks at today's bar at the OPEN auction is caught
+  ok   a rule that reads tomorrow's bar is caught
+  ok   a rule that keeps state between calls is caught
+  ok   a memoised look-ahead is caught because the check rebuilds the rule per sample
+  ok   a leak shows in the rendered output as NOT A RESULT
+  ok   a rule that reads view.held is checked with the weight the run held, and is clean
+  ok   the leak check re-decides every point where the decision changed
+
+calendar — the scheduled one, on dates whose answer is known
+  ok   the last session of 2020-03 is 2020-03-31: day -1, a quarter end
+  ok   2018-03's last weekday is Good Friday, so its last session is Thursday 03-29
+  ok   2021-05's last weekday is Memorial Day, so its last session is Friday 05-28
+  ok   the third Friday of 2022-04 is the 15th
+  ok   opex 2022-04 falls on Good Friday, so it is Thursday 2022-04-14
+  ok   opex 2026-06 falls on Juneteenth, so it is Thursday 2026-06-18
+  ok   an ordinary opex is the third Friday: 2026-09-18
+  ok   the session before Thanksgiving 2026 is pre-holiday rank 1, the one before that rank 2
+  ok   the Friday after Thanksgiving is post-holiday rank 1
+  ok   the Friday before MLK day is pre-holiday rank 1, and its overnight leg spans 4 days
+  ok   an ordinary Friday is not pre-holiday when no holiday is near
+  ok   a weekend is not a holiday: an ordinary Monday spans 3 days and is not post-holiday
+  ok   year end is the last session of December
+  ok   a month end that is not a quarter end is not called one (2020-04-30)
+  ok   a non-session date is refused, not guessed
+  ok   a session the file lacks is reported as a DATA HOLE
+  ok   the overnight leg across the hole is named
+  ok   bar-counted ordinals would shift in that month, and the report says why
+  ok   a missing bar does not shift the window: March's 5th session is still 03-06, not 03-09
+  ok   the leg across the hole is marked as a gap leg in the run
+  ok   a known unscheduled closure is labelled as one, not as a hole
+  ok   a file that ends mid-month: a bar-counted 'last session of the month' is flagged
+  ok   a final bar with a tenth of the usual volume is flagged as a possible partial session
+  ok   a normal final bar is not flagged
+  ok   a series barqc blocks is refused before a single leg is walked
+
+window — strategy and benchmark from the same close, over the same legs
+  ok   buy_and_hold run as a rule equals the benchmark to the last digit
+  ok   a 30-bar warm-up moves BOTH starts to the close of bar 30
+  ok   the benchmark is bought at bar 30's close, never at bar 0's
+  ok   and the warmed-up buy-and-hold still equals it exactly
+  ok   a flat rule with a warm-up is compared with buy-and-hold from the same bar
+  ok   --start scores from the close before the first session on or after it
+  ok   --end stops at the last session on or before it
+  ok   a warm-up longer than the gap before --start pushes the start later, never earlier
+
+metrics — they add up
+  ok   per-year returns compound to the total
+  ok   per-year sides add up to the total
+  ok   the date midpoint and the bar midpoint differ on this window, so the next check means something
+  ok   the halves split at the DATE midpoint: the first half is every session on or before it
+  ok   the two halves compound to the whole
+  ok   exposure counts legs: 0.5 intraday weights count as exposed legs, mean exposure is lower
+  ok   at zero cost the gross and net paths are the same path
+  ok   cost makes the net path worse than the gross one
+  ok   overnight-only is exposed on every overnight leg and no intraday one
+  ok   max drawdown is peak-to-trough with its dates and recovery
+  ok   and agrees with replay.max_drawdown
+  ok   max drawdown is measured at the opens too: a -20% gap recovered by the close counts
+  ok   CAGR compounds over calendar years (days / 365.25), not bars / 252
+  ok   Sortino is the mean excess return over the downside deviation (target 0), annualised
+  ok   turnover of overnight-only on a flat market is two sides a session, per year
+  ok   the reported Sharpe is in excess of the cash rate
+
+decomposition — the two legs multiply to the whole, through the rule path too
+  ok   overnight x intraday compounds to the close-to-close whole
+  ok   test_overnight_only at zero cost and cash IS the overnight leg
+  ok   test_intraday_only at zero cost and cash IS the intraday leg
+  ok   buy_and_hold at zero cost IS the whole
+  ok   the halves of the decomposition compound to the whole
+
+placebo — seeded, and it keeps what it claims to keep
+  ok   the same seed gives the same placebo, draw for draw
+  ok   a different seed gives a different placebo
+  ok   the block placebo is deterministic under its seed too
+  ok   the observed numbers the placebo compares are the ones reported
+  ok   a circular shift keeps every session state, so every exposed leg of each kind
+  ok   the block placebo keeps the exposed legs of each kind, every block intact, every gap length
+  ok   the placebo actually moves the exposure
+  ok   an exposure with no timing is degenerate: no p-value, said so
+  ok   with both placebos the conservative reading is the larger p
+  ok   a p-value is (1 + hits) / (1 + draws), never zero
+
+deflated Sharpe — against the benchmark, with the trial count as an argument
+  ok   observed Sharpe = benchmark + expected best-of-N under the null gives exactly 0.5
+  ok   a higher observed Sharpe gives a higher probability
+  ok   against a zero benchmark it is combine.deflated_sharpe exactly
+  ok   one trial has no selection: the threshold is the benchmark's Sharpe itself
+  ok   more trials raise the bar
+  ok   a run without --trials does not invent a deflated Sharpe
+  ok   a run with --trials keeps round 1's form beside the gate, deflated against the benchmark's Sharpe
+  ok   a run with --trials gates on the PAIRED deflated Sharpe against buy-and-hold, excess of cash
+
+bootstrap — paired, stationary, seeded
+  ok   a rule identical to its benchmark has a zero-width CI at zero
+  ok   a rule that beats its benchmark every session has a CI above zero
+  ok   the bootstrap is deterministic under its seed
+
+many files and the command line
+  ok   the same rule runs on many files, symbols taken from the file names
+  ok   a file barqc blocks is a BLOCKED row, never a silent gap
+  ok   the summary table has a row per file, the blocked one included
+  ok   --list-rules lists exactly the three
+  ok   no cost given is refused: there is no default cost
+  ok   no cash yield given is refused: 0 is an answer, silence is not
+  ok   a test-only rule is refused on a file without --allow-test-rule
+  ok   a cash yield that looks like a percent is refused
+  ok   a two-file run exits 0 and writes --out
+  ok   --out holds the summary, both reports, the cost convention, then JSON
+  ok   --curves writes one row per scored session with the weights held and both paths
+  ok   a run with a blocked file exits 2 and still reports the good one
+  ok   --calendar-report runs on dates alone
+  ok   --leverage 3 without --expense-ratio is refused
+
+round 2 — the margin engine against a hand walk in exact fractions
+  ok   the closed-form segment walk equals an exact step-by-step walk at every leg boundary
+  ok   probes read the same equity as the detailed marks
+  ok   a forced reset trades even when the declared level is unchanged; an unchanged level does not
+  ok   weekend financing: the leg into Monday accrues three calendar days at cash + spread
+  ok   on a random path with random changes the two walks agree to 1e-12
+  ok   buy-and-hold on the margin engine equals round 1's weight-engine benchmark
+  ok   entering 2x from cash trades 2 units; 1x from cash trades 1
+  ok   2x on a flat price pays exactly the financing on one borrowed unit
+  ok   bar (A): one level, a forced reset at each rule-trade leg, each leg once
+
+round 2 — a month window on the scheduled calendar, closures, and the frozen window list
+  ok   November 2018: the T+3 exit falls on the 2018-12-05 closure and executes at the next close
+  ok   October 2012: Sandy's closures shorten the window to 5 held sessions; offsets stay scheduled
+  ok   December 2006: the 2007-01-02 closure leaves 6 held sessions, exit at the close of 2007-01-04
+  ok   a frozen window list is reproduced exactly; its incomplete rows are not compared
+  ok   one moved exit is caught and named
+
+round 2 — closes only, add-backs, and the dividend basis
+  ok   closes only: moving every open leaves every number exactly unchanged
+  ok   two legs, MOC-only rule: the opens cancel to rounding (1e-12)
+  ok   closes only is refused for a rule that trades at an open auction
+  ok   closes only: the ex-date's return is (close + D) / close[t-1] - 1 and no open enters
+  ok   two legs: the payout is credited on the ex-date's overnight leg, (open + D) / close[t-1] - 1
+  ok   add-backs: on or before the cutoff skipped, outside the window ignored, inside applied
+  ok   a payout dated ON the cutoff is already in the prices and is not added twice
+  ok   an ex-date inside the window with no bar cannot be placed: integrity fails
+  ok   a file declared adjusted with no cutoff takes no add-back (a payout would count twice)
+  ok   total return over the window: a price-only tail with nothing added back fails G0
+  ok   a distributions file loads with its SHA-256
+  ok   add-backs that differ from the frozen list make the run VOID, with no cell computed
+  ok   a VOID report prints the integrity block and no performance number
+  ok   the pre-registration's SHA-256 is computed and printed
+  ok   a start close that is not a bar is refused
+  ok   --start-close starts scoring at exactly that close
+
+round 2 — the placebo designs: identity, coverage, determinism
+  ok   every design's identity arrangement IS the rule's change list
+  ok   fed through the placebo evaluator, each identity arrangement reproduces the observed CAGR, both halves and the ex-crisis CAGR exactly, in every cell
+  ok   linear within-cycle: every block keeps its length and stays inside its own cycle
+  ok   circular within-cycle: every block keeps its length, contiguous modulo its own cycle
+  ok   a fixed seed gives the same draws; different draws differ
+  ok   circular placement covers every session of the cycle equally often (7/21)
+  ok   linear placement does not: the cycle's edge sessions, where the real block sits, are covered least (1/15 against 7/15) — why it is not an exact test (r2-bench Build §B4)
+  ok   shift and blocks are baseline-aware: an always-1x-or-more overlay keeps its 2x legs and is not degenerate
+  ok   on a rising price, 5 of 10 nulls above the rule give p = (1 + 5) / (1 + 10), not 5/10
+  ok   the placebo p counts ties against the rule: (1 + #{null >= observed}) / (1 + B)
+
+round 2 — the deflated Sharpe, the timing book, G6 and G7 inputs
+  ok   the block bootstrap equals resampling by hand: the same blocks for both series, wrapping at the end, the last block shortened to fit
+  ok   paired SE: a series against itself has SE 0
+  ok   paired SE: independent series ~ sqrt(2) single SEs; corr 0.9 ~ sqrt(0.2) of them
+  ok   DSR fixed point: dSR = SE x E[max Z_N] gives exactly 0.5
+  ok   timing book: d = ln(1+R) - ln(1+R_A); the analytic z is Bailey-Lopez de Prado's at one trial
+  ok   G5': the smaller of the bootstrap and analytic z is used; the deflated value is Phi(z - E[max Z_N])
+  ok   the draft's bars: z >= 3.03 at N = 40 and z >= 3.37 at N = 100 for DSR 0.80
+  ok   _drop_top removes only the 5 largest POSITIVE values
+  ok   episodes: runs fewer than 5 baseline sessions apart merge; 5 or more apart do not
+  ok   G7 inputs: both statistics under both thresholds; the timing z is z_used, as in G5'
+  ok   CAGR with the crisis sessions removed = their returns chained, over the kept share of the years
+  ok   each half's CAGR comes from the full run's equity at the half's first and last closes
+  ok   halves: 'session' cuts at (S+1)//2; 'date' at the calendar midpoint
+  ok   session accrual: every overnight leg accrues 1/252 of a year, weekend or not
+
+round 2 — the SSO switch, the descriptives, the offset profile
+  ok   SSO switch: 4 sides a window (sell SPY, buy the fund, and back) plus the first purchase
+  ok   SSO switch with no window is buy-and-hold of the underlying
+  ok   SSO switch is not applicable to exposures other than 1x and kx
+  ok   descriptive spans pick cycles by their entry close and add up to the whole
+  ok   descriptive overlap: the share of 2x sessions another strategy holds, d's mean where it does not
+  ok   descriptive events: windows inside the dated coverage, with and without an event
+  ok   offset profile: an injected +50 bp at T-3 in the late group is found there and nowhere else
+  ok   offset profile: the declared contrast is the difference of the two group means
+  ok   offset profile: an excluded date is left out and counted
+
+round 2 — the self-checks and the command line
+  ok   the synthetic harness checks 1-4 and 7 pass on an S1-shaped rule and report their numbers
+  ok   self-check 7 fails when the placebo evaluator reproduces the rule's numbers only approximately
+  ok   a margin run exits 0 with the grid's cells in order, the first primary, plus the extra cell
+  ok   the report carries G0, the stress grid, G5' and G6/G7 inputs, the replication and the descriptives
+  ok   --leak-samples all re-runs every decision
+  ok   the JSON has no per-session series
+  ok   a wrong file hash makes the run VOID: exit 3 and no performance number
+  ok   G0 covers the replication file too: undeclared basis there voids the whole run
+  ok   a margin run without --spread is refused
+  ok   a weight-model rule refuses a cost grid
+
+round 2 — consistency between the gate inputs, and the data flags
+  ok   G6's per-cycle log book sums to the timing book's total (the cycles tile the window)
+  ok   cycles count in the half that holds their entry close (the first half iff they start before the cut)
+  ok   the halves' returns compound to the whole, for every book
+  ok   the paired Sharpe difference is on returns in excess of cash, against bar (A) by default
+  ok   the decisive test, end to end: each placebo's observed CAGR is the rule's own CAGR, in every cell
+  ok   the timing book's sum is the log of the wealth ratio of the rule to bar (A)
+  ok   bar (A) holds the rule's mean exposure and trades only where the rule trades
+  ok   the accrual residual is the rule-minus-(A) CAGR under one convention minus the other
+  ok   a placeholder bar (open = high = low = close, volume 0) is flagged by the calendar report
+  ok   a declared total-return cutoff is printed as such: total-return THROUGH it, price-only AFTER
+
+the pre-registered rule and its reading rule (synthetic result dicts and synthetic bars)
+  ok   month_end_overlay decides exactly as month_window_rule(-3, 3, inside=2, outside=1, margin), at both auctions
+  ok   the frozen reading rule carries the pre-registration's numbers
+  ok   the frozen reasons are the pre-registration's table, verbatim
+  ok   every gate passing at every pair reads WORKS, with no reason
+  ok   VOID when the run's integrity failed, when the replication is missing or failed, or a gated pair is missing
+  ok   G1 fails at one pair when S1 only ties (A) at 2 bp: PARTIAL, 'timing not worth its drag and costs'
+  ok   G1's 5 bp leg: a tie passes (>=), one basis point of CAGR short fails
+  ok   G2 fails when one half ties at one pair: 'unstable'
+  ok   G3 on signed drawdowns: exactly 5 points deeper than (A) passes; 5.01 fails, 'riskier than (A)'
+  ok   G5' at N = 40: z_used 3.0310 fails, 'below the selection-adjusted bar'
+  ok   G5' at N = 40: z_used 3.0312 passes, but below 3.3722 it flips at N = 100: PARTIAL, same reason
+  ok   G5' clear of both bars (z_used 3.3723 everywhere): WORKS
+  ok   G6: 99 cycles, or 39 in either half, fails 'concentrated'; 100 and 40 pass
+  ok   G6: the sum without the 5 best cycles must be >= 0 (0 passes), the drop-crisis margin > 0 (0 fails)
+  ok   G7': z_used of exactly -1 is no veto; -1.0001 at one 2 bp pair is, 'did not replicate'
+  ok   ungated cells (1 bp; the 0% / 7.75% line; the replication at 5 bp) never move the verdict
+  ok   several gates failing with G4 passing: PARTIAL — DO NOT TRADE, every reason in the table's order
+  ok   G4: p = 0.05 is not < 0.05; with G1-G3 passing that reads PARTIAL 'beat (A), indistinguishable from random placement'
+  ok   G4 passing on p alone but losing to the placebo median in a half fails G4
+  ok   G4 failing with G2 failing: NULL, and the failed gate's reason is still printed
+  ok   G4 failing with G1-G3 passing and G5' failing: PARTIAL 'beat (A) ...' plus 'below the selection-adjusted bar'
+  ok   the verdict block prints the headline, every reason verbatim and every gate's line
+
+the frozen invocation: G0 voids any deviation (synthetic files and a synthetic frozen spec)
+  ok   a frozen invocation parses to its arguments: comments dropped, continuations joined, quotes kept
+  ok   the conformance items pass when the command, the files and the window facts are the frozen ones
+  ok   one changed token in the command fails 'frozen invocation' and names the token
+  ok   a window fact that differs from the frozen one fails 'frozen window facts'
+  ok   the frozen invocation runs (exit 0) and prints the verdict after the gates, before any descriptive
+  ok   the same run with one argument changed is VOID: exit 3, and no performance number is printed
+  ok   an extra argument (even --out) is a deviation: VOID
+  ok   no bar file and not trials.json was touched by the tests
+  ok   the suite stayed offline: a connection out is refused
+
+all checks passed
+exit 0

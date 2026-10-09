@@ -1,0 +1,19 @@
+# r4 input checks (sha256 of files on disk now; freeze-commit history; byte-compare with my r2 files)
+52a006deec221ab41c869bd25b279203d3f8d9dedad0bb99ea481164a2cd45a0  bars/SPY-1d.csv
+4433bdbc019328196c84e610fe5f834aa72097de70a9d3bc2d499a6dfeae790e  bars/QQQ-1d-long.csv
+56de9701556046a8da0cea9b02e67c3e8c4d98a2874d01e37c3de983bb80a3e4  prereg-2026-10-09/windows-S1-SPY.csv
+9babdf5053a7c5f41753a600d65f603329b376aff5f44fef970a458fd8029c59  prereg-2026-10-09/windows-G7-QQQ.csv
+780a360f01fa86b49ddd53d470951fdb228ae7a013e6adf8f34ea980bcf8ac5e  prereg-2026-10-09/spy-distributions-2025-2026.csv
+85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f  PREREG-2026-10-09-month-end.md
+0ec3dde1d4011b14425bf476c5072ced16217143abedab473afa9143ff5370c2  prereg-2026-10-09/invocation.sh
+52a006de quoted in PREREG: 1, in invocation.sh: 1
+4433bdbc quoted in PREREG: 1, in invocation.sh: 1
+git log of prereg dir + PREREG doc:
+  3201ce4 PREREG 2026-10-09: the month-end overlay, one specification, frozen before any run
+git diff --stat 3201ce4 HEAD on prereg dir, PREREG doc, SPY-1d.csv, QQQ-1d-long.csv: [0 lines] (empty = unchanged)
+1d9608d touches: tools/market/runs/edgelab-2026-10-09-month-end.txt
+windows-S1-SPY.csv identical to S/edge/quartermaster/r2/windows-S1-SPY.csv
+windows-G7-QQQ.csv identical to S/edge/quartermaster/r2/windows-G7-QQQ.csv
+spy-distributions-2025-2026.csv identical to S/edge/data/events/ copy
+# add-back dates: sum of d over the five ex-dates (parsed from verify.txt)
+  5 ex-dates, all e=1: True; sum d with add-backs -0.002078, without +0.002638, difference -0.004716

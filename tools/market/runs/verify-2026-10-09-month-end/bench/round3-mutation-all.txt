@@ -1,0 +1,130 @@
+[r1] CAUGHT          overnight leg priced close-to-close  — 14 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0515950200370716 vs 1.0620068519186268
+[r1] CAUGHT          intraday leg priced from the previous close  — 12 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0513302963940037 vs 1.0620068519186268
+[r1] CAUGHT          cost charged once per round trip (entries only)  — 3 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0625355025874017 vs 1.0620068519186268
+[r1] CAUGHT          cost not charged at the open auction  — 6 failing check(s); first: the final equity matches the hand walk to 1e-12 1.064666389090909 vs 1.0620068519186268
+[r1] CAUGHT          cash accrued per session, not per calendar day  — 5 failing check(s); first: a weekend overnight leg carries three days of drag
+[r1] CAUGHT          cash also accrues on the intraday leg  — 2 failing check(s); first: all cash from 01-14 to 01-22 earns exactly 1.05^(8/365) 1.0021410356730904
+[r1] CAUGHT          benchmark bought at bar 0 regardless of warm-up (the EVIDENCE bug)  — 2 failing check(s); first: the benchmark is bought at bar 30's close, never at bar 0's
+[r1] MISSED          open_today allowed at the open auction  — 0 failing check(s)
+[r1] CAUGHT          open_today guard removed  — 2 failing check(s); first: at the open auction open_today raises — it is the price being set
+[r1] CAUGHT          view index guard only checks one end  — 3 failing check(s); first: at the open auction today's bar is out of reach
+[r1] CAUGHT          leak check reuses one rule instead of rebuilding per sample  — 1 failing check(s); first: a legitimate price rule is clean at both auctions
+[r1] CAUGHT          leak check does not truncate at the close auction  — 1 failing check(s); first: a rule that peeks at today's close at the CLOSE auction is caught 0
+[r1] CAUGHT          leak check does not truncate at the open auction  — 1 failing check(s); first: a rule that peeks at today's bar at the OPEN auction is caught
+[r1] CAUGHT          opex not moved off a holiday Friday  — 2 failing check(s); first: opex 2022-04 falls on Good Friday, so it is Thursday 2022-04-14
+[r1] CAUGHT          pre-holiday rank off by one  — 3 failing check(s); first: 2018-03's last weekday is Good Friday, so its last session is Thursday 03-29
+[r1] CAUGHT          month ordinal from end off by one  — 9 failing check(s); first: the last session of 2020-03 is 2020-03-31: day -1, a quarter end
+[r1] CAUGHT          leveraged intraday leg naive k*r_id  — 2 failing check(s); first: intraday: 3 r_id (1 + r_on) / (1 + 3 r_on) — the fund reset at the previous close
+[r1] CAUGHT          leverage drag without financing  — 3 failing check(s); first: overnight: (1 + 3 r_on) less one day of expense + 2 x cash
+[r1] CAUGHT          deflated Sharpe against zero, not the benchmark  — 3 failing check(s); first: observed Sharpe = benchmark + expected best-of-N under the null gives exactly 0.5 {'dsr': 
+[r1] CAUGHT          halves split at the bar midpoint  — 1 failing check(s); first: the halves split at the DATE midpoint: the first half is every session on or before it
+[r1] CAUGHT          Sharpe not in excess of cash  — 3 failing check(s); first: Sortino is the mean excess return over the downside deviation (target 0), annualised
+[r1] CAUGHT          placebo shift by legs breaks leg types  — 2 failing check(s); first: a different seed gives a different placebo
+[r1] CAUGHT          placebo seed ignored  — 2 failing check(s); first: the same seed gives the same placebo, draw for draw
+[r1] CAUGHT          weight out of range clamped instead of refused  — 2 failing check(s); first: a weight of 1.5 is refused, never clamped
+[r1] CAUGHT          barqc gate skipped  — 1 failing check(s); first: a series barqc blocks is refused before a single leg is walked
+[r1] CAUGHT          calendar ordinal read off bar dates (shifts on a hole)  — 2 failing check(s); first: a missing bar does not shift the window: March's 5th session is still 03-06, not 03-09 [da
+[r1] CAUGHT          drawdown ignores open marks  — 1 failing check(s); first: max drawdown is measured at the opens too: a -20% gap recovered by the close counts 0.0
+[r1] CAUGHT          bootstrap unpaired (benchmark resampled separately)  — 2 failing check(s); first: a rule identical to its benchmark has a zero-width CI at zero
+[r1] CAUGHT          dated cash uses the rate at the END of the leg  — 1 failing check(s); first: a dated series applies the rate in force at the start of the leg
+[r1] CAUGHT          final-bar partial check never fires  — 1 failing check(s); first: a final bar with a tenth of the usual volume is flagged as a possible partial session
+[r1] CAUGHT          engine: close-auction view sees today's full bar (n = u + 1), log agrees  — 12 failing check(s); first: at both auctions the view's last bar is the previous session's, never today's [('close', d
+[r1] CAUGHT          engine: open-auction view one bar short (n = t - 1), log agrees  — 12 failing check(s); first: at both auctions the view's last bar is the previous session's, never today's [('close', d
+[r1] CAUGHT          leak check re-decides with held = 0  — 5 failing check(s); first: a rule that reads view.held is checked with the weight the run held, and is clean [{'date'
+[r1] CAUGHT          walk keeps drift: trades only on entry or exit  — 4 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0625381209791163 vs 1.0620068519186268
+[r1] CAUGHT          CAGR over bars / 252  — 2 failing check(s); first: CAGR compounds over calendar years (days / 365.25), not bars / 252
+[r1] CAUGHT          Sortino divides by the count of down sessions  — 1 failing check(s); first: Sortino is the mean excess return over the downside deviation (target 0), annualised
+[r1] CAUGHT          turnover over final equity instead of mean equity  — 1 failing check(s); first: turnover of overnight-only on a flat market is two sides a session, per year 522.072811258
+[r1] CAUGHT          leverage weekend drag counted as one day  — 5 failing check(s); first: a weekend overnight leg carries three days of drag
+[r1] CAUGHT          block placebo shuffles gaps and blocks together  — 1 failing check(s); first: the block placebo keeps the exposed legs of each kind, every block intact, every gap lengt
+[r1] CAUGHT          calendar report calls every missing session a DATA HOLE  — 1 failing check(s); first: a known unscheduled closure is labelled as one, not as a hole
+[r1] CAUGHT          post-holiday rank off by one  — 1 failing check(s); first: the Friday after Thanksgiving is post-holiday rank 1
+[r1] CAUGHT          quarter end on any month end  — 1 failing check(s); first: a month end that is not a quarter end is not called one (2020-04-30)
+[r1] CAUGHT          placebo p-value without the +1  — 1 failing check(s); first: a p-value is (1 + hits) / (1 + draws), never zero
+[r1] CAUGHT          conservative placebo reading takes the smaller p  — 1 failing check(s); first: with both placebos the conservative reading is the larger p
+[r1] CAUGHT          test-only rules allowed on files by default  — 1 failing check(s); first: a test-only rule is refused on a file without --allow-test-rule
+[r1] CAUGHT          default cost silently zero  — 1 failing check(s); first: no cost given is refused: there is no default cost
+[r2] CAUGHT          margin: trade sized from the declared, not the drifted, exposure  — 4 failing check(s); first: the closed-form segment walk equals an exact step-by-step walk at every leg boundary [(1.0
+[r2] CAUGHT          margin: borrowed money earns the cash rate  — 4 failing check(s); first: the closed-form segment walk equals an exact step-by-step walk at every leg boundary [(1.0
+[r2] CAUGHT          margin: a forced reset is ignored  — 4 failing check(s); first: the closed-form segment walk equals an exact step-by-step walk at every leg boundary [(1.0
+[r2] CAUGHT          margin: cost not taken out of equity  — 3 failing check(s); first: the closed-form segment walk equals an exact step-by-step walk at every leg boundary [(1.0
+[r2] CAUGHT          margin: financing without the spread  — 3 failing check(s); first: weekend financing: the leg into Monday accrues three calendar days at cash + spread
+[r2] CAUGHT          margin legs: closes-only step divides by the open  — 4 failing check(s); first: closes only: moving every open leaves every number exactly unchanged
+[r2] CAUGHT          margin legs: the add-back dropped on the two-leg path  — 1 failing check(s); first: two legs: the payout is credited on the ex-date's overnight leg, (open + D) / close[t-1] -
+[r2] CAUGHT          accrual: 'session' still counts calendar days  — 2 failing check(s); first: session accrual: every overnight leg accrues 1/252 of a year, weekend or not
+[r2] CAUGHT          bar (A) never reset  — 3 failing check(s); first: bar (A): one level, a forced reset at each rule-trade leg, each leg once
+[r2] CAUGHT          bar (A) exposure misses the first leg  — 1 failing check(s); first: bar (A) holds the rule's mean exposure and trades only where the rule trades
+[r2] CAUGHT          circular within-cycle draws only linear starts  — 1 failing check(s); first: circular placement covers every session of the cycle equally often (7/21) [0.066, 0.131, 0
+[r2] CAUGHT          circular within-cycle: the wrapped tail one session too long  — 2 failing check(s); first: circular within-cycle: every block keeps its length, contiguous modulo its own cycle
+[r2] CAUGHT (crash)  within-cycle: observed offsets absolute, not relative  — 0 failing check(s); IndexError: list index out of range
+[r2] CAUGHT          shift by legs, not whole sessions  — 4 failing check(s); first: two legs, MOC-only rule: the opens cancel to rounding (1e-12)
+[r2] CAUGHT          blocks: the identity order interleaves the wrong list first  — 3 failing check(s); first: every design's identity arrangement IS the rule's change list {'within_cycle': [(0, 2.0, F
+[r2] CAUGHT          margin placebo p without the +1  — 1 failing check(s); first: on a rising price, 5 of 10 nulls above the rule give p = (1 + 5) / (1 + 10), not 5/10
+[r2] CAUGHT          drop-crisis CAGR annualised over all the years  — 1 failing check(s); first: CAGR with the crisis sessions removed = their returns chained, over the kept share of the 
+[r2] CAUGHT          second half's CAGR from 1, not from the cut  — 1 failing check(s); first: each half's CAGR comes from the full run's equity at the half's first and last closes
+[r2] CAUGHT          session halves cut one late  — 1 failing check(s); first: halves: 'session' cuts at (S+1)//2; 'date' at the calendar midpoint
+[r2] CAUGHT          deflated Sharpe back on the single-Sharpe SE (the deal-breaker)  — 1 failing check(s); first: the synthetic harness checks 1-4 and 7 pass on an S1-shaped rule and report their numbers 
+[r2] CAUGHT          deflated Sharpe: E[max Z] scaled by 1/(T-1)  — 1 failing check(s); first: DSR fixed point: dSR = SE x E[max Z_N] gives exactly 0.5
+[r2] CAUGHT          G5': the larger of the two z is used  — 1 failing check(s); first: G5': the smaller of the bootstrap and analytic z is used; the deflated value is Phi(z - E[
+[r2] CAUGHT          G5': analytic z without the skew/kurtosis term  — 1 failing check(s); first: timing book: d = ln(1+R) - ln(1+R_A); the analytic z is Bailey-Lopez de Prado's at one tri
+[r2] CAUGHT          timing book 'log' is the simple difference  — 3 failing check(s); first: timing book: d = ln(1+R) - ln(1+R_A); the analytic z is Bailey-Lopez de Prado's at one tri
+[r2] CAUGHT          G6: the top 5 removed include negative cycles  — 1 failing check(s); first: _drop_top removes only the 5 largest POSITIVE values
+[r2] CAUGHT          episodes merge at a gap of exactly 5  — 1 failing check(s); first: episodes: runs fewer than 5 baseline sessions apart merge; 5 or more apart do not
+[r2] CAUGHT          G6: cycles assigned to halves by their end  — 2 failing check(s); first: G6's per-cycle log book sums to the timing book's total (the cycles tile the window)
+[r2] CAUGHT (crash)  G7': the veto reads the bootstrap z, not z_used  — 0 failing check(s); TypeError: '<' not supported between instances of 'NoneType' and 'float'
+[r2] CAUGHT          VOID not enforced: cells computed after an integrity failure  — 1 failing check(s); first: add-backs that differ from the frozen list make the run VOID, with no cell computed
+[r2] CAUGHT          add-back on the cutoff date added a second time  — 1 failing check(s); first: a payout dated ON the cutoff is already in the prices and is not added twice
+[r2] CAUGHT          a price-only tail passes as total return  — 1 failing check(s); first: total return over the window: a price-only tail with nothing added back fails G0
+[r2] CAUGHT          window list compares entries only  — 1 failing check(s); first: one moved exit is caught and named
+[r2] CAUGHT          declared exit one close early  — 3 failing check(s); first: November 2018: the T+3 exit falls on the 2018-12-05 closure and executes at the next close
+[r2] CAUGHT          month window decided on today's facts, not the next scheduled session's  — 5 failing check(s); first: November 2018: the T+3 exit falls on the 2018-12-05 closure and executes at the next close
+[r2] CAUGHT          closes-only accepts a rule that trades at the open  — 1 failing check(s); first: closes only is refused for a rule that trades at an open auction
+[r2] CAUGHT          self-check 2 compares with sqrt(p) sigma  — 1 failing check(s); first: the synthetic harness checks 1-4 and 7 pass on an S1-shaped rule and report their numbers 
+[r2] CAUGHT          self-check 3 forgets the sqrt(years)  — 1 failing check(s); first: the synthetic harness checks 1-4 and 7 pass on an S1-shaped rule and report their numbers 
+[r2] CAUGHT          SSO switch counts one side per switch  — 1 failing check(s); first: SSO switch: 4 sides a window (sell SPY, buy the fund, and back) plus the first purchase (6
+[r2] CAUGHT          offset-profile contrast sign flipped  — 1 failing check(s); first: offset profile: the declared contrast is the difference of the two group means
+[r2] CAUGHT          CLI: a margin run without --spread runs at zero  — 1 failing check(s); first: a margin run without --spread is refused
+[r2] CAUGHT          CLI: VOID printed but the run continues and exits 0  — 4 failing check(s); first: a wrong file hash makes the run VOID: exit 3 and no performance number
+[r2] CAUGHT          CLI: --leak-samples all re-runs only 100  — 1 failing check(s); first: --leak-samples all re-runs every decision
+[r2] CAUGHT          dsr benchmark returns not in excess of cash  — 1 failing check(s); first: the paired Sharpe difference is on returns in excess of cash, against bar (A) by default
+[r2] CAUGHT          halves_books: the second half measured from 1, not from the cut  — 1 failing check(s); first: the halves' returns compound to the whole, for every book
+[r2] CAUGHT          block bootstrap: the circle closed with zeros  — 1 failing check(s); first: the block bootstrap equals resampling by hand: the same blocks for both series, wrapping a
+[r2] CAUGHT          block bootstrap: the last, shorter block dropped  — 1 failing check(s); first: the block bootstrap equals resampling by hand: the same blocks for both series, wrapping a
+[r2] CAUGHT          block bootstrap: variance over n, not n - 1  — 1 failing check(s); first: the block bootstrap equals resampling by hand: the same blocks for both series, wrapping a
+[r2] CAUGHT          identity check: run_placebo's observed CAGR from the rule's walk with a different cost  — 1 failing check(s); first: the decisive test, end to end: each placebo's observed CAGR is the rule's own CAGR, in eve
+[r3] CAUGHT          registered rule: 1.5x inside, not 2x  — 1 failing check(s); first: month_end_overlay decides exactly as month_window_rule(-3, 3, inside=2, outside=1, margin)
+[r3] CAUGHT          registered rule: window T-3..T+4  — 1 failing check(s); first: month_end_overlay decides exactly as month_window_rule(-3, 3, inside=2, outside=1, margin)
+[r3] CAUGHT          G1 at 2 bp passes on a tie  — 1 failing check(s); first: G1 fails at one pair when S1 only ties (A) at 2 bp: PARTIAL, 'timing not worth its drag an
+[r3] CAUGHT          G1 at 5 bp fails on a tie  — 1 failing check(s); first: G1's 5 bp leg: a tie passes (>=), one basis point of CAGR short fails
+[r3] CAUGHT          G1 ignores its 5 bp leg  — 1 failing check(s); first: G1's 5 bp leg: a tie passes (>=), one basis point of CAGR short fails
+[r3] CAUGHT          G2 reads the first half only  — 1 failing check(s); first: G2 fails when one half ties at one pair: 'unstable'
+[r3] CAUGHT          G3 tolerance added instead of subtracted  — 16 failing check(s); first: every gate passing at every pair reads WORKS, with no reason
+[r3] CAUGHT          G3 compares drawdown sizes the wrong way round  — 2 failing check(s); first: G3 on signed drawdowns: exactly 5 points deeper than (A) passes; 5.01 fails, 'riskier than
+[r3] CAUGHT          G4: p or the halves, not both  — 4 failing check(s); first: G4: p = 0.05 is not < 0.05; with G1-G3 passing that reads PARTIAL 'beat (A), indistinguish
+[r3] CAUGHT          G4: p = 0.05 passes  — 1 failing check(s); first: G4: p = 0.05 is not < 0.05; with G1-G3 passing that reads PARTIAL 'beat (A), indistinguish
+[r3] CAUGHT          G5': the N = 100 bar used as the pass bar  — 1 failing check(s); first: G5' at N = 40: z_used 3.0312 passes, but below 3.3722 it flips at N = 100: PARTIAL, same r
+[r3] CAUGHT          G5': the flip at N = 100 ignored  — 1 failing check(s); first: G5' at N = 40: z_used 3.0312 passes, but below 3.3722 it flips at N = 100: PARTIAL, same r
+[r3] CAUGHT          G5': reads the bootstrap z, not z_used  — 3 failing check(s); first: G5' at N = 40: z_used 3.0310 fails, 'below the selection-adjusted bar'
+[r3] CAUGHT          G6: the first half's cycle count not checked  — 1 failing check(s); first: G6: 99 cycles, or 39 in either half, fails 'concentrated'; 100 and 40 pass
+[r3] CAUGHT          G6: the second half's cycle count not checked  — 1 failing check(s); first: G6: 99 cycles, or 39 in either half, fails 'concentrated'; 100 and 40 pass
+[r3] CAUGHT          G6: the concentration sum must be > 0  — 1 failing check(s); first: G6: the sum without the 5 best cycles must be >= 0 (0 passes), the drop-crisis margin > 0 
+[r3] CAUGHT          G6: the drop-crisis margin may be 0  — 1 failing check(s); first: G6: the sum without the 5 best cycles must be >= 0 (0 passes), the drop-crisis margin > 0 
+[r3] CAUGHT          G7': z of exactly -1 vetoes  — 1 failing check(s); first: G7': z_used of exactly -1 is no veto; -1.0001 at one 2 bp pair is, 'did not replicate'
+[r3] CAUGHT          G7': vetoes only when every pair is below -1  — 2 failing check(s); first: G7': z_used of exactly -1 is no veto; -1.0001 at one 2 bp pair is, 'did not replicate'
+[r3] CAUGHT          G7': read on the main run, not the replication  — 2 failing check(s); first: G7': z_used of exactly -1 is no veto; -1.0001 at one 2 bp pair is, 'did not replicate'
+[r3] CAUGHT          gates read every cell, not the six gated pairs  — 6 failing check(s); first: every gate passing at every pair reads WORKS, with no reason
+[r3] CAUGHT          G4 failing with G1-G3 passing reads NULL  — 3 failing check(s); first: G4: p = 0.05 is not < 0.05; with G1-G3 passing that reads PARTIAL 'beat (A), indistinguish
+[r3] CAUGHT          G4 failing always reads PARTIAL  — 1 failing check(s); first: G4 failing with G2 failing: NULL, and the failed gate's reason is still printed
+[r3] CAUGHT          the G4-fail PARTIAL drops the other failed gates' reasons  — 1 failing check(s); first: G4 failing with G1-G3 passing and G5' failing: PARTIAL 'beat (A) ...' plus 'below the sele
+[r3] CAUGHT          WORKS despite a flip at N = 100  — 1 failing check(s); first: G5' at N = 40: z_used 3.0312 passes, but below 3.3722 it flips at N = 100: PARTIAL, same r
+[r3] CAUGHT          the gating placebo is not checked  — 1 failing check(s); first: VOID when the run's integrity failed, when the replication is missing or failed, or a gate
+[r3] CAUGHT (crash)  a missing replication is not VOID  — 0 failing check(s); TypeError: 'NoneType' object is not subscriptable
+[r3] CAUGHT          frozen invocation: the command line is not compared  — 3 failing check(s); first: one changed token in the command fails 'frozen invocation' and names the token
+[r3] CAUGHT          frozen invocation: an extra trailing argument is not a deviation  — 1 failing check(s); first: an extra argument (even --out) is a deviation: VOID
+[r3] CAUGHT          frozen window facts not enforced  — 1 failing check(s); first: a window fact that differs from the frozen one fails 'frozen window facts'
+[r3] CAUGHT          CLI: a failed conformance item does not void the run  — 2 failing check(s); first: the same run with one argument changed is VOID: exit 3, and no performance number is print
+[r3] CAUGHT          CLI: the verdict is not printed  — 1 failing check(s); first: the frozen invocation runs (exit 0) and prints the verdict after the gates, before any des
+[r3] CAUGHT          self-check 7 always passes  — 1 failing check(s); first: self-check 7 fails when the placebo evaluator reproduces the rule's numbers only approxima
+r1: 46 mutations, 45 caught, 1 missed/not applied
+r2: 48 mutations, 48 caught, 0 missed/not applied
+r3: 33 mutations, 33 caught, 0 missed/not applied

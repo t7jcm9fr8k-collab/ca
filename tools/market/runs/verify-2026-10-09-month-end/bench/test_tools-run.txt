@@ -1,0 +1,720 @@
+bars — the type and the one rule
+  ok   a naive timestamp is refused
+  ok   a series without a source is refused
+  ok   a series without fetched_at is refused
+  ok   an unknown timeframe is refused
+  ok   a bar is immutable
+  ok   candle geometry is computed, not drawn
+  ok   stooq header parses
+  ok   daily bars are pinned to 00:00Z
+  ok   a missing column is Unparseable, not a guess
+  ok   a bad row is Unparseable, not skipped
+  ok   an empty file is Unparseable
+  ok   a header with no rows is a true empty series
+  ok   alpaca single-letter columns parse
+  ok   a naive intraday timestamp is refused
+  ok   a zoned intraday timestamp is kept as UTC
+  ok   adj close is NOT taken as close
+  ok   csv round-trips
+  ok   load_csv records the path
+  ok   a missing file is Unparseable
+
+calendar — the real one
+  ok   2026 New Year is a holiday
+  ok   2026 MLK is a holiday
+  ok   2026 Presidents is a holiday
+  ok   2026 Good Friday is a holiday
+  ok   2026 Memorial is a holiday
+  ok   2026 Juneteenth is a holiday
+  ok   2026 Independence observed Fri is a holiday
+  ok   2026 Labor is a holiday
+  ok   2026 Thanksgiving is a holiday
+  ok   2026 Christmas is a holiday
+  ok   2026 has exactly ten scheduled closures
+  ok   New Year's on a Saturday is NOT observed on the Friday (2022)
+  ok   Easter 2026 is April 5
+  ok   Easter 2025 is April 20
+  ok   sessions skip weekends and holidays
+  ok   Juneteenth is not a holiday before 2022
+
+barqc — checks
+  ok   a clean daily series passes
+  ok   high < low fails ohlc
+  ok   close outside [low, high] fails ohlc
+  ok   a non-positive price fails ohlc
+  ok   a duplicate timestamp fails order
+  ok   a backwards timestamp fails order
+  ok   two missing sessions are tolerated (special closures happen)
+  ok   three missing sessions BLOCK
+  ok   the missing dates are named
+  ok   session count reads bars vs sessions
+  ok   a series that is merely SHORT is caught
+  ok   one bar is UNRUN for sessions
+  ok   intraday sessions are counted by New York day
+  ok   a missing intraday day is named and tolerated
+  ok   a half-day is reported as short, not missing
+  ok   a 47-bar day is reported as short too
+  ok   short sessions are listed shortest first, so the hole comes before the half-day
+  ok   a weekend bar fails calendar
+  ok   a holiday bar fails calendar
+  ok   an in-session intraday bar passes calendar
+  ok   a pre-market intraday bar fails calendar
+  ok   zero volume is reported, never blocking
+  ok   a split-sized gap is reported with its date
+  ok   adjustment not stated is said aloud
+  ok   an adjusted series says adjusted
+  ok   staleness is reported, never blocking
+  ok   a fresh series has no staleness note
+  ok   a short span is reported, never blocking
+  ok   provenance check passes a traced series
+  ok   an unrun check never yields a bare pass verdict
+  ok   a failed check yields blocked
+
+replay — no look-ahead, by shape
+  ok   a NaN close is a bad OHLC row, so barqc blocks it
+  ok   MISS-1: a nan volume blocks the series too — it flipped volume rules to flat
+  ok   MISS-1: a inf volume blocks the series too — it flipped volume rules to flat
+  ok   MISS-1: a -inf volume blocks the series too — it flipped volume rules to flat
+  ok   MISS-1: volume_profile has no answer when the total volume is NaN
+  ok   cursor length is the closed count
+  ok   cursor[-1] is the last CLOSED bar
+  ok   reaching one past the window raises LookAhead
+  ok   reaching far past the window raises LookAhead
+  ok   a negative index before the start raises LookAhead
+  ok   a slice clamps to the window, never leaks
+  ok   closes(n) returns at most n visible closes
+  ok   iterating a cursor stops at the window
+  ok   an empty cursor's .last raises
+  ok   a cursor past the series is refused
+  ok   a decision with K bars closed fills at bar K's OPEN, not bar K-1's close
+  ok   an unchanged target is not a fill
+  ok   buy_and_hold equals the benchmark exactly at zero cost
+  ok   the benchmark buys at the first open a strategy could have
+  ok   cost reduces the return
+  ok   exposure is 100% for buy and hold once entered
+  ok   a flat strategy has zero fills, zero exposure, zero return
+  ok   the record says what was not modelled
+  ok   a blocked series cannot be replayed
+  ok   too few bars cannot be replayed
+  ok   a strategy that peeks is caught
+  ok   max drawdown of a monotone rise is zero
+  ok   max drawdown measures peak to trough
+  ok   sma_cross stays flat in a monotone decline
+  ok   a clean strategy shows no differences when the future is removed
+  ok   a strategy that reads past the cursor is caught
+  ok   a strategy that keeps state between calls is caught
+  ok   the cursor carries the held position into each decision
+  ok   a strategy that reads cursor.position passes the leak check
+  ok   the cursor's position defaults to flat
+  ok   a memoising look-ahead slips past a reused strategy object
+  ok   and is caught when the check rebuilds the strategy per sample
+  ok   the leak check samples live bars only
+
+strategies — the contract
+  ok   an unknown strategy is refused
+  ok   spec parses parameters
+  ok   bad sma parameters are refused
+  ok   buy_and_hold is registered
+  ok   breakout names itself
+  ok   a strategy short of history returns flat, not an error
+  ok   the fixture actually drives RSI below 30
+  ok   rsi_dip is long exactly for five closed bars after each RSI<30 close
+  ok   rsi_dip is flat before it has n+1 closes
+  ok   rsi_dip declares its warm-up and name
+  ok   rsi_dip is built from a spec string
+  ok   rsi_dip refuses a zero hold
+  ok   trend_or_dip is long when the dip rule is long and the filter is flat
+  ok   a calm series is held in full
+  ok   a wild series is scaled below 1
+  ok   the scale is never above 1
+  ok   a change inside the band is not traded
+  ok   a change outside the band is traded
+  ok   the nested spec parses and names itself
+  ok   vol_target declares the larger warm-up
+  ok   a target of one or more is refused
+  ok   vol_target keeps no state of its own: the leak check passes
+  ok   rsi_dip_exit keeps no state of its own: the leak check passes
+  ok   rsi_dip_exit enters on the same bar rsi_dip does
+
+ledger — append-only
+  ok   record appends, never replaces
+  ok   latest is the most recent
+  ok   no record is None
+  ok   an unfilled paper run is NOT live evidence
+  ok   a filled paper run is
+  ok   the report marks a bypass
+  ok   the report uses the red bypass style
+  ok   the report lists backtests
+  ok   an empty ledger renders
+  ok   the ledger report escapes free text (a bypass reason cannot inject markup)
+  ok   trials.json totals the 40 trials: the 39 EVIDENCE.md requires plus the month-end overlay
+  ok   every trials.json row cites a saved output that is in the repository
+  ok   with no ledger at all the prior count is 40, not 0
+  ok   a ledger holding the snapshot's 37 adds the 3 off-ledger specs: 40
+  ok   a ledger that has grown to 47 counts 47 + 3, never undercounting the off-ledger rows
+  ok   with no register the count is the ledger's alone
+  ok   a truncated ledger raises Corrupt instead of reading as empty
+  ok   record() refuses to write over it
+  ok   and the file is byte-for-byte untouched
+  ok   valid JSON that is not a ledger raises Corrupt too
+  ok   a ledger that does not exist yet is empty, not an error
+  ok   save leaves no temp file behind
+  ok   save writes through a tmp file of its own, never the shared ledger.json.tmp
+  ok   two processes writing at once lose nothing (120 of 120)
+
+fetch — NETWORK / PARSE / OK kept apart
+  ok   stooq 'No data' is PARSE, never an empty series
+  ok   an html page from stooq is NETWORK
+  ok   the page error quotes what the page said
+  ok   the page error gives the browser fallback with the right file name
+  ok   the hit-limit reply is named and given the fallback
+  ok   stooq is asked with a browser user agent
+  ok   visible text strips tags and scripts
+  ok   a short body is NETWORK
+  ok   a real stooq body is OK with provenance
+  ok   stooq symbols get .us
+  ok   alpaca error JSON is PARSE
+  ok   alpaca non-JSON is PARSE
+  ok   alpaca page parses with its token
+  ok   an empty alpaca PAGE parses — one page of a range may hold nothing
+  ok   TI-7: but a whole alpaca RANGE with no bars is PARSE (Empty), never an empty series
+  ok   SN-2: a range of only pre/post-market bars says so — not 'no bars at all'
+  ok   SN-2: --merge-into on an empty range is NOTHING (exit 1), the hole is real; file untouched
+  ok   an unreachable host is NETWORK
+  ok   alpaca without keys refuses before any request
+  ok   yahoo JSON parses, null rows skipped, dates pinned
+  ok   yahoo raw close is the official close, dividends not folded in
+  ok   yahoo --adjusted-close back-adjusts the whole bar by the same factor
+  ok   yahoo error JSON is PARSE
+  ok   yahoo html is NETWORK
+  ok   yahoo all-null rows are PARSE, never zero bars
+  ok   merge is a union by timestamp, sorted
+  ok   the new bar wins on a collision
+  ok   the merge is recorded in provenance
+  ok   a different symbol or timeframe is refused
+  ok   the merge reports what it touched per New York date
+  ok   the per-date report is kept in provenance
+  ok   dry run proves all three outcomes offline
+HTTP 429 — waiting 2 s, retry 1 of 3
+HTTP 429 — waiting 5 s, retry 2 of 3
+  ok   a 429 is retried and then succeeds
+  ok   the waits back off
+HTTP 429 — waiting 2 s, retry 1 of 3
+HTTP 429 — waiting 5 s, retry 2 of 3
+HTTP 429 — waiting 12 s, retry 3 of 3
+  ok   four 429s in a row are NETWORK, with the retry count named
+  ok   a 403 is not retried
+  ok   a 404 is not retried
+
+tls — verifying, always
+  ok   the context checks hostnames
+  ok   the context REQUIRES a valid certificate
+  ok   the context is a real SSLContext
+  ok   source() names a trust store
+  ok   a bare cert error is recognised
+  ok   a cert error wrapped in URLError is recognised
+  ok   a plain connection refusal is NOT a cert error
+  ok   the explanation names the fix
+  ok   the explanation says verification was not disabled
+  ok   the explanation names this python
+  ok   the explanation gives a way to tell the cases apart
+  ok   fetch reports a cert failure as NETWORK with the fix
+  ok   nothing in the tree loosens TLS
+  ok   a reply with no bars raises Unparseable
+  ok   stooq's header-only body is PARSE, not an empty series
+
+broker — refuses before it sends
+  ok   no credentials is NoCredentials
+  ok   a malformed secret is refused by name, its value never shown
+  ok   CA_NO_KEYCHAIN keeps the keychain shut (the tests run with it set)
+  ok   without it, a Mac's keychain supplies the keys
+  ok   the environment still wins over the keychain
+  ok   SN-6: half a pair in the environment is refused — never completed from the keychain
+  ok   SN-6: a malformed keychain value is named with its keychain item, not the variable alone
+  ok   SN-4: a keychain reply that is not ASCII is no key — NoCredentials, not UnicodeDecodeError
+  ok   a credentialed opener refuses to follow a redirect
+  ok   an uncredentialed opener still follows them (stooq, yahoo)
+  ok   broker._call never follows a redirect
+  ok   an error that quotes the secret is redacted
+  ok   SN-1: a secret straddling the 400-character cut (at 380) leaves no part of itself
+  ok   SN-1: a secret straddling the 400-character cut (at 395) leaves no part of itself
+  ok   SN-1: a secret straddling the 400-character cut (at 399) leaves no part of itself
+  ok   SN-M1: a reply cut short (IncompleteRead) is Unreachable, so run.py looks the order up
+  ok   SN-M1: ...and a garbled status line too, redacted
+  ok   SN-5: the redacted error carries no unredacted original in its chain
+  ok   TI-7: fetch._get with the key headers refuses redirects, as broker._call does
+  ok   TI-7: ...and redacts the secret from its error, chain included
+  ok   an account number is printed as its last four
+  ok   a bad side is refused before any request
+  ok   a zero qty is refused before any request
+  ok   an unreachable base is Unreachable
+  ok   an unfilled order summarises with filled_qty 0 and no price
+  ok   paper and live endpoints are different hosts
+  ok   a zero notional is refused before any request
+  ok   qty and notional together are refused
+  ok   neither qty nor notional is refused
+
+the gate — signal → backtest → paper → live
+  ok   signal runs with no gate
+  ok   signal mode prints the readings — ema, vwap, rejection, level, poc
+  ok   signal mode labels the order-flow proxy as a proxy
+  ok   an unknown strategy is refused (2)
+  ok   paper is refused with no backtest (3)
+  ok   refusal wrote nothing
+  ok   backtest runs and records
+  ok   the backtest record carries the not-modelled list
+  ok   the backtest record does not carry the equity curve
+  ok   paper dry-run passes the gate once a backtest exists (0)
+  ok   a dry run records no paper run
+  ok   paper on a DIFFERENT strategy is still refused (3)
+  ok   live is refused without a filled paper run (3)
+  ok   live is refused without --confirm-live (3)
+  ok   live without --confirm-live records NO bypass even when forced
+  ok   --force without a reason is refused (4)
+  ok   --force with a blank reason is refused (4)
+  ok   a refused force writes nothing
+  ok   --force with a reason passes the gate (0)
+  ok   the bypass is recorded with its reason and what was missing
+  ok   a flat signal has nothing to buy (3)
+  ok   paper without --qty is refused (3)
+  ok   a REAL paper run with no keys is refused (5) and records nothing
+  ok   run.py: a lost reply is resolved by lookup — recorded, filled, exit 0
+  ok   run.py: re-running the same decision sends no second order and records nothing twice
+  ok   run.py: ...and says NOT SENT, exit 8 — never 'recorded' for a run that wrote nothing
+  ok   TI-7: run.py prints the account as its last four, never the whole number
+  ok   run.py: --repeat 2 sends a deliberate second copy on the same bar (0)
+  ok   run.py: --repeat 1 is refused (3) — copy 1 is the order itself
+  ok   run.py: a POST that never landed exits 6 and records nothing
+  ok   run.py: a failed fill poll is SENT, recorded unfilled — never 'Nothing recorded'
+  ok   run.py: every order carries a client_order_id
+  ok   --force can never reach live, even with --confirm-live and a reason (3, nothing recorded)
+  ok   a sell larger than the position is refused (3) — no shorts
+  ok   a NaN quantity is refused (3)
+  ok   a STOP file stops run.py orders too (3)
+  ok   but a dry run still answers while STOP is present (0)
+  ok   TI-7: a dangling symlink named STOP stops run.py too (3)
+  ok   MP-2: an ambiguous sell is recorded as 'unknown' (6), not left out of the ledger
+  ok   MP-2: the re-run settles it — the filled sell recorded once, nothing sent, exit 8
+  ok   MP-1/2: an earlier unknown order that landed is recorded and the NEW order is not sent (8)
+  ok   MP-1/2: ...and once it is on the record, the next run sends (0)
+  ok   MP-1/2: an unknown order the broker never got is recorded 'not_sent' and the run sends (0)
+  ok   MP-4: a 429 on the lookup is not 'no such order' — UNKNOWN (6), recorded, never 'safe to re-run'
+  ok   MP-4: order_by_client_id returns None only on 404
+  ok   MP-5: an order the lookup already shows filled is recorded filled ONCE
+  ok   MP-5: ...and so is one whose POST reply already says filled
+  ok   MISS-2: a partial fill completed on a re-run records the full fill
+  ok   MP-7: a refused fill poll is 'SENT, fill unknown', recorded, exit 0 — no traceback
+  ok   MP-6: a NaN position reads as unknown — positions() raises
+  ok   MP-6: run.py sells nothing against a NaN position (6)
+  ok   MP-6: ...nor against an infinite one (6)
+  ok   MP-9: paper refuses bars more than three sessions old (2)
+  ok   MP-9: ...a dry run says the same (2); signal and backtest still read them (0)
+  ok   MP-10: ledger.py --report refuses an unreadable ledger cleanly
+  ok   SN-3: ledger.py --show masks the account number as run.py does
+  ok   the suite is offline: a connection to any outside host is refused, proxy or not
+  ok   MP-10: nulltest.py refuses an unreadable ledger cleanly — no traceback
+  ok   MP-10: combine.py refuses an unreadable ledger cleanly — no traceback
+  ok   MP-10: crosstest.py refuses an unreadable ledger cleanly — no traceback
+  ok   MP-10: ...and none of them wrote over it
+  ok   a blocked series is refused before any mode runs (2)
+  ok   --force is documented in --help
+  ok   --confirm-live is documented in --help
+
+features — the chart, as numbers
+  ok   sma
+  ok   sma short of data is None
+  ok   ema seeds with the SMA then smooths (alpha 0.5 for n=3)
+  ok   ema_series is None before n values
+  ok   ema accepts bars or numbers
+  ok   true range uses the previous close
+  ok   atr is the mean of the last n true ranges
+  ok   atr short of data is None
+  ok   vwap weights typical price by volume
+  ok   vwap with no volume is None
+  ok   a hammer is a bull rejection
+  ok   a shooting star is a bear rejection
+  ok   a full-body bar is no rejection
+  ok   a long-wick doji still counts (body floored at 5%)
+  ok   a long lower wick that closed weak is NOT a bull rejection
+  ok   a zero-range bar is no rejection
+  ok   rejections indexes the sequence
+  ok   a swing high needs higher than left AND right neighbours
+  ok   a swing low mirrors
+  ok   the last `right` bars can never be swings yet
+  ok   a higher high inside the right-window cancels the earlier swing
+  ok   levels are sorted with touch counts
+  ok   swings within tolerance merge into one level with 2 touches
+  ok   nearest level and signed distance
+  ok   no levels gives (None, None)
+  ok   volume spreads evenly across each bar's range
+  ok   point of control is the heaviest bin's midpoint
+  ok   value area grows toward the heavier side
+  ok   value area holds at least the requested share
+  ok   a zero-range bar's volume lands in one bin
+  ok   an empty profile is None
+  ok   bar delta proxy signs volume by close vs open
+  ok   cvd proxy cumulates
+  ok   the proxy says so in its name
+  ok   session_bars keeps only the last trading date
+  ok   session vwap is over that session
+  ok   features read a cursor slice, never the series
+  ok   describe reports the readings at the last close
+
+strategies — the discretionary setups, made testable
+  ok   ema_pullback:20,50 names itself
+  ok   ema_pullback:20,50 replays without peeking
+  ok   vwap_reclaim:20 names itself
+  ok   vwap_reclaim:20 replays without peeking
+  ok   value_area:40 names itself
+  ok   value_area:40 replays without peeking
+  ok   ema_pullback refuses fast >= slow
+  ok   a feature strategy short of history is flat, not an error
+
+features — rsi, doji, engulfing, round numbers
+  ok   rsi of a monotone rise is 100
+  ok   rsi of a monotone fall is 0
+  ok   rsi of equal up and down steps is 50 at the seed
+  ok   rsi short of data is None
+  ok   rsi_series agrees with rsi at the end
+  ok   rsi_series is None before n+1 values
+  ok   doji is a tiny body
+  ok   bull engulfing covers the previous down body
+  ok   bear engulfing mirrors
+  ok   two up bars are not engulfing
+  ok   round step is a tenth of the leading decade
+  ok   round distance is signed and names the number
+  ok   drawdown from the k-bar high
+
+replay — stats, cash yield, windows
+  ok   replay reports sharpe, cagr, volatility, skew, kurt
+  ok   targets and equity_ts align with equity
+  ok   bar_returns is one shorter than equity
+  ok   ledger exclusions name every per-bar series
+  ok   buy and hold earns yield only on the one warm-up bar before it fills
+  ok   a flat strategy earns the cash yield on every scored bar
+  ok   zero cash yield earns nothing flat
+  ok   the full window reproduces the overall return
+  ok   in-sample and holdout partition the bars
+  ok   an empty window has no return
+  ok   window fills are counted inside the window
+  ok   trend_filter names itself
+  ok   trend_filter is long in a rise
+  ok   trend_filter is flat in a fall
+  ok   every strategy declares a warm-up
+  ok   replay scores from the strategy's warm-up, not from bar 2
+  ok   the benchmark is measured from the same bar
+  ok   a rising series: trend filter equals buy-and-hold from its warm-up, less nothing at zero cost
+  ok   an explicit warm-up longer than the strategy's wins
+  ok   a dividend yield raises buy-and-hold's return
+  ok   the benchmark gets the same credit, so buy-and-hold still equals it
+  ok   a flat strategy collects no dividend
+  ok   the record carries the dividend assumption
+  ok   buy-and-hold's own drawdown and sharpe equal the benchmark's over the same bars
+  ok   a filter is reported beside buy-and-hold's drawdown over the SAME scored bars
+  ok   run.py accepts --cash-yield and records it
+  ok   the record carries sharpe and no per-bar series
+
+intraday — pre-registered, with its own null
+  ok   synth makes 390 regular-session bars per session
+  ok   sessions groups by New York date
+  ok   measure reads a full session
+  ok   r_first30 is the close before 10:00 over the 09:30 open
+  ok   the fill is the 15:30 bar's OPEN, never the 15:29 close
+  ok   with a gap, the fill is the gapped OPEN and not the prior close
+  ok   a short session is skipped with its bar count
+  ok   a session without its 09:30 bar is skipped
+  ok   a session ending early is skipped
+  ok   a positive morning goes long the last half hour, net of cost
+  ok   a negative morning goes short
+  ok   a flat morning is no trade
+  ok   open_to_1530 rule uses the other predictor
+  ok   stats: mean in bp, hit rates labelled net and gross, t
+  ok   a strong planted effect is found: positive mean, low p
+  ok   no effect: p is not small
+  ok   the run says it searched nothing
+  ok   the power statement names the published effect and whether the CI excludes it
+  ok   a session missing its 15:30 minute fills at the next bar and is counted as slipped
+  ok   an IEX-sourced run names the closing auction as unmodelled
+  ok   a short session is skipped at barqc's 80% line
+  ok   official_closes maps dates to closes
+  ok   trial 3 is named, numbered and says where its exits came from
+  ok   with the same closes the result equals the feed-close run
+  ok   a higher official close moves the last-half-hour return
+  ok   sessions without an official close are skipped and counted
+  ok   trial 3 names the cross-feed basis, not the auction
+  ok   the report shows the exit source
+  ok   a sessions file round-trips every measured field exactly
+  ok   a path inside this folder is written relative to it
+  ok   a path outside this folder is written as its file name only
+  ok   no absolute path reaches a sessions header
+  ok   the header carries symbol, timeframe, provenance and skip counts
+  ok   analysing the file gives the minute-bar result to the last digit
+  ok   trial 3 from the file equals trial 3 from the bars
+  ok   a sessions file without its header is refused
+  ok   a sessions file missing a column is refused
+  ok   --export-sessions writes the file and says what to do next
+  ok   --sessions-from runs without minute bars
+  ok   a --symbol that disagrees with the sessions file is refused
+  ok   a close file on a different price basis is REFUSED, not joined
+  ok   cents of basis are accepted
+  ok   the run records the data span
+  ok   a feed that begins after 2019 cannot reproduce the papers, and says so
+  ok   a feed that begins before 2019 could, and the note is absent
+  ok   in-sample and holdout are split at the date
+  ok   by-year table exists
+  ok   bars outside the session are refused by barqc before anything runs
+
+combine — confluence, both ways, with the trial count
+  ok   expected max sharpe of one trial is zero
+  ok   expected max sharpe grows with trials
+  ok   expected max sharpe grows with dispersion
+  ok   deflated sharpe is high for one trial
+  ok   the same sharpe after 50 trials is deflated
+  ok   zero sharpe, one trial is a coin flip
+  ok   pearson of identical series is 1
+  ok   pearson of opposite series is -1
+  ok   pearson of a constant is None
+  ok   and-gate needs every signal
+  ok   average is the mean
+  ok   run scores each signal plus average plus and-gate
+  ok   correlation matrix has unit diagonal
+  ok   all-on never exceeds any-on
+  ok   every trial has in-sample and holdout windows
+  ok   the trial count is what was run
+  ok   the best is named and deflated
+  ok   buy and hold is scored in both windows as the reference
+  ok   the reference is not counted as a trial
+  ok   the report shows the reference row
+  ok   every line and the reference are scored from the longest warm-up
+  ok   the trial count says how many were this run
+  ok   the report shows where scoring began
+  ok   an unknown signal is refused
+
+nulltest — the pattern against shuffled bars
+  ok   hammer after a decline fires at the hammer
+  ok   v2 round-number rule is named for what it is
+  ok   no shooting star in a decline
+  ok   short rules are marked short
+  ok   forward return is next open to close at the horizon
+  ok   a short rule negates
+  ok   an event too close to the end is dropped
+  ok   cost is charged
+  ok   the block shuffle is gone — it kept the pattern→next-bar pair intact
+  ok   trailing vol is None until the window fills and positive after
+  ok   vol deciles cover the eligible bars
+  ok   a real link between event and next bar gives a small p
+  ok   ordinary days give an ordinary p
+  ok   no events gives no p
+  ok   every pre-registered rule is reported
+  ok   p is a probability or None
+  ok   the unconditional baseline is reported
+  ok   the run says it searched nothing
+  ok   the run names its null and rule version
+  ok   every fired rule lists its events with dates and returns
+  ok   the largest event and its share are reported for fired rules
+  ok   the report says t first and warns about eight tries
+  ok   events can be rendered
+
+nulltest — ICT proxies and witnesses
+  ok   a bullish fair value gap is the zone between bar i-2's high and bar i's low
+  ok   no gap when the bars overlap
+  ok   a bearish gap mirrors
+  ok   a bullish order block is the last down bar's open-to-low before a displacement
+  ok   a displacement under one ATR is not an order block
+  ok   a failed run through the 20-bar low is a bullish sweep
+  ok   a close below the swept low is not a sweep
+  ok   a failed run through the 20-bar high is a bearish sweep
+  ok   a close above the last confirmed swing high is a bullish break, once
+  ok   a swing is not a level until it is confirmed
+  ok   events closer than the gap are one witness
+  ok   events exactly a gap apart are separate witnesses
+  ok   the ict set is the six registered rules and nothing else
+  ok   the full set is both
+  ok   sweep_bear is a short rule
+  ok   every rule reports its witnesses and their t
+  ok   witnesses never exceed events
+  ok   the expected minimum p follows the number of rules
+  ok   the render names the witnesses
+
+watch — the readout
+  ok   a symbol with bars reads out
+  ok   a symbol without bars says so
+  ok   a blocked symbol gets its verdict, not readings
+  ok   render says nothing predicts
+  ok   the trader table reads clean bars
+  ok   it reports a target per strategy
+  ok   dip bars left counts from the last RSI<30 close
+  ok   the dip target agrees with the bars-left count
+  ok   a symbol with no bars is reported, not invented
+  ok   the trader render names the gate and the rule
+  ok   a majority with t_ep > 2 replicates
+  ok   fewer than three does not
+  ok   in between is mixed
+  ok   a positive t_ep with a negative mean does not count
+
+autopilot — the unattended loop, against a fake broker
+  ok   a symbol with no bars is skipped, not traded
+  ok   a long target with no recorded backtest is REFUSED
+  ok   dry run decides and sends nothing
+  ok   long wanted and flat → one paper buy of qty
+  ok   the order is recorded twice: accepted, then filled
+  ok   re-running the same day sends nothing twice
+  ok   a DIFFERENT strategy on the same symbol and day also sends nothing
+  ok   long wanted and already long → nothing, never adds
+  ok   flat wanted and long → sell ALL held
+  ok   no new buy past max positions
+  ok   live without --confirm-live is refused
+  ok   live without a filled paper run is refused even when confirmed
+  ok   stale bars are never traded
+  ok   a STOP file halts the run before anything happens
+  ok   autopilot has no --force
+  ok   the loop's own bars folder is not the research folder
+  ok   the report names the gate and the STOP file
+  ok   the report shows a fractional target to two places
+  ok   an order whose fill poll raises is still recorded as sent
+  ok   and the next run does not send it again
+  ok   an unfilled record is not live-gate evidence
+  ok   notional: flat and target 0.37 buys 0.37 of the allocation
+  ok   notional: same target after a price drop → nothing (drift is not a signal)
+  ok   notional: target up 0.37→0.90 buys the difference
+  ok   notional: target 1.0→0.4 sells 60% of the shares held, not a dollar figure
+  ok   notional: a change inside the band is not traded
+  ok   notional: flat wanted sells every share, never a remainder
+  ok   a notional run sends a notional order
+  ok   the cursor's position is the last target the loop sent, read from the ledger
+  ok   decide() hands the broker's position to the strategy
+  ok   before 21:05 UTC a bar dated today is dropped and yesterday's close decides
+  ok   after 21:05 UTC the same-day bar is a closed bar
+  ok   alpaca refresh asks for ~600 days of adjusted daily bars
+  ok   no equity reading means nothing is traded
+  ok   a leak-failed backtest is refused by the gate
+  ok   a clean backtest passes the gate
+REFUSING to run --mode paper.
+
+  breakout_20 on DIPX needs a backtest that passed its leak check — the latest one failed its leak check (2 of 25 bars decided differently with the future removed).
+  Paper exists to answer a backtest; without one it is a guess with a fill.
+
+  Run:  python3 run.py --mode backtest --strategy breakout:20 --symbol DIPX
+  ok   run.py's gate refuses it too
+  ok   leak_refusal: a check that ran and found nothing is evidence
+  ok   leak_refusal: no check at all is not evidence
+  ok   leak_refusal: a check that sampled 0 bars is not evidence
+  ok   a combine record after a FAILED check does not launder it (autopilot)
+REFUSING to run --mode paper.
+
+  breakout_20 on DIPX needs a backtest that passed its leak check — the latest one has no leak check (combine.py records its trials without one).
+  Paper exists to answer a backtest; without one it is a guess with a fill.
+
+  Run:  python3 run.py --mode backtest --strategy breakout:20 --symbol DIPX
+  ok   a combine record after a FAILED check does not launder it (run.py)
+  ok   a check that sampled 0 bars is refused by the gate
+REFUSING to run --mode paper.
+
+  zero_sample on DIPX needs a backtest that passed its leak check — the latest one has a leak check that sampled 0 bars.
+  Paper exists to answer a backtest; without one it is a guess with a fill.
+
+  Run:  python3 run.py --mode backtest --strategy zero_sample --symbol DIPX
+  ok   run.py's gate refuses a 0-bar check too
+  ok   a corrupt ledger halts autopilot with nothing sent
+  ok   run.py refuses with exit 7 on a corrupt ledger
+  ok   an order accepted but whose reply was lost is found and recorded, not called refused
+  ok   and the next run does not send it again
+  ok   when even the lookup fails the run says UNKNOWN and records it as unknown
+  ok   the next run asks the broker, records the order it holds, and sends nothing: one order
+  ok   MP-1: while the broker still cannot be asked, the symbol waits — nothing sent
+  ok   MP-1: once asked, the unknown buy is recorded and NOT traded against (no sell)
+  ok   MP-1: ...nor on the next bar, where the recorded target makes it aligned
+  ok   an unknown order the broker never had is recorded not_sent, and the bar's order is sent
+  ok   MISS-3: an order found already filled is recorded filled ONCE
+  ok   an overlapping run finds the lock held and sends nothing
+  ok   MP-8: a paper run's lock does not stop a live run (it is refused by its own gate instead)
+  ok   a dry run needs no lock (it sends nothing)
+  ok   once the lock is free the run proceeds
+  ok   a NaN equity reading is no reading: nothing traded, nothing recorded as a peak
+  ok   max_drawdown nan is refused — the halt could never fire
+  ok   max_drawdown 1.0 is refused — the halt could never fire
+  ok   max_drawdown 0.0 is refused — the halt could never fire
+  ok   max_drawdown -0.1 is refused — the halt could never fire
+  ok   a NaN strategy target is no decision, never a full buy
+  ok   broker refuses a NaN or infinite quantity before anything is sent
+  ok   broker refuses a notional that rounds to $0.00 before anything is sent
+  ok   a dangling symlink named STOP halts too
+  ok   orders carry the decision's client_order_id
+  ok   a 10% drawdown from the recorded peak does not halt
+  ok   a 16% drawdown from the recorded peak halts, writes STOP, trades nothing
+  ok   a halt never liquidates, even with positions the rule would sell
+  ok   the run records its equity and the peak each time
+  ok   TI-6: a NaN recorded as the first equity does not disable the drawdown halt
+  ok   TI-7: autopilot.py --qty nan is refused at the command line
+  ok   TI-7: autopilot.py --qty inf is refused at the command line
+  ok   TI-7: autopilot.py --notional 0 is refused at the command line
+
+aggregate — minute bars to sessions
+  ok   one daily bar per session
+  ok   open is the first bar's open and close the last bar's close
+  ok   high and low span the session
+  ok   volume is summed
+  ok   bar counts per session are recorded
+  ok   provenance says what the closes are
+  ok   the aggregated source is named
+  ok   a short session is dropped only under --min-bars
+  ok   a daily series is refused
+  ok   the aggregate passes barqc
+
+fetch — regular session
+  ok   regular_session keeps 09:30-16:00 New York only
+  ok   barqc passes the kept bar
+
+bars — nasdaq.com export
+  ok   nasdaq export parses with the dollar signs and the BOM gone
+  ok   nasdaq export is reversed to oldest-first, and says so
+  ok   nasdaq provenance: source nasdaq, unadjusted, official close
+  ok   an oldest-first export is left alone
+  ok   a stooq-shaped file is not mistaken for a nasdaq export
+  ok   a nasdaq row with no price is Unparseable, not skipped
+  ok   a nasdaq row with a bad date is Unparseable, not skipped
+  ok   a nasdaq header missing a column is Unparseable
+  ok   bars.py --nasdaq-export writes the plain file every tool reads, oldest first, same closes
+  ok   the converter points at trial 3 with --close-source nasdaq
+  ok   --nasdaq-export without --out is refused
+  ok   bars.py with neither --csv nor --nasdaq-export is refused
+  ok   a plain CSV handed to --nasdaq-export is REFUSED, not converted
+
+nasdaq_json — the historical JSON endpoint
+  ok   nasdaq JSON parses to the same bars as the CSV export: dollar signs and commas gone, reversed to oldest-first, source nasdaq, unadjusted, official close
+  ok   a nasdaq JSON row with no close is Unparseable, not skipped
+  ok   a body that is not the trades table is Unparseable, never zero bars
+  ok   align intersects the dates rather than unioning them
+  ok   a hole in one name shortens the shared window, never forward-fills
+  ok   the portfolio cursor raises on a bar that has not closed
+  ok   a trailing window that is not fully closed returns None, not a partial number
+  ok   a strategy that reaches one bar forward raises LookAhead
+  ok   equal weight run as a strategy equals the benchmark to the last digit
+  ok   the benchmark does not buy before the strategy's first rebalance
+  ok   the monthly schedule is one rebalance per calendar month
+  ok   weights a long-only book cannot hold are refused
+  ok   cost is actually charged and lowers the result monotonically
+  ok   barqc gates every leg, so a blocked series never reaches the walk
+  ok   a decision made after a close fills at the NEXT session, never that close
+  ok   the fill takes the next session's OPEN, priced where they differ
+  ok   xsmom holds exactly the requested number of names once warm
+  ok   tsmom holds nothing when every asset has fallen over the lookback
+  ok   idle cash earns the stated yield, so sitting out is not scored as zero
+
+basis — measuring the dividend basis instead of asserting it
+  ok   an identical pair has a zero gap on every shared date
+  ok   a constant 5% offset reads 5.000 at every date
+  ok   the unadjusted-vs-total-return signature: 10% at the start, 0 at the last bar
+  ok   a pair that shares no dates is refused, never printed as an empty table
+  ok   the shared window is the intersection, never the union
+  ok   dates before the shared start count as BEFORE
+  ok   a hole in one file shows as INSIDE in every file that has the date
+  ok   identical bases pick the identical book at every rebalance
+  ok   rank drives portfolio.xsmom as implemented, not a copy of it
+  ok   rank refuses a universe too small to rank
+  ok   the CLI exits 2 on a pair with no shared dates
+  ok   the CLI refuses a gap with no reference file
+  ok   the real ledger path was restored
+  ok   the real ledger was never written by the tests
+
+all checks passed

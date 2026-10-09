@@ -1,0 +1,36 @@
+================================================================================================================
+EDGELAB v2 · MARGIN OVERLAY · rule month_end_overlay on SPY · SPY-1d.csv
+================================================================================================================
+INTEGRITY (G0)   FAIL — VOID
+   ok   barqc                          verdict pass
+   ok   leak check                     10774 decisions re-run on truncated bars, 0 difference(s)
+   ok   information sets               every decision saw exactly the bars closed before its session (open auction: through close[t-1]; close auction: the same plus open[t])
+   ok   calendar                       scheduled NYSE rules only (barqc.nyse_holidays); no bar date enters a rule's calendar facts (by construction; tested)
+   ok   dividend basis declared        adjusted=True, total-return through 2025-03-21
+   ok   self-check 1: cash/spread      d's annual mean moves at most 3.07 bp/yr across 6 cells; the printed calendar-day residuals reach 3.84 bp/yr; worst excess -1.367 bp/yr (limit +0.1)
+   ok   self-check 2: tracking error   TE(d) 8.9925% vs sqrt(p(1-p)) sigma 8.9637% (p 0.3334, sigma 19.01%): ratio 1.0032
+   ok   self-check 3: G5' z            z used 3.757 (boot 3.758, analytic 3.757) vs mean sqrt(years)/TE 3.745: ratio 1.0032
+   ok   self-check 7: placebo identity each design's identity arrangement through the placebo evaluator reproduces the rule's CAGR, half CAGRs and drop-crisis CAGR: largest difference 0.0e+00 over 6 cells
+   ok   self-check 4: paired SE        corr 0.943; paired SE of dSR 0.0726 vs sqrt(2(1-corr)) x single 0.0733 (ratio 0.990); the single-Sharpe SE would be 0.2163
+   FAIL file sha256                    SPY-1d.csv 9eb98ae370da141a4b0850615e19d2ee5caf6d3ce8111a0793c508ab2c10c73d — expected 52a006deec221ab41c869bd25b279203d3f8d9dedad0bb99ea481164a2cd45a0
+   ok   window list                    257 windows reproduced exactly (windows-S1-SPY.csv sha256 56de9701556046a8da0cea9b02e67c3e8c4d98a2874d01e37c3de983bb80a3e4)
+   ok   add-backs as frozen            applied 2025-06-20, 2025-09-19, 2025-12-19, 2026-03-20, 2026-06-18
+   ok   total-return benchmark         total-return through 2025-03-21; 5 later payout(s) added back
+   ok   distributions added back       5 applied (2025-06-20 1.7611, 2025-09-19 1.8311, 2025-12-19 1.9934, 2026-03-20 1.797, 2026-06-18 1.90352); 1 already in the prices, 1 outside the window; prereg-2026-10-09/spy-distributions-2025-2026.csv sha256 780a360f01fa86b49ddd53d470951fdb228ae7a013e6adf8f34ea980bcf8ac5e
+   ok   pre-registration               PREREG-2026-10-09-month-end.md sha256 85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f
+   ok   frozen invocation              prereg-2026-10-09/invocation.sh sha256 0ec3dde1d4011b14425bf476c5072ced16217143abedab473afa9143ff5370c2; the command line is that invocation, token for token
+   ok   frozen pre-registration        --prereg sha256 85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f
+   ok   frozen window facts            S1 2005-03-24 close -> 2026-08-25: 5387 sessions, 257 cycles, 1796 at 2x, halves cut after session 2694 (2015-12-07); replication 1485 sessions, 71 cycles
+VOID — no performance number is printed when an integrity item fails (r1-redteam G0)
+INTEGRITY (G0, replication file QQQ-1d-long.csv)   FAIL — VOID
+   ok   barqc                          verdict pass
+   ok   leak check                     2970 decisions re-run on truncated bars, 0 difference(s)
+   ok   information sets               every decision saw exactly the bars closed before its session (open auction: through close[t-1]; close auction: the same plus open[t])
+   ok   calendar                       scheduled NYSE rules only (barqc.nyse_holidays); no bar date enters a rule's calendar facts (by construction; tested)
+   ok   dividend basis declared        adjusted=True, total-return through 2025-03-24
+   FAIL file sha256                    QQQ-1d-long.csv 168b319280567b2e1b06861c1464900a1c400105214252192163006559f9273c — expected 4433bdbc019328196c84e610fe5f834aa72097de70a9d3bc2d499a6dfeae790e
+   ok   window list                    71 windows reproduced exactly (windows-G7-QQQ.csv sha256 9babdf5053a7c5f41753a600d65f603329b376aff5f44fef970a458fd8029c59)
+   ok   total-return benchmark         total-return through 2025-03-24, after the last scored session
+VOID — no performance number is printed when an integrity item fails (r1-redteam G0)
+VOID — G0 covers both files; nothing performance-related was computed or printed
+exit 3

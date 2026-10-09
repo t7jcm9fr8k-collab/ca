@@ -1302,3 +1302,174 @@ ledger (`--no-record`), so that number lives here and in the saved output
 rather than in `out/ledger.json`.
 
 No third specification was run. The pre-registration said two.
+
+## The month-end overlay — one pre-registered specification, PARTIAL (2026-10-09)
+
+**Process.**
+- Pre-registered in `PREREG-2026-10-09-month-end.md` (SHA-256 `85dede81…`) and committed (`3201ce4`) before any run.
+- It was written by the main session with five sub-agents: a Quartermaster for data, an Archivist for the published record, a Flow Theorist for mechanisms, a Red Team for the reading rule, and a Bench for the harness.
+- They worked three rounds, blind to every rule-conditioned statistic. The record of who argued what, the votes and the rulings is `prereg-2026-10-09/DELIBERATION.md`; every report and script is archived in `prereg-2026-10-09/deliberation/`.
+- The rule was registered in `edgelab.py` only after the freeze (`922a941`). The frozen command, `prereg-2026-10-09/invocation.sh`, was run once, verbatim.
+- The output was saved as printed to `runs/edgelab-2026-10-09-month-end.txt` and committed (`1d9608d`) before anyone verified it.
+
+### Why this and not another single-asset rule
+
+**The ask.** Daniel asked for "something in the market to use … once maybe twice a day … graded on gains and ROI".
+
+**The family.** The deliberation set aside every family whose published effect is reported dead after publication, or which cannot be built from reachable data: pre-FOMC, the overnight drift, pre-holiday, options expiration, the FOMC cycle and crypto. It kept one: month-end institutional cash flow, the turn of the month as Etula, Rinne, Suominen & Vaittinen's "dash for cash" (RFS 2020) explains it.
+
+**The form.**
+- **Why not a 1× in-or-out rule.** It cannot beat buy-and-hold on CAGR unless the window holds about 85% of all of SPY's return.
+- **The overlay.** So the trial was an overlay: SPY at 1× always, and 2× from the close of T−4 to the close of T+3 (T = the month's last scheduled session).
+- **The bar.** It was judged against bar (A), constant leverage at the same mean exposure. Against B&H, a 2× overlay mostly measures its leverage; against (A), what is left is timing.
+
+**One correction found along the way.** The Red Team's own placebo, which placed a block anywhere in its cycle without wrapping, was size-tested on synthetic data before the freeze. It rejected a true null 7.7–9.2% of the time at a 5% level (`prereg-2026-10-09/deliberation/bench/r2/size/size-interim2.txt`). The circular form that replaced it holds (0.052–0.057).
+
+### The run
+
+```
+cd tools/market && sh prereg-2026-10-09/invocation.sh
+```
+
+- **Window.** `bars/SPY-1d.csv` (stooq), from the close of 2005-03-24 to the close of 2026-08-25: 5,387 sessions, 257 month-end cycles.
+- **Scoring.** Closes only. Five SPY distributions after the file's 2025-03-21 basis cutoff were added back.
+- **The rate grid.** Costs are 2 bp per side. Six (cash, spread) pairs are gated, because no T-bill series is reachable from here.
+- **The veto.** QQQ 1999-03 → 2005-02.
+
+G0 passed on both files. The tool's lines, verbatim:
+
+> total return (ROI on capital)          +2362.9%       +1115.2%        +759.1%   (rule · bar A · buy & hold 1x)
+> CAGR                                    +16.13%        +12.37%        +10.56%
+> max drawdown (marks: close)              -54.7%         -69.0%         -56.5%
+
+> PLACEBO within_cycle_circular 10000 draws, seed 20261009, 10000 unique: p(CAGR) = 0.0112; rule CAGR +16.13% vs null median +11.48% [5% +8.21%, 95% +14.81%]; z 2.30; beats the median in each half: yes
+
+> TIMING BOOK log    rule − bar A per session (ln(1+R) − ln(1+R_A)): mean +3.305%/yr, tracking error 9.04%; z boot +1.812 (SE 0.2017), z analytic +1.688, z i.i.d. +1.689; used +1.688; deflated at N=40: 0.3080 (needs z ≥ 3.03 for 0.8), N=100: 0.1997 (z ≥ 3.37)
+
+> VERDICT          PARTIAL — DO NOT TRADE   (reading rule of PREREG-2026-10-09-month-end.md, sha256 85dede81d000967b…)
+>    reason        below the selection-adjusted bar
+>    G1   pass   CAGR(S1) - CAGR(A): smallest +3.7086% at 2 bp (must be > 0) and +2.8976% at 5 bp (must be >= 0)
+>    G2   pass   CAGR(S1) - CAGR(A) in each half (split after session 2694, 2015-12-07): smallest +1.9962% (must be > 0)
+>    G3   pass   maxDD(S1) - (maxDD(A) - 0.05), signed drawdowns: smallest +0.1925 (must be >= 0)
+>    G4   pass   within_cycle_circular placebo: largest p 0.0114 (must be < 0.05); S1 above the placebo median CAGR in both halves at 6 of 6 pairs
+>    G5'  FAIL   z_used = min(bootstrap z, analytic z) on d: smallest +1.6802; Phi(z - E[max Z_40]) smallest 0.3053 (must be >= 0.80, i.e. z >= 3.0311); at N = 100: smallest Phi 0.1976 (z >= 3.3722); fails at every pair
+>    G6   pass   cycles 257 (129 / 128 by entry close; need >= 100 and >= 40 each); sum of d without the 5 largest positive cycles: smallest +0.28252 (must be >= 0); drop-crisis CAGR(S1) - within_cycle_circular median: smallest +2.1369% (must be > 0)
+>    G7'  pass   QQQ: z_used on its own log timing book, smallest +0.0178 (veto if < -1 at any pair)
+
+### Reading it
+
+**PARTIAL by the rule written before the data was touched.** Six of the seven gates pass at every gated pair; the deflated timing z fails at every pair.
+
+| what the gates show | the number |
+|---|---|
+| Month-end exposure beat the same exposure spread evenly | +3.71%/yr at the worst gated pair |
+| It did so in both halves | yes |
+| Its drawdown | shallower than the bar's |
+| Random placement within each month matched it | rarely: p = 0.011 |
+| Breadth, as G6 defines it | passes; but see Verification: two crises carry two thirds of it |
+| The QQQ span, 1999–2005 | does not contradict it, and does not support it either: z = +0.02 |
+
+**The timing edge is about 1.7 standard errors. After 40 specifications tried in this repository, the bar is 3.03.**
+- That bar is the family-wise 5% that the Red Team chose before the run, the same as Bonferroni and Harvey–Liu–Zhu's t > 3.
+- A z of 1.7 is what an effect of this size looks like on 21 years of one index.
+- With no effect at all, the expected best of 40 tries is z ≈ 2.19 (E[max Z_40], `prereg-2026-10-09/deliberation/redteam/r3check-output.txt`). This result sits below even that.
+
+**The outcome is the one the five agents named in advance as most likely.** Before the run they wrote down P(WORKS) at about 0.03–0.12 for the published effect sizes, and "PARTIAL — below the selection-adjusted bar" as the modal reading of a real but decayed effect (pre-registration, "Stated before the run").
+
+**The declared descriptives, which cannot change the verdict, show why a pass would have been the wrong conclusion anyway.**
+- **The edge has decayed.** d's mean by span of entry dates:
+
+  | entry dates | windows | d's mean |
+  |---|---|---|
+  | 2005–2013 | 106 | +6.22%/yr |
+  | 2014–2023 | 120 | +2.28%/yr |
+  | 2024-01 → 2026-07 | 31 | −2.75%/yr |
+
+  The full-sample +3.3%/yr leans on the span inside Etula et al.'s own sample. That is the decay shape McLean & Pontiff report for published anomalies.
+- **Much of the edge sat in windows holding a scheduled FOMC statement.** In the years with dated meetings, the 28.7% of windows that hold one supplied about 58% of the cycle excess. That fits the pre-FOMC drift riding on late-month meetings, a premium reported gone after 2015 (`runs/verify-2026-10-09-month-end/r4-flow.md`). But the difference is about one standard error, and the Red Team reads it as noise (`r4-redteam.md` §4).
+
+**What it means for the account.**
+- The overlay's backtest beat buy-and-hold by 5.57%/yr at the primary pair (stress grid, `rule−B&H`). Bar (A), which is nothing but more stock, made 12.37% against buy-and-hold's 10.56%.
+- The remainder is timing that did not clear the bar. Two thirds of it came from late 2008 and early 2020, and the recent spans show none.
+- **Do not trade it. Hold SPY as before.**
+  - Holding only the window at 1× and cash otherwise earned 8.04%/yr against 10.56% (descriptive).
+  - Stepping out around month-end, or levering up into it, has no support here.
+
+### Verification, after the run
+
+Four sub-agents attacked the result after it was committed. Their reports, scripts and outputs are in `runs/verify-2026-10-09-month-end/`, cited below by file name. The frozen pre-registration folder is left exactly as it was committed in `3201ce4`.
+
+**Two independent recomputations match the run.**
+- **Archivist** (Python standard library only; it never read edgelab):
+  - It rebuilt S1, (A) and buy-and-hold from `bars/SPY-1d.csv`, the frozen window list and the five add-backs.
+  - It matches to eight significant figures:
+
+    | | S1 | (A) | buy-and-hold |
+    |---|---|---|---|
+    | CAGR | 16.133494% | 12.365862% | 10.561689% |
+    | max drawdown | −54.660177% | −69.048644% | −56.473288% |
+
+  - d: mean +3.304799%/yr, tracking error 9.044028%, analytic z 1.687874.
+  - Sources: `r4-archivist.md`, `archivist/recompute.txt`.
+- **Red Team** (its own re-implementation): it agrees to the printed precision (`r4-redteam.md`, `redteam/verify-output.txt`).
+
+**The Red Team: STANDS.**
+- The verdict follows from the printed gate inputs, branch by branch.
+- No pass is an implementation artefact.
+- Every form of the timing z lies between 1.68 and 1.93, against 3.03. Only N ≤ 2 would flip it.
+
+**But the passes rest on two crises** (`r4-redteam.md` §2).
+- The two crisis spans, 261 sessions or 4.8% of the total, carry 67% of Σd: 2008 gives +0.298 and 2020 gives +0.199, out of +0.707.
+- Five cycles, four in late 2008 and one in early 2020, carry 59%.
+- Outside the crisis spans d is +1.13%/yr at z 0.69, and by the Red Team's estimate G4 would then have failed.
+- G3's 14-point margin over (A) was built by the October and November 2008 windows, after S1's own trough.
+- The frozen G6 (trimmed sum and drop-crisis) passed. The withdrawn round-1 concentration test ("top 5 ≤ 50%") would have failed. Neither changes the verdict word.
+
+**The Flow Theorist** (`r4-flow.md`).
+- The T+3-era offset profile has dash-for-cash's shape: weak sessions T−6…T−4, then the turn at T−3.
+- But most of those months lie inside Etula et al.'s own sample, so it re-measures the discovery rather than testing it.
+- The settlement contrast, −5.3 ± 16.7 bp, says nothing.
+
+**The Quartermaster: CLEAN** (`r4-quartermaster.md`; `quartermaster/*.txt`).
+- **Inputs.** The run read exactly the frozen inputs. `git diff 3201ce4` is empty for the pre-registration, its folder and both bar files.
+- **Top cycles.** The five largest positive cycles contain no defective bar. The 2008 cycles have no official reference on disk; they pass barqc and a peer test against DIA, IWM and QQQ. Cycle #3 (2020) agrees with official closes.
+- **Sensitivity.** Only closes where S1 trades can move d: about ±0.01 of Σd per 1% error. Removing every suspect trade close would move Σd upward.
+- **Price-only stretch.** It contributes 3.2% of Σd. The add-backs lowered Σd by 0.0047, removing the bias in the direction and at the size expected.
+- **QQQ.** The no-veto holds without the 1999-11-16 hole and without the 2001-09 closures; the lowest z over every subset is −0.057.
+- **A mechanical note.** In the five largest cycles, +0.319 of their +0.421 came from 1× sessions on crash days outside the window, while (A) held 1.33×.
+
+### Corrections this round owes to earlier sections
+
+These were found by the sub-agents while building the test. None changes an earlier verdict.
+
+1. **Sharpe ratios before this round were computed on raw returns** (`replay.py:166-176`), with no cash rate subtracted.
+   - For a rule that sits in cash earning 3%, that credits risk-free interest as Sharpe: about c/(σ√f), roughly +0.7 at 5% exposure.
+   - The Sharpe comparisons of `rsi_dip`, `vol_target`, `trend_filter` and `trend_or_dip` in this document are therefore overstated. Their verdicts stand.
+   - `edgelab.py` uses excess-of-cash Sharpe.
+2. **The 2026-09-11 deflated Sharpes (0.982 and 0.959) were deflated against zero**, not against the benchmark (`crosstest.py:171-175` → `combine.py:74`), as "One limitation in how the deflation was wired" above suspected. The NULLs stand.
+3. **The stooq long files are not "the unadjusted ones".**
+   - Each is distribution back-adjusted, with the adjustment on the ex-date open, up to a symbol-specific cutoff, and price-only after it:
+
+     | symbols | cutoff |
+     |---|---|
+     | EFA | 2022-06-09 |
+     | XLF | 2022-09-19 |
+     | IWM | 2022-09-26 |
+     | DIA | 2022-10-21 |
+     | EEM | 2024-12-17 |
+     | SPY | 2025-03-21 |
+     | QQQ | 2025-03-24 |
+     | XLE | 2025-12-22 |
+     | TLT | 2026-04-01 |
+
+   - This was measured twice: `prereg-2026-10-09/deliberation/r1-quartermaster.md`, and `prereg-2026-10-09/deliberation/bench/r2/basis-stooq-vs-nasdaq.txt`.
+   - The E-15 refutation's reading of the nine long files as "largely NOT dividend-adjusted" rested on a 2020–26 window that lies mostly after those cutoffs. DATA.md §2 is corrected in place.
+4. **§C's "both halves" was a calendar split at 2016-01-01, not a midpoint.** The Bench reproduced §C exactly only with that split (`prereg-2026-10-09/deliberation/bench/V3b-spy-halves-hypothesis.txt`).
+   - Also, §C's overnight leg on `SPY-1d.csv` carries each dividend until 2025-03-21, because stooq places the adjustment on the ex-date open.
+
+### Trial accounting
+
+- Trials before this run: 39. Added: **1**. Any future deflation must count 40.
+- The row is in `trials.json`, appended in the freeze commit before the run.
+- The declared descriptives are not trials: nothing may be selected or traded on them.
+- No second specification was run, and none will be added to chase a better answer. A test of the settlement shift or the FOMC overlap would be a new pre-registration, tested only on month-ends after 2026-08.

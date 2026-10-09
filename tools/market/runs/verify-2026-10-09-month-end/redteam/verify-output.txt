@@ -1,0 +1,33 @@
+sessions 5387; years 21.421; window sessions 1796
+CAGR S1 +16.14%  A +12.37%  B&H +10.56%
+maxDD S1 -54.7% peak 2007-07-19 trough 2008-10-27
+maxDD A -69.0% peak 2007-10-09 trough 2009-03-09
+maxDD B&H -56.5% peak 2007-10-09 trough 2009-03-09
+d: mean +3.307%/yr  TE 9.05%  z_iid +1.690  sum +0.7070
+cycles 257; sum +0.7070; top-5 +0.4205 (59% of the sum); without them +0.2865
+top-5 cycles (entry close, sum d): 2008-10-27 +0.1506, 2008-12-24 +0.0858, 2020-02-24 +0.0698, 2008-11-21 +0.0585, 2008-09-24 +0.0560
+bottom-5 cycles: 2010-06-24 -0.0566, 2025-03-25 -0.0571, 2007-02-22 -0.0572, 2018-01-25 -0.0601, 2009-02-23 -0.0674
+sum d 2008-09-01..2009-06-30: +0.4118
+sum d 2020-02-15..2020-04-30: +0.0653
+without the two crisis spans: sum d +0.2300 over 5126 sessions -> +1.13%/yr
+d summed over window sessions +0.7006; over other sessions +0.0064
+largest d sessions: 2008-10-28 d +0.0652 (r +11.69%), 2020-03-16 d +0.0518 (r -10.95%), 2020-03-12 d +0.0431 (r -9.56%), 2008-10-15 d +0.0426 (r -9.84%), 2008-11-24 d +0.0413 (r +6.93%), 2020-03-26 d +0.0354 (r +5.84%)
+smallest d sessions: 2020-03-13 d -0.0356 (r +8.55%), 2025-04-03 d -0.0379 (r -4.93%), 2020-03-24 d -0.0436 (r +9.06%), 2008-12-01 d -0.0522 (r -8.86%), 2008-10-13 d -0.0558 (r +14.52%), 2008-09-29 d -0.0582 (r -7.85%)
+per-cycle z (257 cycle sums of d): +1.876
+outside the two crisis spans: 5126 sessions, mean +1.13%/yr, TE 7.37%, z_iid +0.69
+crisis spans: 261 sessions (4.8%) carry 67% of sum d
+N=  1: z needed 0.842; DSR at z 1.688 = 0.954
+N=  2: z needed 1.361; DSR at z 1.688 = 0.879
+N=  3: z needed 1.694; DSR at z 1.688 = 0.798
+N=  5: z needed 2.034; DSR at z 1.688 = 0.690
+N= 10: z needed 2.416; DSR at z 1.688 = 0.545
+N= 40: z needed 3.031; DSR at z 1.688 = 0.308
+N=100: z needed 3.372; DSR at z 1.688 = 0.200
+from z 1.688: mean x1.80 or SE x0.56
+from z 1.812: mean x1.67 or SE x0.60
+from z 1.93: mean x1.57 or SE x0.64
+2008-10-27: drawdown S1 -54.7%, A -58.0%, B&H -46.4%
+2008-11-20: drawdown S1 -54.1%, A -64.3%, B&H -51.8%
+2009-03-09: drawdown S1 -54.0%, A -69.0%, B&H -56.5%
+per-cycle sum of d: mean +27.5 bp, SD 235.1 bp; FOMC split (printed +68.8 vs +20.2 bp, 46 vs 114 cycles): difference 48.6 bp, SE ~41.1 bp
+sum d by calendar year: 2005 +0.017, 2006 +0.044, 2007 -0.023, 2008 +0.298, 2009 -0.001, 2010 +0.069, 2011 +0.118, 2012 +0.054, 2013 -0.025, 2014 -0.033, 2015 +0.003, 2016 -0.005, 2017 +0.009, 2018 +0.080, 2019 -0.032, 2020 +0.199, 2021 -0.095, 2022 +0.074, 2023 +0.053, 2024 -0.130, 2025 -0.025, 2026 +0.059

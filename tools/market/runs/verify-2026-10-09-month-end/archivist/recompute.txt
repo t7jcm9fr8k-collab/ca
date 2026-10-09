@@ -1,0 +1,30 @@
+sessions 5387 (2005-03-28..2026-08-25); 2x sessions 1796; p_hat 1+1796/5387 = 1.3333952107; change closes 513 + start; session 2694 = 2015-12-07
+
+== PRIMARY (opening cost from cash; change-close cost after the mark; A at 1 + 1796/5387) vs the run's JSON ==
+  quantity                 mine          run           diff  tolerance
+  S1 cagr             16.133494    16.133494  -0.00000000%  1 bp/yr  ok
+  A cagr              12.365862    12.365862  +0.00000000%  1 bp/yr  ok
+  BH cagr             10.561689    10.561689  -0.00000000%  1 bp/yr  ok
+  S1 maxdd           -54.660177   -54.660177  -0.00000000pt 0.1 pt   ok
+  A maxdd            -69.048644   -69.048644  -0.00000000pt 0.1 pt   ok
+  BH maxdd           -56.473288   -56.473288  -0.00000000pt 0.1 pt   ok
+  S1 h1               12.103806    12.103806  -0.00000000%  1 bp/yr  ok
+  A h1                 6.755205     6.755205  +0.00000000%  1 bp/yr  ok
+  BH h1                6.479957     6.479957  -0.00000000%  1 bp/yr  ok
+  S1 h2               20.303692    20.303692  -0.00000000%  1 bp/yr  ok
+  A h2                18.265203    18.265203  -0.00000000%  1 bp/yr  ok
+  BH h2               14.795475    14.795475  -0.00000000%  1 bp/yr  ok
+  d mean_annual        3.304799     3.304799  +0.00000000%  1 bp/yr  ok
+  d te                 9.044028     9.044028  +0.00000000%  none set ok
+  d z                  1.687874     1.687874  +0.00000000   0.02     ok
+  all within tolerance: True
+  final equity S1 24.62923071 (run 24.62923071), A 12.15168168 (run 12.15168168), B&H 8.59118583 (run 8.59118583)
+  cost paid S1 0.60599317 (run 0.60599317), A 0.00360888 (run 0.00360888); financing S1 1.27055582 (run 1.27055582), A 0.66888947 (run 0.66888947)
+  d skew 0.032484 (run 0.032484), kurt 19.725430 (run 19.725430), sum 0.70646641 (run 0.70646641)
+  CAGR(S1) - CAGR(A) 3.76763% (run 3.76763%)
+
+== SENSITIVITY: each open convention flipped alone ==
+  A at the brief's rounded 1.333395: CAGR S1 16.1335% A 12.3659% B&H 10.5617%; maxDD S1 -54.6602 A -69.0486; h1 S1 12.1038%; d mean 3.3048%/yr TE 9.0440% z 1.6879
+  change-close cost booked into that close's mark: CAGR S1 16.1335% A 12.3659% B&H 10.5617%; maxDD S1 -54.6692 A -69.0486; h1 S1 12.1038%; d mean 3.3048%/yr TE 9.0466% z 1.6874
+  no opening cost: CAGR S1 16.1357% A 12.3673% B&H 10.5627%; maxDD S1 -54.6602 A -69.0486; h1 S1 12.1080%; d mean 3.3054%/yr TE 9.0440% z 1.6882
+  CAGR over days/365 instead of /365.25: CAGR S1 16.1216% A 12.3569% B&H 10.5541%; maxDD S1 -54.6602 A -69.0486; h1 S1 12.0950%; d mean 3.3048%/yr TE 9.0440% z 1.6879

@@ -1,0 +1,36 @@
+S1 primary rebuilt: 5387 sessions; sum d 0.70647 (run 0.70647); z_boot 1.8116 (run 1.8116), z_analytic 1.6879 (run 1.6879), z_used 1.6879 (run 1.6879)
+halves (cut after session 2694, 2015-12-07): sum d first +0.52333, second +0.18313
+
+(d) cycle #3 2020-02-25..2020-03-25: stooq/official close-ratio step per session (23 sessions): 2020-03-20 +58.27 bp (the ex-date adjustment); largest other |step| 1.02 bp (2020-03-09)
+
+(e) placeholder patterns in the top-5 cycles (entry close to cycle end): none
+    whole S1 span, 'O = C = H or L': 1 bar(s): 2018-02-20 e=1/1
+    whole S1 span, 'close = previous close': 17 bar(s): 2005-08-22 e=1/1, 2005-11-08 e=1/1, 2007-12-19 e=1/1, 2012-07-30 e=2/2, 2012-10-05 e=1/1, 2012-10-31 e=2/2, 2013-03-27 e=2/2, 2013-06-10 e=1/1, 2013-07-30 e=2/2, 2013-10-21 e=1/1, 2014-02-26 e=2/2, 2016-08-22 e=1/1, 2017-01-10 e=1/1, 2018-05-08 e=1/1, 2018-10-08 e=1/1, 2022-08-11 e=1/1, 2023-07-21 e=1/1
+    repeated closes at a trade close (exposure changes there): 0; after 2016-10-10: 2017-01-10 official close also repeats: True, 2018-05-08 official close also repeats: True, 2018-10-08 official close also repeats: True, 2022-08-11 official close also repeats: True, 2023-07-21 official close also repeats: True
+
+(f) one close raised 1% (in memory), cycle #1; the rule's exposures do not read prices
+    entry close (T-4) 2008-10-27 (e 1 into it, 2 after it): change in sum d -0.009839
+    inside close (T) 2008-10-31 (e 2 into it, 2 after it): change in sum d -0.000000
+    exit close (T+3) 2008-11-05 (e 2 into it, 1 after it): change in sum d +0.009242
+    outside close 2008-11-14 (e 1 into it, 1 after it): change in sum d +0.000000
+
+(g) peers: SPY ~ DIA + IWM + QQQ over 5387 common sessions of S1; betas +0.598, +0.097, +0.297; residual SD 0.210%; largest |residual| 2.125% (2008-11-20)
+    largest spike-and-reversal scores over S1 (min(|res_t|,|res_t+1|), opposite signs): 2008-10-10 1.462%; 2025-04-09 1.178%; 2008-10-16 1.145%; 2008-11-18 0.967%; 2008-10-06 0.930%
+    top-5 cycles' boundary closes (entry / exit): #1 2008-10-27 0.000% / 2008-11-05 0.558%; #2 2008-12-24 0.000% / 2009-01-06 0.000%; #3 2020-02-24 0.000% / 2020-03-04 0.015%; #4 2008-11-21 0.000% / 2008-12-03 0.000%; #5 2008-09-24 0.031% / 2008-10-03 0.433%
+    all 513 trade closes in S1 (256 entry, 257 exit): largest |spike| 0.558% (2008-11-05, exit); count above 0.5%: 1; sum d if EVERY reversal at a trade close were a bad close and were removed: +0.0132 (second half alone +0.0187)
+
+(h) S1 gap legs (a scheduled session with no bar inside the leg): 5
+    2006-12-29->2007-01-03: e=2, d -0.00143
+    2011-02-16->2011-02-18: e=1, d -0.00168
+    2012-10-26->2012-10-31: e=2, d -0.00027
+    2018-12-04->2018-12-06: e=2, d -0.00108
+    2025-01-08->2025-01-10: e=1, d +0.00531
+    without them: sum d +0.70562; z_used +1.6860 (boot +1.8132, analytic +1.6860); with them z_used +1.6879
+
+(i) QQQ veto book, 1485 sessions 1999-03-26..2005-02-22; z_used = min(boot, analytic)
+    cash 1.50% spread 1.50%: z_used +0.0180 (boot +0.0183); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0507 (boot -0.0507, analytic -0.0499); veto needs < -1
+    cash 1.50% spread 4.00%: z_used +0.0182 (boot +0.0186); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0510 (boot -0.0510, analytic -0.0502); veto needs < -1
+    cash 0.00% spread 1.50%: z_used +0.0178 (boot +0.0182); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0505 (boot -0.0505, analytic -0.0497); veto needs < -1
+    cash 0.00% spread 4.00%: z_used +0.0181 (boot +0.0184); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0508 (boot -0.0508, analytic -0.0500); veto needs < -1
+    cash 3.00% spread 1.50%: z_used +0.0181 (boot +0.0185); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0509 (boot -0.0509, analytic -0.0501); veto needs < -1
+    cash 3.00% spread 4.00%: z_used +0.0184 (boot +0.0187); without the 3 gap legs (1999-11-17, 2001-09-17, 2004-06-14) z_used -0.0511 (boot -0.0511, analytic -0.0504); veto needs < -1

@@ -1,0 +1,40 @@
+S1 rebuilt: 5387 sessions 2005-03-28..2026-08-25, 257 cycles, p_hat 1.333395
+validation vs run (book_log): sum 0.70647 (run 0.70647); top-5 0.42062 (run 0.42062); without top-5 0.28584 (run 0.28584)
+log timing book: mean 3.3048%/yr (run +3.305%), z_iid 1.690 (run +1.689)
+
+(a) 5 largest positive cycles of d (log timing book), primary cell
+ #1 cycle 43: sessions 2008-10-28..2008-11-21 (19); sum d +0.1506 (21.3% of total); 2x sessions 2008-10-28..2008-11-05 (7)
+     before 2016-10: no official file; internal checks only (barqc PASS for the whole file in r1)
+     largest |d| sessions: 2008-10-28 e=2 r_SPY +11.69% d +0.0650; 2008-11-20 e=1 r_SPY -7.42% d +0.0342; 2008-11-19 e=1 r_SPY -6.41% d +0.0266
+     bar issues: none
+ #2 cycle 45: sessions 2008-12-26..2009-01-26 (20); sum d +0.0858 (12.1% of total); 2x sessions 2008-12-26..2009-01-06 (7)
+     before 2016-10: no official file; internal checks only (barqc PASS for the whole file in r1)
+     largest |d| sessions: 2009-01-20 e=1 r_SPY -5.28% d +0.0215; 2009-01-02 e=2 r_SPY +3.02% d +0.0174; 2009-01-21 e=1 r_SPY +4.32% d -0.0168
+     bar issues: none
+ #3 cycle 179: sessions 2020-02-25..2020-03-25 (22); sum d +0.0698 (9.9% of total); 2x sessions 2020-02-25..2020-03-04 (7)
+     official cross-check (closes): stooq/official ratio drift across the cycle 58.99 bp (a dividend step of ~30-60 bp would show; a wrong close would show)
+     largest |d| sessions: 2020-03-16 e=1 r_SPY -10.95% d +0.0518; 2020-03-24 e=1 r_SPY +9.06% d -0.0436; 2020-03-12 e=1 r_SPY -9.56% d +0.0432
+     bar issues: none
+ #4 cycle 44: sessions 2008-11-24..2008-12-24 (22); sum d +0.0585 (8.3% of total); 2x sessions 2008-11-24..2008-12-03 (7)
+     before 2016-10: no official file; internal checks only (barqc PASS for the whole file in r1)
+     largest |d| sessions: 2008-12-01 e=2 r_SPY -8.86% d -0.0522; 2008-11-24 e=2 r_SPY +6.93% d +0.0411; 2008-12-02 e=2 r_SPY +3.86% d +0.0225
+     bar issues: none
+ #5 cycle 42: sessions 2008-09-25..2008-10-27 (23); sum d +0.0560 (7.9% of total); 2x sessions 2008-09-25..2008-10-03 (7)
+     before 2016-10: no official file; internal checks only (barqc PASS for the whole file in r1)
+     largest |d| sessions: 2008-09-29 e=2 r_SPY -7.85% d -0.0581; 2008-10-13 e=1 r_SPY +14.52% d -0.0558; 2008-10-15 e=1 r_SPY -9.84% d +0.0427
+     bar issues: none
+
+(b) post-cutoff stretch 2025-03-24..2026-08-25: 358 sessions; sum d with add-backs +0.02272, without +0.02741; whole run sum d +0.70647 (without add-backs +0.71115)
+    2025-06-20: e=1; d with add-back +0.000835, without +0.001825; difference -0.000990 (expected about -(p_hat) x D/P = -0.000983)
+    2025-09-19: e=1; d with add-back -0.001571, without -0.000679; difference -0.000892 (expected about -(p_hat) x D/P = -0.000922)
+    2025-12-19: e=1; d with add-back -0.003003, without -0.002022; difference -0.000981 (expected about -(p_hat) x D/P = -0.000982)
+    2026-03-20: e=1; d with add-back +0.005137, without +0.006130; difference -0.000993 (expected about -(p_hat) x D/P = -0.000908)
+    2026-06-18: e=1; d with add-back -0.003476, without -0.002616; difference -0.000860 (expected about -(p_hat) x D/P = -0.000856)
+    total effect of the five add-backs on sum d: -0.00468 (log; S1 relative to A)
+    as CAGR(S1)-CAGR(A) gap: about -2.26 bp/yr change from the add-backs (log-sum approximation)
+
+(c) QQQ veto book rebuilt: 1485 sessions 1999-03-26..2005-02-22, p_hat 1.3347; z_iid +0.018 (run z_used +0.018); mean d +0.148%/yr (run +0.15%)
+    gap leg 1999-11-15->1999-11-17: e=1, r_QQQ d -0.00342
+    gap leg 2001-09-10->2001-09-17: e=1, r_QQQ d +0.03166
+    gap leg 2004-06-10->2004-06-14: e=1, r_QQQ d +0.00473
+    z without the 3 gap leg(s): -0.050; veto threshold -1
