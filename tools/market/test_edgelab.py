@@ -925,6 +925,17 @@ _txt = open(_outp).read() if os.path.exists(_outp) else ""
 check("--out holds the summary, both reports, the cost convention, then JSON",
       "COST CONVENTION  1 bp PER SIDE" in _txt and _txt.count("EDGELAB v") == 2 and "symbol" in _txt
       and json.loads(_txt[_txt.index("\n{"):])["runs"][1]["symbol"] == "BBB")
+_curv = os.path.join(_tmp, "curves")
+_c, _o, _ = _cli(["--rule", "buy_and_hold", "--csv", _pa, "--source", "test", "--cost-bps-per-side", "1",
+                  "--cash-yield", "0.03", "--placebo-draws", "0", "--boot-draws", "0", "--curves", _curv])
+_cf = os.path.join(_curv, "AAA-buy_and_hold-AAA-1d-curves.csv")
+_crows = list(__import__("csv").DictReader(open(_cf))) if os.path.exists(_cf) else []
+_ca = E.load(_pa, "AAA", "test")
+check("--curves writes one row per scored session with the weights held and both paths",
+      _c == 0 and len(_crows) == len(_ca.bars) - 1
+      and all(float(r["w_overnight"]) == 1.0 and float(r["w_intraday"]) == 1.0 for r in _crows)
+      and _close(float(_crows[-1]["strategy_close"]), float(_crows[-1]["benchmark_close"]), 0)
+      and _close(float(_crows[0]["r_overnight"]), _ca.bars[1].open / _ca.bars[0].close - 1, 0))
 _c, _o, _ = _cli(["--rule", "buy_and_hold", "--csv", _pa, _pz, "--cost-bps-per-side", "1",
                   "--cash-yield", "0", "--placebo-draws", "0", "--boot-draws", "0"])
 check("a run with a blocked file exits 2 and still reports the good one", _c == 2 and "AAA" in _o and "BLOCKED" in _o)

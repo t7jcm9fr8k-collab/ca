@@ -1175,7 +1175,7 @@ def _as_factory(rule):
 
 def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, start=None,
         end=None, trials=None, sr_var=None, seed=0, placebo_draws=1000, placebo_method="both",
-        boot_draws=1000, block_len=20, leak_samples=100, leak_changes=200):
+        boot_draws=1000, block_len=20, leak_samples=100, leak_changes=200, keep_curves=False):
     """
     One rule, one file. `rule` is a registry name or a factory returning a
     fresh Rule. Raises Blocked (data), ValueError (arguments, or a weight out
@@ -1257,7 +1257,8 @@ def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, s
                         "cash": CASH_NOTE, "information": INFO_NOTE,
                         "annualisation": f"{SESSIONS_PER_YEAR} sessions/yr for volatility and "
                                          f"Sharpe; calendar years (days/365.25) for CAGR",
-                        "instrument": instrument_note(series.symbol, k, expense_ratio)},
+                        "instrument": instrument_note(series.symbol, k, expense_ratio),
+                        "dividends": dividend_note(series.provenance.get("adjusted"))},
         "calendar": calendar_report(series, cal),
         "window": {"start_close": start_date.isoformat(), "first_session": legs.dates[0].isoformat(),
                    "last_session": legs.dates[-1].isoformat(), "sessions": S, "legs": 2 * S,
@@ -1295,7 +1296,32 @@ def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, s
     else:
         res["deflated_sharpe"] = None
     res["bootstrap"] = bootstrap(s_rets, b_rets, legs.g_on, years, boot_draws, block_len, seed)
+    if keep_curves:
+        res["_curves"] = [
+            {"date": legs.dates[j].isoformat(), "close_auction_on": legs.prev_dates[j].isoformat(),
+             "gap_leg": legs.gap[j], "w_overnight": w_on[j], "w_intraday": w_id[j],
+             "r_overnight": legs.r_on[j], "r_intraday": legs.r_id[j],
+             "instr_overnight": legs.i_on[j], "instr_intraday": legs.i_id[j],
+             "cash_overnight": legs.g_on[j],
+             "strategy_open": s_path["opens"][j], "strategy_close": s_path["closes"][j],
+             "benchmark_open": b_path["opens"][j], "benchmark_close": b_path["closes"][j]}
+            for j in range(S)]
     return res
+
+
+def write_curves(res, path):
+    """The per-session path of one run, as CSV: what was held in each leg and what it earned."""
+    rows = res["_curves"]
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (repr(v) if isinstance(v, float) else v) for k, v in r.items()})
+    os.replace(tmp, path)
+    return path
 
 
 def decompose(series, start=None, end=None):
@@ -1340,6 +1366,17 @@ def decompose(series, start=None, end=None):
             "calendar": calendar_report(series, cal)}
 
 
+def dividend_note(adjusted):
+    """Where a dividend lands in the leg split — the bias that matters most for a two-leg rule."""
+    if adjusted is True:
+        return ("in the prices as stated (total-return): each ex-date's dividend is added back in "
+                "that day's OVERNIGHT leg, which is where a holder of record earns it")
+    return ("NOT in the prices as stated (or not stated): each ex-date's price drop lands in an "
+            "OVERNIGHT leg with no dividend credited, so overnight exposure — and buy-and-hold — "
+            "is understated by about the distribution yield, and a rule that is flat overnight "
+            "into ex-dates is flattered. Use a total-return file for any rule that holds overnight")
+
+
 def instrument_note(symbol, k, expense_ratio):
     if k == 1:
         return f"{symbol} as traded (1x)"
@@ -1378,6 +1415,7 @@ def render(r):
           f"DATA             {r['path']} · source {r['source']} · adjusted "
           f"{ {True: 'yes', False: 'no', None: 'NOT STATED'}[r['adjusted']] } (as stated, not "
           f"measured) · barqc {r['qc_verdict'].upper()}",
+          f"DIVIDENDS        {r['conventions']['dividends']}",
           "                 " + render_calendar(r["calendar"]).replace("\n", "\n                 "),
           f"WINDOW           scored from the close auction of {w['start_close']} (warm-up "
           f"{w['warmup_bars']} bar(s)) to the close of {w['last_session']}: {w['sessions']} "
@@ -1406,7 +1444,7 @@ def render(r):
             (f"{cells[2]:>18}" if lev else "")
     L += [row("total return (ROI on capital)", "total_return", _p),
           row("CAGR", "cagr", lambda x: _p(x, 2)),
-          row("volatility (annualised)", "volatility", lambda x: _p(x, 1)),
+          row("volatility (annualised)", "volatility", lambda x: _p(x, 1).lstrip("+")),
           row("Sharpe (excess of cash)", "sharpe", _f),
           row("Sortino (excess of cash)", "sortino", _f),
           row("max drawdown", "max_drawdown", _p),
@@ -1459,7 +1497,9 @@ def render(r):
                      f"{p['p_cagr']:.4f}, p(Sharpe) = {p['p_sharpe']:.4f}; null CAGR median "
                      f"{_p(p['null_cagr_q'][0.5], 2)} [5% {_p(p['null_cagr_q'][0.05], 2)}, 95% "
                      f"{_p(p['null_cagr_q'][0.95], 2)}], null Sharpe median "
-                     f"{_f(p['null_sharpe_q'][0.5])} [95% {_f(p['null_sharpe_q'][0.95])}]")
+                     f"{_f(p['null_sharpe_q'][0.5])} [95% {_f(p['null_sharpe_q'][0.95])}]"
+                     + (f"  — only {p['unique_arrangements']} distinct arrangements: this p is coarse"
+                        if p["unique_arrangements"] < min(100, p["draws"]) else ""))
         pc = r.get("placebo_conservative") or {}
         if len(r["placebo"]) > 1 and pc.get("p_sharpe") is not None:
             L.append(f"PLACEBO reading  the larger p of the two is the conservative one: p(CAGR) = "
@@ -1590,6 +1630,9 @@ def main(argv=None):
     ap.add_argument("--block-len", type=float, default=20.0, help="mean block length, sessions")
     ap.add_argument("--leak-samples", type=int, default=100)
     ap.add_argument("--out", help="write the full output (text, then JSON) here")
+    ap.add_argument("--curves", metavar="DIR",
+                    help="also write DIR/<symbol>-<rule>-curves.csv: per session, the weight held in "
+                         "each leg, each leg's return, and both equity paths")
     ap.add_argument("--allow-test-rule", action="store_true",
                     help="let a TEST-ONLY rule run on a file (the test suite uses this)")
     ap.add_argument("--list-rules", action="store_true")
@@ -1649,7 +1692,7 @@ def main(argv=None):
               expense_ratio=a.expense_ratio, start=a.start, end=a.end, trials=a.trials,
               sr_var=a.sr_var, seed=a.seed, placebo_draws=a.placebo_draws,
               placebo_method=a.placebo, boot_draws=a.boot_draws, block_len=a.block_len,
-              leak_samples=a.leak_samples)
+              leak_samples=a.leak_samples, keep_curves=bool(a.curves))
     try:
         rows = run_many(a.csv, factory, a.symbol, sources, adj, **kw)
     except (ValueError, LookAhead) as e:
@@ -1662,11 +1705,19 @@ def main(argv=None):
                       + summary_table(rows))
     for x in rows:
         blocks.append(render(x["result"]) if x["status"] == "ok" else f"{x['symbol']}: {x['status']}")
+    if a.curves:
+        for x in rows:
+            if x["status"] == "ok":
+                p = write_curves(x["result"], os.path.join(
+                    a.curves, f"{x['symbol']}-{a.rule}-{os.path.basename(x['result']['path'] or 'x').rsplit('.', 1)[0]}-curves.csv"))
+                print(f"wrote {p}", file=sys.stderr)
     text = "\n\n".join(blocks)
     print(text)
     if a.out:
         payload = [{"symbol": x["symbol"], "status": x["status"],
-                    "result": _json_safe(x.get("result"))} for x in rows]
+                    "result": _json_safe({k: v for k, v in (x.get("result") or {}).items()
+                                          if k != "_curves"}) if x.get("result") else None}
+                   for x in rows]
         _write(a.out, text + "\n\n" + json.dumps({"argv": sys.argv if argv is None else argv,
                                                   "runs": payload}, indent=1, default=str) + "\n")
         print(f"\nwrote {a.out}", file=sys.stderr)
