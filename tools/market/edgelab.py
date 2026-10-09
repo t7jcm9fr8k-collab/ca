@@ -496,9 +496,12 @@ def accrual_years(D, accrual):
 
 
 def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None, accrual="calendar",
-               distributions=None):
-    """`distributions` = {ex-date: amount per share}, added back on the ex-date's overnight leg:
-    r_on = (open + amount) / close[t-1] - 1 (a price-only stretch made total-return)."""
+               distributions=None, closes_only=False):
+    """`distributions` = {ex-date: amount per share}, added back to make a price-only stretch
+    total-return: on the ex-date's overnight leg, r_on = (open + amount) / close[t-1] - 1 (the
+    holder of record at the open earns it). closes_only: each session is one close-to-close step,
+    r_on = 0 and r_id = (close + amount) / close[t-1] - 1, so no open is ever read; only for books
+    that never trade at an open auction."""
     k = int(leverage)
     dist = distributions or {}
     out = Legs([], [], [], [], [], [], [], [], [], [], k, [])
@@ -506,8 +509,11 @@ def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None, ac
         p, b = bars[t - 1], bars[t]
         d0, d1 = p.ts.date(), b.ts.date()
         D = (d1 - d0).days
-        r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
-        r_id = b.close / b.open - 1.0
+        if closes_only:
+            r_on, r_id = 0.0, (b.close + dist.get(d1, 0.0)) / p.close - 1.0
+        else:
+            r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
+            r_id = b.close / b.open - 1.0
         y = cash.at(d0)
         yf = accrual_years(D, accrual)
         g = (1.0 + y) ** yf - 1.0
@@ -1473,9 +1479,10 @@ class MarginLegs:
     P_fin: list
 
 
-def margin_legs(bars, s0, last, cash, spread, cal=None, accrual="calendar", distributions=None):
+def margin_legs(bars, s0, last, cash, spread, cal=None, accrual="calendar", distributions=None,
+                closes_only=False):
     """Idle cash grows by (1+y)^a - 1 and borrowed money by (1+y+spread)^a - 1 on each overnight
-    leg, a = accrual_years(D, accrual). `distributions` as in build_legs."""
+    leg, a = accrual_years(D, accrual). `distributions` and `closes_only` as in build_legs."""
     if spread is None:
         raise ValueError("a margin run needs a stated financing spread over cash (--spread)")
     spread = float(spread)
@@ -1487,8 +1494,11 @@ def margin_legs(bars, s0, last, cash, spread, cal=None, accrual="calendar", dist
         p, b = bars[t - 1], bars[t]
         d0, d1 = p.ts.date(), b.ts.date()
         D = (d1 - d0).days
-        r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
-        r_id = b.close / b.open - 1.0
+        if closes_only:
+            r_on, r_id = 0.0, (b.close + dist.get(d1, 0.0)) / p.close - 1.0
+        else:
+            r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
+            r_id = b.close / b.open - 1.0
         y = cash.at(d0)
         yf = accrual_years(D, accrual)
         g = (1.0 + y) ** yf - 1.0
@@ -1771,18 +1781,41 @@ def session_cycles(dates, cal, anchor):
     return out, anchors
 
 
+def _internal(pat):
+    """A leg-level pattern as its change points: [(leg offset, level)], the first at offset 0."""
+    out = []
+    for off, e in enumerate(pat):
+        if not out or abs(e - out[-1][1]) > EPS:
+            out.append((off, e))
+    return out
+
+
 class WithinCycle:
     """
-    r1-redteam D7, made exact for an overlay. In each cycle, the departure from
-    the rule's BASELINE exposure — from the first departing session to the last,
-    as one composite block — is moved intact to a uniformly random start inside
-    its own cycle, never crossing the cycle's end. A cycle with no departure is
-    left alone. The rule's leverage, legs, costs, cash and fills are kept.
+    r1-redteam D7 for an overlay. In each cycle, the departure from the rule's
+    BASELINE exposure — from the first departing session to the last, as one
+    composite block — is moved intact to a random start inside its own cycle. A
+    cycle with no departure is left alone. Leverage, legs, costs, cash and
+    fills are the rule's own.
+
+    wrap=False ('linear'): the start is uniform over the positions where the
+    block fits without crossing the cycle's end. NOT an exact randomization
+    test when the real block sits at an edge of its cycle (as a month-window
+    rule's does): edge sessions are covered by fewer placements than interior
+    ones, so the real placement's statistic is more dispersed around the null
+    centre than a random placement's, and the p-value is U-shaped
+    (r2-bench Build §B4).
+    wrap=True ('circular'): the start is uniform over EVERY session of the cycle
+    and the block wraps from the cycle's end to its start. Every session is
+    covered equally often, the real placement is one of the cycle's rotations,
+    and the test is exact for returns exchangeable under rotation within cycles.
+    Offsets are relative to the cycle's first session; `observed` is the rule's.
     """
 
-    def __init__(self, levels, cycles, baseline):
+    def __init__(self, levels, cycles, baseline, wrap=False):
         self.n = len(levels)
         self.baseline = baseline
+        self.wrap = bool(wrap)
         self.plan, self.observed = [], []
         for j0, j1 in cycles:
             dev = [j for j in range(j0, j1)
@@ -1790,29 +1823,42 @@ class WithinCycle:
             if not dev:
                 continue
             f, l = dev[0], dev[-1]
-            pat = levels[2 * f:2 * (l + 1)]
-            internal = []
-            for off, e in enumerate(pat):
-                if not internal or abs(e - internal[-1][1]) > EPS:
-                    internal.append((off, e))
-            self.plan.append((j0, j1 - j0 - (l - f + 1), internal, l - f + 1))
-            self.observed.append(f)
-        self.movable = sum(1 for p in self.plan if p[1] > 0)
+            L = l - f + 1
+            self.plan.append((j0, j1 - j0, _internal(levels[2 * f:2 * (l + 1)]), L))
+            self.observed.append(f - j0)
+        self.observed = tuple(self.observed)
+        self.movable = sum(1 for (j0, Lc, internal, L) in self.plan if Lc > L)
 
-    def arrange(self, starts):
+    def arrange(self, offsets):
         out = []
         _push(out, 0, self.baseline)
-        for (j0, slack, internal, L), st in zip(self.plan, starts):
+        for (j0, Lc, internal, L), r in zip(self.plan, offsets):
+            if r + L <= Lc:                                   # the block fits: no wrap
+                for off, e in internal:
+                    _push(out, 2 * (j0 + r) + off, e)
+                if 2 * (j0 + r + L) < self.n:
+                    _push(out, 2 * (j0 + r + L), self.baseline)
+                continue
+            w = 2 * (Lc - r)                                  # pattern legs before the cycle's end
+            lvl_w = [e for off, e in internal if off <= w][-1]
+            _push(out, 2 * j0, lvl_w)                         # the tail, at the cycle's start
             for off, e in internal:
-                _push(out, 2 * st + off, e)
-            if 2 * (st + L) < self.n:
-                _push(out, 2 * (st + L), self.baseline)
+                if off > w:
+                    _push(out, 2 * j0 + off - w, e)
+            _push(out, 2 * j0 + 2 * L - w, self.baseline)
+            for off, e in internal:                           # the head, up to the cycle's end
+                if off < w:
+                    _push(out, 2 * (j0 + r) + off, e)
+            if 2 * (j0 + Lc) < self.n:
+                _push(out, 2 * (j0 + Lc), self.baseline)
         return out
 
     def draw(self, rng):
-        starts = tuple(j0 + (rng.randrange(slack + 1) if slack else 0)
-                       for (j0, slack, internal, L) in self.plan)
-        return self.arrange(starts), starts
+        if self.wrap:
+            offs = tuple(rng.randrange(Lc) for (j0, Lc, internal, L) in self.plan)
+        else:
+            offs = tuple(rng.randrange(Lc - L + 1) for (j0, Lc, internal, L) in self.plan)
+        return self.arrange(offs), offs
 
 
 def _level_runs(levels):
@@ -1825,14 +1871,14 @@ def _level_runs(levels):
 
 
 class ShiftPlacebo:
-    """A circular shift of the whole exposure path by a whole number of sessions (2u legs)."""
+    """A circular shift of the whole exposure path by a whole number of sessions u (2u legs),
+    u uniform in [1, S/2); arrange(0) is the rule's own path."""
 
     def __init__(self, levels):
         self.n = len(levels)
         self.runs = _level_runs(levels)
 
-    def draw(self, rng):
-        u = rng.randrange(1, self.n // 2)
+    def arrange(self, u):
         k, n = 2 * u, self.n
         pieces = []
         for s, e, lvl in self.runs:
@@ -1848,11 +1894,16 @@ class ShiftPlacebo:
         out = []
         for a, lvl in pieces:
             _push(out, a, lvl)
-        return out, u
+        return out
+
+    def draw(self, rng):
+        u = rng.randrange(1, self.n // 2)
+        return self.arrange(u), u
 
 
 class BlocksPlacebo:
-    """The same departures from baseline and the same baseline gaps (in sessions), shuffled."""
+    """The same departures from baseline and the same baseline gaps (in sessions), each list
+    shuffled; arrange(identity orders) is the rule's own path."""
 
     def __init__(self, levels, baseline):
         S = len(levels) // 2
@@ -1865,20 +1916,17 @@ class BlocksPlacebo:
         for j in range(1, S + 1):
             if j == S or dev[j] != dev[j0]:
                 if dev[j0]:
-                    pat = levels[2 * j0:2 * j]
-                    internal = []
-                    for off, e in enumerate(pat):
-                        if not internal or abs(e - internal[-1][1]) > EPS:
-                            internal.append((off, e))
-                    self.blocks.append((internal, j - j0))
+                    self.blocks.append((_internal(levels[2 * j0:2 * j]), j - j0))
                 else:
                     self.gaps.append(j - j0)
                 j0 = j
 
-    def draw(self, rng):
-        b, g = self.blocks[:], self.gaps[:]
-        rng.shuffle(b)
-        rng.shuffle(g)
+    def identity(self):
+        return tuple(range(len(self.blocks))), tuple(range(len(self.gaps)))
+
+    def arrange(self, border, gorder):
+        b = [self.blocks[i] for i in border]
+        g = [self.gaps[i] for i in gorder]
         a1, a2 = (b, g) if self.first_is_block else (g, b)
         seq = []
         for i in range(max(len(a1), len(a2))):
@@ -1897,6 +1945,13 @@ class BlocksPlacebo:
                 for off, e in internal:
                     _push(out, 2 * pos + off, e)
                 pos += L
+        return out
+
+    def draw(self, rng):
+        border, gorder = list(range(len(self.blocks))), list(range(len(self.gaps)))
+        rng.shuffle(border)
+        rng.shuffle(gorder)
+        out = self.arrange(border, gorder)
         return out, tuple(out)
 
 
@@ -2196,14 +2251,15 @@ def g7_inputs(placebo_res, tb):
     for form in ("log", "simple"):
         if tb and form in tb:
             t = tb[form]
-            out[f"timing_{form}"] = {"z": t["z_boot"], "z_iid": t["z_iid"],
-                                     "veto_same_sign": t["mean_per_session"] <= 0,
-                                     "veto_z_below_minus_1": t["z_boot"] is not None and t["z_boot"] < -1.0}
+            out[f"timing_{form}"] = {"z": t["z_used"], "z_boot": t["z_boot"], "z_analytic": t["z_analytic"],
+                                     "z_iid": t["z_iid"], "veto_same_sign": t["mean_per_session"] <= 0,
+                                     "veto_z_below_minus_1": t["z_used"] < -1.0}
     return out
 
 
 def sso_switch_path(levels, series, s0, last, cash, cal, k=2, expense_ratio=0.0095,
-                    cost_under=0.0, cost_fund=0.0, accrual="calendar", distributions=None):
+                    cost_under=0.0, cost_fund=0.0, accrual="calendar", distributions=None,
+                    closes_only=False):
     """
     DESCRIPTIVE, never a gate: a cash-account way to hold a 1x / kx overlay —
     the underlying at 1x, switched into a MODELLED k-times daily-reset fund at
@@ -2214,8 +2270,9 @@ def sso_switch_path(levels, series, s0, last, cash, cal, k=2, expense_ratio=0.00
     if any(abs(e - 1.0) > EPS and abs(e - k) > EPS for e in levels):
         return None
     bars = series.bars
-    U = build_legs(bars, s0, last, CashRate(rate=0.0), 1, distributions=distributions)
-    F = build_legs(bars, s0, last, cash, k, expense_ratio, cal, accrual, distributions)
+    U = build_legs(bars, s0, last, CashRate(rate=0.0), 1, distributions=distributions,
+                   closes_only=closes_only)
+    F = build_legs(bars, s0, last, cash, k, expense_ratio, cal, accrual, distributions, closes_only)
     E, held, sides, paid = 1.0, None, 0, 0.0
     closes = []
     for leg, e in enumerate(levels):
@@ -2359,6 +2416,9 @@ def _window(dates, warmup, start=None, end=None, start_close=None):
     return s0, last
 
 
+PLACEBO_METHODS = ("within_cycle", "within_cycle_circular", "shift", "blocks")
+CLOSES_ONLY_NOTE = ("closes only: each session is one close-to-close step and no open is read; a "
+                    "payout added back makes the ex-date's return (close + D) / close[t-1] - 1")
 ACCRUAL_NOTE = {
     "calendar": "accrued by calendar days, (1+y)^(D/365) - 1 on each overnight leg (D = days since the "
                 "previous close; the round-1 end-of-day convention)",
@@ -2370,7 +2430,8 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                end=None, placebo_methods=("within_cycle",), placebo_draws=1000,
                dsr_benchmark="constant", dsr_draws=5000, dsr_block=10, halves_mode="session",
                marks_mode="close", crises=DEFAULT_CRISES, leak_samples=100, leak_changes=200,
-               prereg=None, sso=None, start_close=None, accrual="calendar", distributions=None):
+               prereg=None, sso=None, start_close=None, accrual="calendar", distributions=None,
+               closes_only=False):
     """
     One margin-model rule, one file, every stress cell in one invocation.
     `cells` = [(cost_bps_per_side, CashRate, spread)]; the FIRST is primary. The
@@ -2394,10 +2455,12 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         if sp is None:
             raise ValueError("a margin run needs a stated financing spread over cash (--spread)")
     for m in placebo_methods:
-        if m not in ("within_cycle", "shift", "blocks"):
-            raise ValueError(f"placebo {m!r} is within_cycle, shift or blocks")
+        if m not in PLACEBO_METHODS:
+            raise ValueError(f"placebo {m!r} is one of {', '.join(PLACEBO_METHODS)}")
     if dsr_benchmark not in ("constant", "buy_and_hold"):
         raise ValueError("the deflated Sharpe is computed against 'constant' (bar A) or 'buy_and_hold'")
+    if closes_only and marks_mode != "close":
+        raise ValueError("a closes-only run marks closes only (--marks close)")
     if trials is not None and int(trials) < 1:
         raise ValueError("trials counts every specification tried, >= 1")
     if marks_mode not in ("close", "both"):
@@ -2416,6 +2479,9 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         raise Blocked(f"{series.describe()}: {last - s0} scored session(s) — nothing to measure")
     w_on, w_id, log = decide_all(series, r0, cal, s0, last, 1)
     levels = interleave(w_on, w_id)
+    if closes_only and any(abs(levels[i] - levels[i - 1]) > EPS for i in range(1, len(levels), 2)):
+        raise ValueError(f"{r0.name} changes exposure at an open auction: a closes-only run cannot "
+                         f"price that (drop --closes-only)")
     leak = leak_check(series, factory, log, cal, leak_samples, leak_changes, seed, 1)
     start_date = dates_all[s0]
     dates = dates_all[s0 + 1:last + 1]
@@ -2435,7 +2501,10 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
     gens = {}
     if "within_cycle" in placebo_methods:
         wc = WithinCycle(levels, cycles, r0.baseline)
-        gens["within_cycle"] = (wc.draw, tuple(wc.observed))
+        gens["within_cycle"] = (wc.draw, wc.observed)
+    if "within_cycle_circular" in placebo_methods:
+        wcc = WithinCycle(levels, cycles, r0.baseline, wrap=True)
+        gens["within_cycle_circular"] = (wcc.draw, wcc.observed)
     if "shift" in placebo_methods:
         sp_ = ShiftPlacebo(levels)
         gens["shift"] = (sp_.draw, 0)
@@ -2471,8 +2540,12 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
                      "placebo_methods": list(placebo_methods), "placebo_draws": placebo_draws,
                      "dsr_benchmark": dsr_benchmark, "dsr_draws": dsr_draws, "dsr_block": dsr_block,
                      "marks": marks_mode, "crises": [list(c) for c in crises], "sso": sso,
-                     "accrual": accrual},
+                     "accrual": accrual, "closes_only": bool(closes_only)},
         "conventions": {"drift": DRIFT_NOTE, "instrument": MARGIN_NOTE,
+                        "prices": (CLOSES_ONLY_NOTE if closes_only else
+                                   "two legs per session: overnight close[t-1]->open[t] and intraday "
+                                   "open[t]->close[t]; a payout added back is credited on the overnight "
+                                   "leg, (open + D) / close[t-1] - 1"),
                         "cash": f"idle cash and borrowed money {ACCRUAL_NOTE[accrual]}",
                         "information": INFO_NOTE,
                         "dividends": dividend_note(prov.get("adjusted"), prov.get("total_return_through")),
@@ -2486,7 +2559,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         return out                      # VOID: nothing performance-related is computed
     for cost_bps, cash, spread in cells:
         cost = cost_bps / 1e4
-        ML = margin_legs(bars, s0, last, cash, spread, cal, accrual, applied)
+        ML = margin_legs(bars, s0, last, cash, spread, cal, accrual, applied, closes_only)
         rp = margin_walk(rule_changes, ML, cost, detail=True)
         a_changes = constant_changes(p_hat, trade_legs)
         ap = margin_walk(a_changes, ML, cost, detail=True)
@@ -2499,7 +2572,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         books = {"rule": rp["marks"][2::2], "bar_A": ap["marks"][2::2], "buy_and_hold": bp_["marks"][2::2]}
         r_rets = session_returns(books["rule"])
         a_rets = session_returns(books["bar_A"])
-        ML2 = margin_legs(bars, s0, last, cash, spread, cal, other_accrual, applied)
+        ML2 = margin_legs(bars, s0, last, cash, spread, cal, other_accrual, applied, closes_only)
         yrs = S_rule["years"]
         d_this = S_rule["cagr"] - S_A["cagr"]
         d_other = (cagr_of(margin_walk(rule_changes, ML2, cost)["final"], yrs)
@@ -2516,7 +2589,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
             sw = sso_switch_path(levels, series, s0, last, cash, cal, sso.get("k", 2),
                                  sso["expense_ratio"], cost, sso.get("cost_bps_per_side_fund",
                                                                      cost_bps) / 1e4,
-                                 accrual, applied)
+                                 accrual, applied, closes_only)
             if sw is not None:
                 cl = sw["closes"]
                 cell["sso_switch"] = {**{k_: v for k_, v in sw.items() if k_ != "closes"},
@@ -2540,7 +2613,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         cell["timing_book"] = (timing_book(r_rets, a_rets, trials, trials_sensitivity, dsr_block,
                                            dsr_draws, seed) if dsr_draws else None)
         cell["g6"] = g6_inputs(levels, r0.baseline, r_rets, ML, cycles, cut, a_rets)
-        wc_res = cell["placebo"].get("within_cycle")
+        wc_res = cell["placebo"].get(placebo_methods[0]) if placebo_methods else None
         cell["g6"]["drop_crises_minus_placebo_median"] = (wc_res or {}).get("ex_crises_minus_median")
         cell["g7"] = g7_inputs(wc_res, cell["timing_book"])
         out["cells"].append(cell)
