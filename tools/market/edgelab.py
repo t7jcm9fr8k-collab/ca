@@ -101,6 +101,7 @@ import argparse
 import bisect
 import csv
 import datetime as dt
+import hashlib
 import json
 import math
 import os
@@ -337,6 +338,8 @@ def calendar_report(series, cal=None):
                     shifts["examples"].append({
                         "date": d.isoformat(), "bar_counted": [bs, be],
                         "scheduled": [f.month_ordinal, f.month_ordinal_from_end], "cause": cause})
+    flat = [b.ts.date().isoformat() for b in bars
+            if b.open == b.high == b.low == b.close and b.volume <= 0]
     final = {"date": dates[-1].isoformat(), "suspect_partial": False, "volume_ratio": None}
     vols = sorted(b.volume for b in bars[-21:-1])
     if len(vols) >= 5:
@@ -348,6 +351,7 @@ def calendar_report(series, cal=None):
     return {"first": dates[0].isoformat(), "last": dates[-1].isoformat(), "bars": len(bars),
             "scheduled_sessions": len(sched), "missing": missing, "extra": extra,
             "gap_legs": gaps, "ordinal_shifts": shifts, "final_bar": final,
+            "flat_zero_volume_bars": flat,
             "holes": [x["date"] for x in missing if x["class"] == "DATA HOLE"],
             "closures": [x["date"] for x in missing if x["class"] != "DATA HOLE"]}
 
@@ -373,6 +377,9 @@ def render_calendar(rep):
         for e in sh["examples"][:6]:
             L.append(f"      e.g. {e['date']}: bar-counted {e['bar_counted']}, "
                      f"scheduled {e['scheduled']} ({e['cause']})")
+    for d in rep.get("flat_zero_volume_bars", [])[:10]:
+        L.append(f"    {d}: open = high = low = close with zero volume — a vendor placeholder, not a "
+                 f"session (r1-quartermaster §1)")
     fb = rep["final_bar"]
     if fb["volume_ratio"] is not None:
         flag = ("  POSSIBLY A PARTIAL SESSION — consider --end on the previous session"
@@ -478,22 +485,37 @@ class Legs:
     wiped: list
 
 
-def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None):
+def accrual_years(D, accrual):
+    """The year fraction one overnight leg accrues: D calendar days / 365 ('calendar', the
+    round-1 end-of-day convention), or one session = 1/252 of a year whatever D is ('session')."""
+    if accrual == "calendar":
+        return D / ACCRUAL_DAYS
+    if accrual == "session":
+        return 1.0 / SESSIONS_PER_YEAR
+    raise ValueError("accrual is 'calendar' (days/365) or 'session' (1/252 per session)")
+
+
+def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None, accrual="calendar",
+               distributions=None):
+    """`distributions` = {ex-date: amount per share}, added back on the ex-date's overnight leg:
+    r_on = (open + amount) / close[t-1] - 1 (a price-only stretch made total-return)."""
     k = int(leverage)
+    dist = distributions or {}
     out = Legs([], [], [], [], [], [], [], [], [], [], k, [])
     for t in range(s0 + 1, last + 1):
         p, b = bars[t - 1], bars[t]
         d0, d1 = p.ts.date(), b.ts.date()
         D = (d1 - d0).days
-        r_on = b.open / p.close - 1.0
+        r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
         r_id = b.close / b.open - 1.0
         y = cash.at(d0)
-        g = (1.0 + y) ** (D / ACCRUAL_DAYS) - 1.0
+        yf = accrual_years(D, accrual)
+        g = (1.0 + y) ** yf - 1.0
         if k == 1:
             i_on, i_id = r_on, r_id
         else:
             a = expense_ratio + (k - 1) * y
-            delta = (1.0 + a) ** (-D / ACCRUAL_DAYS)
+            delta = (1.0 + a) ** (-yf)
             base = 1.0 + k * r_on
             if base <= 0.0:                     # the modelled fund is wiped out at the open
                 i_on, i_id = -1.0, 0.0
@@ -1181,9 +1203,14 @@ def leak_check(series, factory, log, cal, samples=100, changes=200, seed=0, leve
 
 # =================================================================== the run
 
-def load(path, symbol=None, source=None, adjusted=None):
+def load(path, symbol=None, source=None, adjusted=None, total_return_through=None):
+    """Load a daily file. `total_return_through` declares a basis cutoff: total-return up to that
+    date, price-only after (r1-quartermaster §Conclusions-2); recorded, never measured."""
     sym = symbol or symbol_from_path(path)
-    return B.load_csv(path, sym, "1d", source, adjusted)
+    s = B.load_csv(path, sym, "1d", source, adjusted)
+    if total_return_through is not None:
+        s.provenance["total_return_through"] = str(total_return_through)
+    return s
 
 
 def symbol_from_path(path):
@@ -1361,6 +1388,1165 @@ def write_curves(res, path):
     return path
 
 
+# =================================================================== round 2 — the margin overlay
+
+DEFAULT_CRISES = (("2008-09-01", "2009-06-30"), ("2020-02-15", "2020-04-30"))
+EPISODE_MERGE_GAP = 5              # runs separated by fewer than 5 baseline sessions are one episode (r1-redteam D6)
+TOP_EPISODES = 5
+STOP_LEVEL = 0.15                  # the autopilot's drawdown STOP (r1-redteam L4): crossings reported, never gated
+DRIFT_NOTE = ("shares are held between declared changes, as a margin account behaves: an auction trades "
+              "only when the declared exposure changes, and the exposure drifts with the price in "
+              "between. Bar (A) holds shares the same way and is reset to its target at every auction "
+              "where the rule trades, so both books trade on the same days")
+MARGIN_NOTE = ("exposure e on the underlying itself; the borrowed (e-1)+ pays cash + spread and idle "
+               "(1-e)+ earns cash, both on the overnight leg. A model of a frictionless margin loan: no "
+               "maintenance calls, no whole-share rounding, no expense ratio")
+
+
+def month_offset(f):
+    """A session's offset from its own month's last scheduled session T: T -> 0, T-1 -> -1."""
+    return f.month_ordinal_from_end + 1
+
+
+def in_month_window(f, first, last):
+    """
+    True when the session is T+first .. T+last of some month, where T is the
+    month's last SCHEDULED session: offsets <= 0 count back from T inside the
+    session's own month, offsets >= 1 count into the next month (T+1 is the
+    next month's first session).
+    """
+    if first > last:
+        raise ValueError("the first offset must not exceed the last")
+    o = f.month_ordinal_from_end + 1
+    if first <= o <= min(last, 0):
+        return True
+    return last >= 1 and max(first, 1) <= f.month_ordinal <= last
+
+
+def month_window_anchor(first):
+    """The cycle anchor of a month window starting at T+first: the close just before its first session."""
+    if first <= 0:
+        return lambda f: f.month_ordinal_from_end + 1 == first - 1
+    if first == 1:
+        return lambda f: f.month_ordinal_from_end == -1
+    return lambda f: f.month_ordinal == first - 1
+
+
+def month_window_rule(first, last, inside=2.0, outside=1.0, name=None, model="margin"):
+    """
+    GENERIC — registers nothing and is not a candidate. A factory for "exposure
+    `inside` over sessions T+first .. T+last of every month, `outside`
+    otherwise", MOC only: each change is made at a close auction, decided by
+    whether the next SCHEDULED session is in the window, and an open auction
+    keeps what is held. A scheduled entry or exit that falls on an unscheduled
+    closure therefore happens at the next actual close. Freezing a rule means
+    registering one of these under a pre-registered name.
+    """
+    def decide(v):
+        if v.auction == "open":
+            return v.held
+        nxt = v.next_cal
+        return inside if nxt is not None and in_month_window(nxt, first, last) else outside
+    nm = name or f"month_window[{first:+d},{last:+d}] {inside:g}x in / {outside:g}x out"
+    doc = (f"GENERIC month window, MOC only: {inside:g}x over T{first:+d}..T{last:+d}, "
+           f"{outside:g}x otherwise")
+    return lambda: Rule(nm, decide, 0, doc, False, model, baseline=outside,
+                        anchor=month_window_anchor(first))
+
+
+@dataclass
+class MarginLegs:
+    """Per scored session j: dates, the underlying's two leg returns, what idle cash earns and
+    what borrowed money costs over the overnight leg, and prefix products over the 2S legs
+    (leg 2j = session j's overnight leg, 2j+1 = its intraday leg)."""
+    t: list
+    dates: list
+    prev_dates: list
+    r_on: list
+    r_id: list
+    days: list
+    gap: list
+    g_cash: list
+    g_fin: list
+    P_r: list
+    P_cash: list
+    P_fin: list
+
+
+def margin_legs(bars, s0, last, cash, spread, cal=None, accrual="calendar", distributions=None):
+    """Idle cash grows by (1+y)^a - 1 and borrowed money by (1+y+spread)^a - 1 on each overnight
+    leg, a = accrual_years(D, accrual). `distributions` as in build_legs."""
+    if spread is None:
+        raise ValueError("a margin run needs a stated financing spread over cash (--spread)")
+    spread = float(spread)
+    if not math.isfinite(spread) or not 0.0 <= spread <= 0.20:
+        raise ValueError(f"spread {spread} is not an annual decimal in [0, 0.20]")
+    dist = distributions or {}
+    ML = MarginLegs([], [], [], [], [], [], [], [], [], [1.0], [1.0], [1.0])
+    for t in range(s0 + 1, last + 1):
+        p, b = bars[t - 1], bars[t]
+        d0, d1 = p.ts.date(), b.ts.date()
+        D = (d1 - d0).days
+        r_on = (b.open + dist.get(d1, 0.0)) / p.close - 1.0
+        r_id = b.close / b.open - 1.0
+        y = cash.at(d0)
+        yf = accrual_years(D, accrual)
+        g = (1.0 + y) ** yf - 1.0
+        gf = (1.0 + y + spread) ** yf - 1.0
+        ML.t.append(t)
+        ML.dates.append(d1)
+        ML.prev_dates.append(d0)
+        ML.r_on.append(r_on)
+        ML.r_id.append(r_id)
+        ML.days.append(D)
+        ML.gap.append(bool(cal.between(d0, d1)) if cal is not None else False)
+        ML.g_cash.append(g)
+        ML.g_fin.append(gf)
+        ML.P_r.append(ML.P_r[-1] * (1.0 + r_on))
+        ML.P_r.append(ML.P_r[-1] * (1.0 + r_id))
+        ML.P_cash.append(ML.P_cash[-1] * (1.0 + g))
+        ML.P_cash.append(ML.P_cash[-1])
+        ML.P_fin.append(ML.P_fin[-1] * (1.0 + gf))
+        ML.P_fin.append(ML.P_fin[-1])
+    return ML
+
+
+def interleave(w_on, w_id):
+    """Per-session (overnight, intraday) exposures -> one exposure per leg."""
+    out = []
+    for a, b in zip(w_on, w_id):
+        out.append(a)
+        out.append(b)
+    return out
+
+
+def _push(out, leg, level, force=False):
+    """Append a change, keeping legs strictly increasing and dropping no-ops."""
+    if out and out[-1][0] == leg:
+        out.pop()
+    if not force and out and abs(out[-1][1] - level) <= EPS:
+        return
+    out.append((leg, level, force))
+
+
+def levels_to_changes(levels):
+    out = []
+    for leg, e in enumerate(levels):
+        if not out or abs(e - out[-1][1]) > EPS:
+            out.append((leg, e, False))
+    return out
+
+
+def constant_changes(level, reset_legs):
+    """Bar (A): one constant exposure, reset to target at the given legs (where the rule trades)."""
+    out = [(0, level, False)]
+    for leg in sorted(set(reset_legs)):
+        if leg > 0:
+            out.append((leg, level, True))
+    return out
+
+
+def margin_walk(changes, ML, cost, probes=(), detail=False):
+    """
+    THE margin engine. The rule, bar (A), buy-and-hold, the descriptive books and
+    every placebo draw go through it, so a null differs from the run only in
+    its exposures.
+
+    `changes` = [(leg, exposure, force)], legs strictly increasing and the first
+    at leg 0: the declared exposure from that leg's auction on (leg 2j is
+    session j's overnight leg, set at the close auction before it; leg 2j+1 is
+    its intraday leg, set at its open auction). Shares are held between
+    entries. An auction trades only when the declared exposure changes, or when
+    `force` is set (a benchmark reset), and takes the book from its DRIFTED
+    exposure to the declared one: notional = |e - drifted| x equity before the
+    trade; cost = cost x notional, out of equity. Positive cash earns g_cash,
+    negative cash pays g_fin (cash + spread), both on the overnight leg.
+
+    Between trades the book is A in shares plus C in cash, so its value at any
+    later leg boundary b is exactly A*P_r[b]/P_r[l] + C*P[b]/P[l]: a placebo
+    draw costs O(changes), not O(sessions). `probes` are ascending boundaries
+    b in [0, 2S] whose equity — before any trade at b — is wanted.
+    """
+    n = 2 * len(ML.dates)
+    Pr, Pc, Pf = ML.P_r, ML.P_cash, ML.P_fin
+    A, C, decl = 0.0, 1.0, 0.0
+    sides = entries = 0
+    notional = paid = paid_frac = fin_paid = interest = 0.0
+    pv = [None] * len(probes)
+    pi = 0
+    while pi < len(probes) and probes[pi] <= 0:
+        pv[pi] = 1.0
+        pi += 1
+    marks = auctions = None
+    if detail:
+        marks = [0.0] * (n + 1)
+        marks[0] = 1.0
+        auctions = []
+    if not changes or changes[0][0] != 0:
+        raise ValueError("changes must start at leg 0")
+    ruined = None
+    K = len(changes)
+    prev = -1
+    for k in range(K):
+        leg, e, force = changes[k]
+        if leg <= prev:
+            raise ValueError("changes must be strictly increasing in leg")
+        prev = leg
+        m = changes[k + 1][0] if k + 1 < K else n
+        E = A + C
+        if E <= 0.0:
+            ruined = leg
+            break
+        if force or e - decl > EPS or decl - e > EPS:
+            h = A / E
+            dh = e - h
+            nn = (dh if dh > 0.0 else -dh) * E
+            if nn > EPS * E:
+                c = nn * cost
+                if h <= EPS and e > EPS:
+                    entries += 1
+                sides += 1
+                notional += nn
+                paid += c
+                paid_frac += c / E
+                E -= c
+                if detail:
+                    auctions.append((leg, nn, c))
+            A = e * E
+            C = E - A
+            decl = e
+        Q = Pc if C >= 0.0 else Pf
+        ar = A / Pr[leg]
+        cr = C / Q[leg]
+        while pi < len(probes) and probes[pi] <= m:
+            b = probes[pi]
+            pv[pi] = ar * Pr[b] + cr * Q[b]
+            pi += 1
+        if detail:
+            for b in range(leg + 1, m + 1):
+                marks[b] = ar * Pr[b] + cr * Q[b]
+        A2, C2 = ar * Pr[m], cr * Q[m]
+        if C < 0.0:
+            fin_paid += C - C2
+        else:
+            interest += C2 - C
+        A, C = A2, C2
+    if detail:
+        for b in range(n + 1):
+            if marks[b] <= 0.0:
+                ruined = b if ruined is None else min(ruined, b)
+                for bb in range(b, n + 1):
+                    marks[bb] = 0.0
+                break
+    final = 0.0 if ruined is not None else A + C
+    out = {"final": final, "probes": [0.0 if v is None else v for v in pv], "sides": sides,
+           "entries": entries, "notional": notional, "cost_paid": paid, "cost_frac": paid_frac,
+           "financing_paid": fin_paid, "interest_earned": interest, "ruined_at": ruined,
+           "open_at_end": ruined is None and A > EPS * max(A + C, EPS)}
+    if detail:
+        out.update(marks=marks, auctions=auctions)
+    return out
+
+
+def stop_episodes(closes, level=STOP_LEVEL):
+    """How many separate times equity falls `level` below its running peak (an episode ends at a new peak)."""
+    peak, n, inside = 1.0, 0, False
+    for c in closes:
+        if c > peak:
+            peak, inside = c, False
+        elif not inside and peak > 0 and c / peak - 1.0 <= -level:
+            n += 1
+            inside = True
+    return n
+
+
+def score_margin(path, ML, start_date, levels, marks_mode="close"):
+    """Every headline number for one margin path over the scored legs."""
+    mk = path["marks"]
+    closes, opens = mk[2::2], mk[1::2]
+    S = len(closes)
+    rets = session_returns(closes)
+    ex = [r - g for r, g in zip(rets, ML.g_cash)]
+    years = (ML.dates[-1] - start_date).days / 365.25
+    st = replay._stats(rets, SESSIONS_PER_YEAR)
+    sx = replay._stats(ex, SESSIONS_PER_YEAR)
+    down = math.sqrt(sum(x * x for x in ex if x < 0) / S) if S else 0.0
+    mean_ex = sum(ex) / S if S else 0.0
+    mlist = [(start_date, "close", 1.0)]
+    for j, d in enumerate(ML.dates):
+        if marks_mode == "both":
+            mlist.append((d, "open", opens[j]))
+        mlist.append((d, "close", closes[j]))
+    dd = drawdown(mlist)
+    shares = {}
+    for e in levels:
+        key = round(e, 6)
+        shares[key] = shares.get(key, 0) + 1
+    mean_eq = sum(closes) / S if S else 0.0
+    return {
+        "final_equity": closes[-1], "total_return": closes[-1] - 1.0,
+        "cagr": cagr_of(closes[-1], years), "years": years,
+        "volatility": st["volatility"], "sharpe": sx["sharpe"],
+        "sharpe_per_session": sx["sharpe_per_bar"], "skew": sx["skew"], "kurt": sx["kurt"],
+        "sortino": (mean_ex / down * math.sqrt(SESSIONS_PER_YEAR)) if down > 0 else None,
+        **dd, "marks": marks_mode,
+        "stop_episodes": stop_episodes(closes), "legs": 2 * S,
+        "mean_exposure": sum(levels) / len(levels),
+        "leg_share_by_exposure": {k: v / len(levels) for k, v in sorted(shares.items())},
+        "sides": path["sides"], "round_trips": path["entries"], "open_at_end": path["open_at_end"],
+        "turnover_per_year": (path["notional"] / mean_eq / years) if mean_eq > 0 and years > 0 else None,
+        "cost_paid": path["cost_paid"], "financing_paid": path["financing_paid"],
+        "interest_earned": path["interest_earned"], "ruined_at": path["ruined_at"],
+    }
+
+
+def split_halves(dates, start_date, mode):
+    """(cut, split): sessions [0, cut) are the first half. mode 'session' = the midpoint session
+    index (r1-redteam D5); 'date' = the calendar midpoint of the window (round 1)."""
+    S = len(dates)
+    if mode == "session":
+        cut = (S + 1) // 2
+        return cut, dates[cut - 1]
+    if mode != "date":
+        raise ValueError("halves are split by 'session' or 'date'")
+    split = start_date + dt.timedelta(days=(dates[-1] - start_date).days // 2)
+    return bisect.bisect_right(dates, split), split
+
+
+def halves_books(dates, start_date, books, g_cash, mode):
+    cut, split = split_halves(dates, start_date, mode)
+    out = {"mode": mode, "split": split.isoformat(), "cut": cut}
+    for name, a, b in (("first", 0, cut), ("second", cut, len(dates))):
+        if b - a < 2:
+            out[name] = None
+            continue
+        d0 = start_date if a == 0 else dates[a - 1]
+        years = (dates[b - 1] - d0).days / 365.25
+        row = {"from": d0.isoformat(), "to": dates[b - 1].isoformat(), "sessions": b - a}
+        for who, closes in books.items():
+            base = 1.0 if a == 0 else closes[a - 1]
+            seg = closes[a:b]
+            if base <= 0:
+                row[who] = None
+                continue
+            rets = session_returns([c / base for c in seg])
+            ex = [r - g for r, g in zip(rets, g_cash[a:b])]
+            row[who] = {"return": seg[-1] / base - 1.0, "cagr": cagr_of(seg[-1] / base, years),
+                        "sharpe": replay._stats(ex, SESSIONS_PER_YEAR)["sharpe"],
+                        "max_drawdown": replay.max_drawdown([base] + seg)}
+        out[name] = row
+    return out
+
+
+def per_year_books(dates, books, auctions=None, prev_dates=None):
+    rows, j0, S = [], 0, len(dates)
+    base = {k: 1.0 for k in books}
+    while j0 < S:
+        y = dates[j0].year
+        j1 = j0
+        while j1 + 1 < S and dates[j1 + 1].year == y:
+            j1 += 1
+        row = {"year": y, "sessions": j1 - j0 + 1}
+        for k, closes in books.items():
+            row[k] = closes[j1] / base[k] - 1.0 if base[k] > 0 else None
+            base[k] = closes[j1]
+        if auctions is not None:
+            row["sides"] = sum(1 for (leg, nn, c) in auctions
+                               if (prev_dates[leg // 2] if leg % 2 == 0 else dates[leg // 2]).year == y)
+        rows.append(row)
+        j0 = j1 + 1
+    return rows
+
+
+def session_cycles(dates, cal, anchor):
+    """Session-index ranges [j0, j1): a new cycle begins after the close of every scheduled session
+    `anchor` marks. Unscheduled closures change nothing: cycles are cut by date."""
+    anchors = [d for d in cal.sessions if d <= dates[-1] and anchor(cal.facts(d))]
+    ids = [bisect.bisect_left(anchors, d) for d in dates]
+    out, j0 = [], 0
+    for j in range(1, len(dates) + 1):
+        if j == len(dates) or ids[j] != ids[j0]:
+            out.append((j0, j))
+            j0 = j
+    return out, anchors
+
+
+class WithinCycle:
+    """
+    r1-redteam D7, made exact for an overlay. In each cycle, the departure from
+    the rule's BASELINE exposure — from the first departing session to the last,
+    as one composite block — is moved intact to a uniformly random start inside
+    its own cycle, never crossing the cycle's end. A cycle with no departure is
+    left alone. The rule's leverage, legs, costs, cash and fills are kept.
+    """
+
+    def __init__(self, levels, cycles, baseline):
+        self.n = len(levels)
+        self.baseline = baseline
+        self.plan, self.observed = [], []
+        for j0, j1 in cycles:
+            dev = [j for j in range(j0, j1)
+                   if abs(levels[2 * j] - baseline) > EPS or abs(levels[2 * j + 1] - baseline) > EPS]
+            if not dev:
+                continue
+            f, l = dev[0], dev[-1]
+            pat = levels[2 * f:2 * (l + 1)]
+            internal = []
+            for off, e in enumerate(pat):
+                if not internal or abs(e - internal[-1][1]) > EPS:
+                    internal.append((off, e))
+            self.plan.append((j0, j1 - j0 - (l - f + 1), internal, l - f + 1))
+            self.observed.append(f)
+        self.movable = sum(1 for p in self.plan if p[1] > 0)
+
+    def arrange(self, starts):
+        out = []
+        _push(out, 0, self.baseline)
+        for (j0, slack, internal, L), st in zip(self.plan, starts):
+            for off, e in internal:
+                _push(out, 2 * st + off, e)
+            if 2 * (st + L) < self.n:
+                _push(out, 2 * (st + L), self.baseline)
+        return out
+
+    def draw(self, rng):
+        starts = tuple(j0 + (rng.randrange(slack + 1) if slack else 0)
+                       for (j0, slack, internal, L) in self.plan)
+        return self.arrange(starts), starts
+
+
+def _level_runs(levels):
+    runs, s = [], 0
+    for i in range(1, len(levels) + 1):
+        if i == len(levels) or abs(levels[i] - levels[s]) > EPS:
+            runs.append((s, i, levels[s]))
+            s = i
+    return runs
+
+
+class ShiftPlacebo:
+    """A circular shift of the whole exposure path by a whole number of sessions (2u legs)."""
+
+    def __init__(self, levels):
+        self.n = len(levels)
+        self.runs = _level_runs(levels)
+
+    def draw(self, rng):
+        u = rng.randrange(1, self.n // 2)
+        k, n = 2 * u, self.n
+        pieces = []
+        for s, e, lvl in self.runs:
+            a, b = s + k, e + k
+            if b <= n:
+                pieces.append((a, lvl))
+            elif a >= n:
+                pieces.append((a - n, lvl))
+            else:
+                pieces.append((a, lvl))
+                pieces.append((0, lvl))
+        pieces.sort()
+        out = []
+        for a, lvl in pieces:
+            _push(out, a, lvl)
+        return out, u
+
+
+class BlocksPlacebo:
+    """The same departures from baseline and the same baseline gaps (in sessions), shuffled."""
+
+    def __init__(self, levels, baseline):
+        S = len(levels) // 2
+        self.n, self.baseline = len(levels), baseline
+        dev = [abs(levels[2 * j] - baseline) > EPS or abs(levels[2 * j + 1] - baseline) > EPS
+               for j in range(S)]
+        self.blocks, self.gaps = [], []
+        self.first_is_block = dev[0] if S else True
+        j0 = 0
+        for j in range(1, S + 1):
+            if j == S or dev[j] != dev[j0]:
+                if dev[j0]:
+                    pat = levels[2 * j0:2 * j]
+                    internal = []
+                    for off, e in enumerate(pat):
+                        if not internal or abs(e - internal[-1][1]) > EPS:
+                            internal.append((off, e))
+                    self.blocks.append((internal, j - j0))
+                else:
+                    self.gaps.append(j - j0)
+                j0 = j
+
+    def draw(self, rng):
+        b, g = self.blocks[:], self.gaps[:]
+        rng.shuffle(b)
+        rng.shuffle(g)
+        a1, a2 = (b, g) if self.first_is_block else (g, b)
+        seq = []
+        for i in range(max(len(a1), len(a2))):
+            if i < len(a1):
+                seq.append(a1[i])
+            if i < len(a2):
+                seq.append(a2[i])
+        out, pos = [], 0
+        _push(out, 0, self.baseline)
+        for item in seq:
+            if isinstance(item, int):
+                _push(out, 2 * pos, self.baseline)
+                pos += item
+            else:
+                internal, L = item
+                for off, e in internal:
+                    _push(out, 2 * pos + off, e)
+                pos += L
+        return out, tuple(out)
+
+
+class ProbeSet:
+    """The leg boundaries a placebo draw is read at, and the statistics read from them:
+    full-window CAGR, each half's CAGR, and CAGR with the crisis spans removed."""
+
+    def __init__(self, dates, start_date, cut, spans):
+        S = len(dates)
+        self.n, self.cut, self.spans = 2 * S, cut, spans
+        pts = {self.n, 2 * cut}
+        for a, b in spans:
+            pts.add(2 * a)
+            pts.add(2 * (b + 1))
+        self.points = sorted(pts)
+        self.index = {p: i for i, p in enumerate(self.points)}
+        self.years = (dates[-1] - start_date).days / 365.25
+        d_cut = dates[cut - 1]
+        self.y1 = (d_cut - start_date).days / 365.25
+        self.y2 = (dates[-1] - d_cut).days / 365.25
+        removed = sum(b - a + 1 for a, b in spans)
+        self.y_excl = self.years * (S - removed) / S if S else 0.0
+
+    def stats(self, pv):
+        v = lambda b: pv[self.index[b]]
+        En, Ec = v(self.n), v(2 * self.cut)
+        g = En
+        for a, b in self.spans:
+            lo, hi = v(2 * a), v(2 * (b + 1))
+            g = g * lo / hi if hi > 0 else 0.0
+        return (cagr_of(En, self.years), cagr_of(Ec, self.y1),
+                cagr_of(En / Ec, self.y2) if Ec > 0 else -1.0, cagr_of(g, self.y_excl))
+
+
+def crisis_spans(dates, crises):
+    """Session-index spans [a, b] (inclusive) of the scored sessions inside each crisis period."""
+    out = []
+    for lo, hi in crises:
+        lo, hi = dt.date.fromisoformat(str(lo)), dt.date.fromisoformat(str(hi))
+        a, b = bisect.bisect_left(dates, lo), bisect.bisect_right(dates, hi) - 1
+        if a <= b:
+            out.append((a, b))
+    return out
+
+
+def run_placebo(method, gen, observed_changes, observed_key, ML, cost, probes, draws, seed):
+    """p-value of the rule's CAGR against `draws` arrangements from `gen`, plus the medians the gates
+    read: each half's CAGR (G4) and CAGR with the crisis spans removed (G6), and a z for G7."""
+    obs = probes.stats(margin_walk(observed_changes, ML, cost, probes.points)["probes"])
+    rng = random.Random(f"edgelab/{seed}/{method}")
+    cols = ([], [], [], [])
+    seen = set()
+    for _ in range(draws):
+        ch, key = gen(rng)
+        seen.add(key)
+        s = probes.stats(margin_walk(ch, ML, cost, probes.points)["probes"])
+        for c, x in zip(cols, s):
+            c.append(x)
+    degenerate = len(seen) <= 1 and (not seen or observed_key in seen)
+    res = {"method": method, "draws": draws, "seed": seed, "unique_arrangements": len(seen),
+           "degenerate": degenerate, "observed_cagr": obs[0], "observed_cagr_first_half": obs[1],
+           "observed_cagr_second_half": obs[2], "observed_cagr_ex_crises": obs[3]}
+    if degenerate or not draws:
+        res.update(p_cagr=None)
+        return res
+    cg = cols[0]
+    res["p_cagr"] = (1 + sum(1 for x in cg if x >= obs[0] - EPS)) / (1 + draws)
+    for name, c in zip(("cagr", "cagr_first_half", "cagr_second_half", "cagr_ex_crises"), cols):
+        srt = sorted(c)
+        res[f"null_{name}_median"] = _quantile(srt, 0.5)
+        res[f"null_{name}_q05"] = _quantile(srt, 0.05)
+        res[f"null_{name}_q95"] = _quantile(srt, 0.95)
+    mean = sum(cg) / len(cg)
+    sd = math.sqrt(sum((x - mean) ** 2 for x in cg) / (len(cg) - 1)) if len(cg) > 1 else 0.0
+    res["z_cagr"] = (obs[0] - mean) / sd if sd > 0 else None
+    res["percentile_cagr"] = sum(1 for x in cg if x < obs[0]) / len(cg)
+    res["above_median"] = obs[0] > res["null_cagr_median"]
+    res["beats_median_each_half"] = (obs[1] > res["null_cagr_first_half_median"]
+                                     and obs[2] > res["null_cagr_second_half_median"])
+    res["ex_crises_minus_median"] = obs[3] - res["null_cagr_ex_crises_median"]
+    return res
+
+
+def _sharpe(xs):
+    n = len(xs)
+    m = sum(xs) / n
+    v = sum((x - m) ** 2 for x in xs) / (n - 1)
+    return m / math.sqrt(v) * math.sqrt(SESSIONS_PER_YEAR) if v > 0 else 0.0
+
+
+def paired_block_se(a, b, block=10, draws=5000, seed=0):
+    """
+    The paired circular-block bootstrap standard error of dSR = SR(a) - SR(b),
+    annualised: resample blocks of `block` consecutive sessions (wrapping at the
+    end) at uniform random starts, the SAME blocks for both series, recompute
+    both Sharpe ratios, and take the standard deviation of their difference.
+    Block sums come from prefix sums, so a resample costs O(blocks), not
+    O(sessions).
+    """
+    n = len(a)
+    if n != len(b) or n < 3:
+        raise ValueError("paired series of equal length >= 3")
+    block = int(block)
+    if block < 1:
+        raise ValueError("block length >= 1")
+    Pa, Qa, Pb, Qb = [0.0], [0.0], [0.0], [0.0]
+    for x, y in zip(a, b):
+        Pa.append(Pa[-1] + x)
+        Qa.append(Qa[-1] + x * x)
+        Pb.append(Pb[-1] + y)
+        Qb.append(Qb[-1] + y * y)
+    full, rem = divmod(n, block)
+    lengths = [block] * full + ([rem] if rem else [])
+    rng = random.Random(f"edgelab/{seed}/dsr-paired")
+    rr = rng.randrange
+    ann = math.sqrt(SESSIONS_PER_YEAR)
+    out = []
+    for _ in range(draws):
+        sa = qa = sb = qb = 0.0
+        for L in lengths:
+            s = rr(n)
+            e = s + L
+            if e <= n:
+                sa += Pa[e] - Pa[s]
+                qa += Qa[e] - Qa[s]
+                sb += Pb[e] - Pb[s]
+                qb += Qb[e] - Qb[s]
+            else:
+                e -= n
+                sa += Pa[n] - Pa[s] + Pa[e]
+                qa += Qa[n] - Qa[s] + Qa[e]
+                sb += Pb[n] - Pb[s] + Pb[e]
+                qb += Qb[n] - Qb[s] + Qb[e]
+        va = (qa - sa * sa / n) / (n - 1)
+        vb = (qb - sb * sb / n) / (n - 1)
+        out.append(((sa / n) / math.sqrt(va) if va > 0 else 0.0) * ann
+                   - ((sb / n) / math.sqrt(vb) if vb > 0 else 0.0) * ann)
+    m = sum(out) / draws
+    return math.sqrt(sum((x - m) ** 2 for x in out) / (draws - 1)), out
+
+
+def dsr_paired(a, b, n_trials, n_sensitivity=100, block=10, draws=5000, seed=0):
+    """
+    The deflated Sharpe against a benchmark (r1-redteam §3.5): DSR =
+    Phi(dSR / SE - E[max Z_N]), dSR = SR(a) - SR(b) on returns in excess of
+    cash, annualised; SE = the paired circular-block bootstrap SE of dSR;
+    E[max Z_N] = the expected maximum of N independent standard normals
+    (combine.expected_max_sharpe(N, 1)). Replaces round 1's single-Sharpe SE,
+    which is right only when the two books correlate at ~0.5 (r2-bench §1b).
+    """
+    d_sr = _sharpe(a) - _sharpe(b)
+    se, _ = paired_block_se(a, b, block, draws, seed)
+    out = {"dSR": d_sr, "se": se, "block": block, "draws": draws, "seed": seed,
+           "sr_rule": _sharpe(a), "sr_benchmark": _sharpe(b)}
+    for key, N in (("primary", int(n_trials)), ("sensitivity", int(n_sensitivity))):
+        emz = combine.expected_max_sharpe(N, 1.0)
+        z = d_sr / se - emz if se > 0 else None
+        out[key] = {"trials": N, "E_max_Z": emz, "z": z,
+                    "dsr": NormalDist().cdf(z) if z is not None else None,
+                    "dSR_for_dsr_0.5": se * emz, "dSR_for_dsr_0.8": se * (emz + 0.8416212335729143)}
+    return out
+
+
+def episodes_of(levels, baseline, merge_gap=EPISODE_MERGE_GAP):
+    """Maximal runs of sessions departing from baseline; runs separated by fewer than `merge_gap`
+    baseline sessions are one episode (r1-redteam D6). [(first, last)] session indices."""
+    S = len(levels) // 2
+    runs, j = [], 0
+    while j < S:
+        if abs(levels[2 * j] - baseline) > EPS or abs(levels[2 * j + 1] - baseline) > EPS:
+            k = j
+            while k + 1 < S and (abs(levels[2 * k + 2] - baseline) > EPS
+                                 or abs(levels[2 * k + 3] - baseline) > EPS):
+                k += 1
+            if runs and j - runs[-1][1] - 1 < merge_gap:
+                runs[-1] = (runs[-1][0], k)
+            else:
+                runs.append((j, k))
+            j = k + 1
+        else:
+            j += 1
+    return runs
+
+
+def _drop_top(values, top):
+    """(total, the `top` largest POSITIVE values summed, total without them)."""
+    pos = sorted((v for v in values if v > 0), reverse=True)[:top]
+    total = sum(values)
+    return total, sum(pos), total - sum(pos)
+
+
+def g6_inputs(levels, baseline, rets, ML, cycles, cut, bar_rets=None, top=TOP_EPISODES):
+    """
+    G6's inputs in every form proposed, until the gate text is settled:
+    - redteam_r1: per episode (merged runs of departure from baseline), the
+      rule's log return minus cash; the 5 largest positive episodes as a share
+      of the sum (r1-redteam §3.2: pass if <= 0.50);
+    - flow_formula: per cycle, the sum of D_t = (e_t - mean e)(r_t - f_t), f =
+      cash + spread, e_t the session's mean declared exposure, no costs; the
+      sum without the 5 largest positive cycles (r2-flow G6': pass if >= 0);
+    - book_simple / book_log: the same per-cycle test on the walked books'
+      session excess over bar (A), R_rule - R_A or ln(1+R_rule) - ln(1+R_A)
+      (costs, financing and drift included; r2-redteam's amendment is the log).
+    Cycles are counted per half by the half they start in.
+    """
+    eps = episodes_of(levels, baseline)
+    vals = []
+    for a, b in eps:
+        vals.append(sum(math.log1p(rets[j]) - math.log1p(ML.g_cash[j]) for j in range(a, b + 1)))
+    total, top_sum, _ = _drop_top(vals, top)
+    share = top_sum / total if total > 0 else None
+    S = len(ML.dates)
+    e_s = [(levels[2 * j] + levels[2 * j + 1]) / 2.0 for j in range(S)]
+    ebar = sum(levels) / len(levels)
+    series = {"flow_formula": [(e_s[j] - ebar) * ((1.0 + ML.r_on[j]) * (1.0 + ML.r_id[j]) - 1.0
+                                                   - ML.g_fin[j]) for j in range(S)]}
+    if bar_rets is not None:
+        series["book_simple"] = [x - y for x, y in zip(rets, bar_rets)]
+        series["book_log"] = [math.log1p(x) - math.log1p(y) for x, y in zip(rets, bar_rets)]
+    out = {
+        "episodes": len(eps), "episodes_first_half": sum(1 for a, b in eps if a < cut),
+        "episodes_second_half": sum(1 for a, b in eps if a >= cut), "merge_gap": EPISODE_MERGE_GAP,
+        "cycles": len(cycles), "cycles_first_half": sum(1 for j0, j1 in cycles if j0 < cut),
+        "cycles_second_half": sum(1 for j0, j1 in cycles if j0 >= cut),
+        "redteam_r1": {"definition": "per episode: the rule's log return minus cash over its sessions; "
+                                     "the 5 largest positive episodes as a share of the sum over all "
+                                     "episodes (r1 gate: <= 0.50)",
+                       "sum": total, "top5": top_sum, "share": share,
+                       "pass": share is not None and share <= 0.5},
+    }
+    defs = {"flow_formula": "per cycle: sum of D_t = (e_t - mean e)(r_t - f_t), f = cash + spread, no "
+                            "costs; the sum without the 5 largest positive cycles (gate: >= 0)",
+            "book_simple": "per cycle: sum of R_rule - R_A from the walked books (costs, financing and "
+                           "drift included); without the 5 largest positive cycles (gate: >= 0)",
+            "book_log": "per cycle: sum of ln(1+R_rule) - ln(1+R_A) from the walked books; without "
+                        "the 5 largest positive cycles (gate: >= 0)"}
+    for name, x in series.items():
+        per_cycle = [sum(x[j0:j1]) for j0, j1 in cycles]
+        tot, tops, rest = _drop_top(per_cycle, top)
+        out[name] = {"definition": defs[name], "sum": tot, "top5": tops, "sum_without_top5": rest,
+                     "pass": rest >= 0}
+    return out
+
+
+def timing_book(r_rule, r_bar, n_trials=None, n_sensitivity=100, block=10, draws=5000, seed=0):
+    """
+    The rule's session excess over bar (A) as a series of its own, in two forms:
+    'log', d_t = ln(1+R_rule) - ln(1+R_A), which sums to the log wealth ratio and
+    so charges the variance drag (r2-redteam G5'); 'simple', D_t = R_rule - R_A
+    (r2-flow G5'). For each: mean and SD per session; z on i.i.d. sessions; the
+    annualised Sharpe of the series with its circular-block bootstrap SE (the
+    paired bootstrap of (series, 0), i.e. the same blocks of both books); the
+    analytic z = SR sqrt(T-1) / sqrt(1 - skew SR + (kurt-1)/4 SR^2) (Bailey &
+    Lopez de Prado, per-session SR); and, with n_trials, the deflated value
+    Phi(min(z_boot, z_analytic) - E[max Z_N]) at N and at the sensitivity N.
+    """
+    out = {}
+    for form in ("log", "simple"):
+        if form == "log":
+            x = [math.log1p(a) - math.log1p(b) for a, b in zip(r_rule, r_bar)]
+        else:
+            x = [a - b for a, b in zip(r_rule, r_bar)]
+        n = len(x)
+        st = replay._stats(x, SESSIONS_PER_YEAR)
+        m = sum(x) / n
+        sd = st["volatility"] / math.sqrt(SESSIONS_PER_YEAR)
+        sr = st["sharpe_per_bar"]
+        denom = math.sqrt(max(1e-12, 1.0 - st["skew"] * sr + (st["kurt"] - 1.0) / 4.0 * sr * sr))
+        z_an = sr * math.sqrt(n - 1) / denom
+        se, _ = paired_block_se(x, [0.0] * n, block, draws, seed)
+        z_boot = st["sharpe"] / se if se > 0 else None
+        z_used = z_an if z_boot is None else min(z_boot, z_an)
+        row = {"sessions": n, "mean_per_session": m, "mean_annual": m * SESSIONS_PER_YEAR,
+               "sd_per_session": sd, "tracking_error": st["volatility"], "sum": sum(x),
+               "z_iid": sr * math.sqrt(n), "sharpe": st["sharpe"], "se_boot": se, "z_boot": z_boot,
+               "skew": st["skew"], "kurt": st["kurt"], "z_analytic": z_an, "z_used": z_used,
+               "block": block, "draws": draws, "seed": seed}
+        if n_trials is not None:
+            for key, N in (("primary", int(n_trials)), ("sensitivity", int(n_sensitivity))):
+                emz = combine.expected_max_sharpe(N, 1.0)
+                row[key] = {"trials": N, "E_max_Z": emz, "dsr": NormalDist().cdf(z_used - emz),
+                            "z_for_dsr_0.8": emz + 0.8416212335729143}
+        out[form] = row
+    return out
+
+
+def g7_inputs(placebo_res, tb):
+    """G7's veto statistic in each proposed form, with both proposed thresholds: r1-redteam's
+    'same sign' (veto when the rule is on the wrong side of its null) and r2-flow's G7' (veto only
+    when z < -1). The freeze picks the statistic and the threshold."""
+    out = {}
+    if placebo_res and not placebo_res.get("degenerate") and placebo_res.get("p_cagr") is not None:
+        z = placebo_res["z_cagr"]
+        out["placebo_cagr"] = {"z": z, "percentile": placebo_res["percentile_cagr"],
+                               "veto_same_sign": not placebo_res["above_median"],
+                               "veto_z_below_minus_1": z is not None and z < -1.0}
+    for form in ("log", "simple"):
+        if tb and form in tb:
+            t = tb[form]
+            out[f"timing_{form}"] = {"z": t["z_boot"], "z_iid": t["z_iid"],
+                                     "veto_same_sign": t["mean_per_session"] <= 0,
+                                     "veto_z_below_minus_1": t["z_boot"] is not None and t["z_boot"] < -1.0}
+    return out
+
+
+def sso_switch_path(levels, series, s0, last, cash, cal, k=2, expense_ratio=0.0095,
+                    cost_under=0.0, cost_fund=0.0, accrual="calendar", distributions=None):
+    """
+    DESCRIPTIVE, never a gate: a cash-account way to hold a 1x / kx overlay —
+    the underlying at 1x, switched into a MODELLED k-times daily-reset fund at
+    each entry and back at each exit (4 sides a window). The fund is build_legs'
+    LETF model: expense + (k-1) x cash, accrued on the overnight leg. None when
+    the exposures are not all 1 or k.
+    """
+    if any(abs(e - 1.0) > EPS and abs(e - k) > EPS for e in levels):
+        return None
+    bars = series.bars
+    U = build_legs(bars, s0, last, CashRate(rate=0.0), 1, distributions=distributions)
+    F = build_legs(bars, s0, last, cash, k, expense_ratio, cal, accrual, distributions)
+    E, held, sides, paid = 1.0, None, 0, 0.0
+    closes = []
+    for leg, e in enumerate(levels):
+        want = "fund" if abs(e - k) <= EPS else "under"
+        if want != held:
+            c = (cost_under if want == "under" else cost_fund) * E
+            if held is not None:
+                c += (cost_under if held == "under" else cost_fund) * E
+                sides += 1
+            sides += 1
+            paid += c
+            E -= c
+            held = want
+        j = leg // 2
+        if leg % 2 == 0:
+            E *= 1.0 + (F.i_on[j] if held == "fund" else U.r_on[j])
+        else:
+            E *= 1.0 + (F.i_id[j] if held == "fund" else U.r_id[j])
+            closes.append(E)
+    return {"closes": closes, "sides": sides, "cost_paid": paid, "k": k, "expense_ratio": expense_ratio,
+            "cost_bps_per_side_under": cost_under * 1e4, "cost_bps_per_side_fund": cost_fund * 1e4}
+
+
+def load_distributions(path):
+    """
+    Cash distributions to add back, from a CSV with a date column ('ex_date' or
+    'date') and an amount column ('amount_usd' or 'amount'), in the file's price
+    units per share. Returns {"path", "sha256", "rows": {date: amount}}.
+    """
+    with open(path, "rb") as f:
+        raw = f.read()
+    rows = {}
+    rdr = csv.reader(raw.decode("utf-8").splitlines())
+    head = [h.strip().lower() for h in next(rdr, [])]
+    di = next((head.index(c) for c in ("ex_date", "date") if c in head), None)
+    ai = next((head.index(c) for c in ("amount_usd", "amount") if c in head), None)
+    if di is None or ai is None:
+        raise ValueError(f"{path}: header needs an 'ex_date' (or 'date') and an 'amount_usd' "
+                         f"(or 'amount') column")
+    for n, row in enumerate(rdr, start=2):
+        if not row or all(not c.strip() for c in row):
+            continue
+        try:
+            d, a = dt.date.fromisoformat(row[di].strip()), float(row[ai])
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"{path} row {n}: {e}")
+        if not math.isfinite(a) or a <= 0:
+            raise ValueError(f"{path} row {n}: amount {a} is not a payout")
+        if d in rows:
+            raise ValueError(f"{path} row {n}: {d} appears twice")
+        rows[d] = a
+    if not rows:
+        raise ValueError(f"{path}: no distributions")
+    return {"path": path, "sha256": hashlib.sha256(raw).hexdigest(), "rows": rows}
+
+
+def place_distributions(dist, series, first, last):
+    """
+    Which add-backs apply to the scored sessions first..last (dates). A payout
+    on or before the file's declared total-return cutoff is already in its
+    prices and is skipped, never added twice; a file declared adjusted with no
+    cutoff takes none (integrity fails). An ex-date inside the window with no
+    bar cannot be placed (integrity fails).
+    """
+    prov = series.provenance
+    adj, thru = prov.get("adjusted"), prov.get("total_return_through")
+    thru = dt.date.fromisoformat(str(thru)) if thru else None
+    bar_dates = {b.ts.date() for b in series.bars}
+    out = {"path": dist["path"], "sha256": dist["sha256"], "applied": {}, "already_adjusted": [],
+           "outside_window": [], "unplaceable": [], "ok": True, "problem": None}
+    for d in sorted(dist["rows"]):
+        a = dist["rows"][d]
+        if adj is True and thru is None:
+            out["ok"] = False
+            out["problem"] = ("the file is declared adjusted with no total-return cutoff, so an add-back "
+                              "would count a payout twice (declare --total-return-through)")
+            return out
+        if thru is not None and d <= thru:
+            out["already_adjusted"].append(d)
+        elif d < first or d > last:
+            out["outside_window"].append(d)
+        elif d not in bar_dates:
+            out["unplaceable"].append(d)
+        else:
+            out["applied"][d] = a
+    if out["unplaceable"]:
+        out["ok"] = False
+        out["problem"] = "ex-date(s) inside the window with no bar: " + ", ".join(
+            x.isoformat() for x in out["unplaceable"])
+    return out
+
+
+def integrity_check(series, qc, leak, log, prereg=None, placed=None):
+    """G0 (r1-redteam §3.2): the items that make a run VOID. No performance number is printed
+    unless every item passes."""
+    items = [("barqc", qc["verdict"] == "pass", f"verdict {qc['verdict']}"),
+             ("leak check", leak["checked"] > 0 and not leak["differences"],
+              f"{leak['checked']} decisions re-run on truncated bars, {len(leak['differences'])} "
+              f"difference(s)"),
+             ("information sets", all(n == today for (today, auction, n, held, w) in log),
+              "every decision saw exactly the bars closed before its session (open auction: through "
+              "close[t-1]; close auction: the same plus open[t])"),
+             ("calendar", True, "scheduled NYSE rules only (barqc.nyse_holidays); no bar date enters "
+                                "a rule's calendar facts (by construction; tested)"),
+             ("dividend basis declared", series.provenance.get("adjusted") is not None,
+              f"adjusted={series.provenance.get('adjusted')}, total-return through "
+              f"{series.provenance.get('total_return_through') or 'not stated'}")]
+    if placed is not None:
+        items.append(("distributions added back", placed["ok"],
+                      placed["problem"] or (
+                          f"{len(placed['applied'])} applied on their ex-date's overnight leg ("
+                          + ", ".join(f"{d.isoformat()} {a:g}" for d, a in sorted(placed["applied"].items()))
+                          + f"); {len(placed['already_adjusted'])} already in the prices, "
+                          f"{len(placed['outside_window'])} outside the window; {placed['path']} "
+                          f"sha256 {placed['sha256']}")))
+    sha = None
+    if prereg:
+        try:
+            with open(prereg, "rb") as f:
+                sha = hashlib.sha256(f.read()).hexdigest()
+            items.append(("pre-registration", True, f"{prereg} sha256 {sha}"))
+        except OSError as e:
+            items.append(("pre-registration", False, f"{prereg} unreadable: {e}"))
+    return {"pass": all(ok for _, ok, _ in items), "items": items, "prereg_sha256": sha}
+
+
+def _window(dates, warmup, start=None, end=None, start_close=None):
+    """(s0, last): scoring starts at the close auction of bar s0 and ends at the close of bar last.
+    `start_close` names that first close exactly (it must be a bar); `start` instead names the first
+    scored SESSION (scoring then starts at the close before it)."""
+    if start_close is not None:
+        if start_close not in set(dates):
+            raise ValueError(f"start close {start_close} is not a bar in this file")
+        s0 = dates.index(start_close)
+        if s0 < warmup:
+            raise ValueError(f"start close {start_close} leaves {s0} bars for a warm-up of {warmup}")
+    else:
+        first = 0 if start is None else bisect.bisect_left(dates, start)
+        s0 = max(warmup, first - 1, 0)
+    last = len(dates) - 1 if end is None else bisect.bisect_right(dates, end) - 1
+    return s0, last
+
+
+ACCRUAL_NOTE = {
+    "calendar": "accrued by calendar days, (1+y)^(D/365) - 1 on each overnight leg (D = days since the "
+                "previous close; the round-1 end-of-day convention)",
+    "session": "accrued per session, (1+y)^(1/252) - 1 on each overnight leg whatever its calendar "
+               "days (r2-redteam R4)"}
+
+
+def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0, start=None,
+               end=None, placebo_methods=("within_cycle",), placebo_draws=1000,
+               dsr_benchmark="constant", dsr_draws=5000, dsr_block=10, halves_mode="session",
+               marks_mode="close", crises=DEFAULT_CRISES, leak_samples=100, leak_changes=200,
+               prereg=None, sso=None, start_close=None, accrual="calendar", distributions=None):
+    """
+    One margin-model rule, one file, every stress cell in one invocation.
+    `cells` = [(cost_bps_per_side, CashRate, spread)]; the FIRST is primary. The
+    rule's decisions, the leak check and the integrity block do not depend on
+    costs or rates, so they are computed once; every cell re-walks the books.
+    `distributions` is load_distributions()'s result: payouts added back on
+    their ex-date's overnight leg for every book alike. Nothing that depends on
+    a price is computed when integrity (G0) fails.
+    """
+    factory = _as_factory(rule)
+    r0 = factory()
+    if r0.model != "margin":
+        raise ValueError(f"{r0.name} is a weight-model rule: use run()")
+    if not cells:
+        raise ValueError("at least one (cost, cash, spread) cell")
+    cells = [(float(c), cr if isinstance(cr, CashRate) else CashRate(rate=float(cr)), sp)
+             for c, cr, sp in cells]
+    for c, _, sp in cells:
+        if not math.isfinite(c) or not 0 <= c < 1000:
+            raise ValueError(f"cost {c} bp per side is not a cost")
+        if sp is None:
+            raise ValueError("a margin run needs a stated financing spread over cash (--spread)")
+    for m in placebo_methods:
+        if m not in ("within_cycle", "shift", "blocks"):
+            raise ValueError(f"placebo {m!r} is within_cycle, shift or blocks")
+    if dsr_benchmark not in ("constant", "buy_and_hold"):
+        raise ValueError("the deflated Sharpe is computed against 'constant' (bar A) or 'buy_and_hold'")
+    if trials is not None and int(trials) < 1:
+        raise ValueError("trials counts every specification tried, >= 1")
+    if marks_mode not in ("close", "both"):
+        raise ValueError("marks are 'close' or 'both'")
+    if dsr_draws == 1 or dsr_draws < 0 or (trials is not None and not dsr_draws):
+        raise ValueError("the bootstrap SE needs at least 2 draws (0 skips it, and then --trials too)")
+    accrual_years(1, accrual)
+    other_accrual = "session" if accrual == "calendar" else "calendar"
+
+    qc = gate(series)
+    bars = series.bars
+    dates_all = [b.ts.date() for b in bars]
+    cal = Calendar(dates_all[0], dates_all[-1])
+    s0, last = _window(dates_all, r0.warmup, start, end, start_close)
+    if last - s0 < 3:
+        raise Blocked(f"{series.describe()}: {last - s0} scored session(s) — nothing to measure")
+    w_on, w_id, log = decide_all(series, r0, cal, s0, last, 1)
+    levels = interleave(w_on, w_id)
+    leak = leak_check(series, factory, log, cal, leak_samples, leak_changes, seed, 1)
+    start_date = dates_all[s0]
+    dates = dates_all[s0 + 1:last + 1]
+    placed = place_distributions(distributions, series, dates[0], dates[-1]) if distributions else None
+    applied = placed["applied"] if placed else None
+    integ = integrity_check(series, qc, leak, log, prereg, placed)
+    cycles, anchors = session_cycles(dates, cal, r0.anchor or (lambda f: f.is_month_end))
+    cut, split = split_halves(dates, start_date, halves_mode)
+    spans = crisis_spans(dates, crises)
+    probes = ProbeSet(dates, start_date, cut, spans)
+    rule_changes = levels_to_changes(levels)
+    trade_legs = [leg for leg, e, f in rule_changes if leg > 0]
+    p_hat = sum(levels) / len(levels)
+    days = [(d1 - d0).days for d0, d1 in zip([start_date] + dates[:-1], dates)]
+    p_hat_days = sum(levels[2 * j] * D for j, D in enumerate(days)) / sum(days)
+    lf_levels = [1.0 if e > r0.baseline + EPS else 0.0 for e in levels]
+    gens = {}
+    if "within_cycle" in placebo_methods:
+        wc = WithinCycle(levels, cycles, r0.baseline)
+        gens["within_cycle"] = (wc.draw, tuple(wc.observed))
+    if "shift" in placebo_methods:
+        sp_ = ShiftPlacebo(levels)
+        gens["shift"] = (sp_.draw, 0)
+    if "blocks" in placebo_methods:
+        bp = BlocksPlacebo(levels, r0.baseline)
+        gens["blocks"] = (bp.draw, tuple(rule_changes))
+    aset = set(anchors)
+    complete = start_date in aset and dates[-1] in aset
+    prov = series.provenance
+    tail_note = None
+    if prov.get("total_return_through") and not applied:
+        tail_note = (f"the file is price-only after {prov['total_return_through']} and no distribution "
+                     f"was added back: every book is charged each later payout as a loss on its "
+                     f"ex-date, in proportion to its exposure that night")
+    out = {
+        "edgelab_version": EDGELAB_VERSION, "model": "margin",
+        "rule": r0.name, "rule_doc": r0.doc, "baseline": r0.baseline,
+        "max_exposure": r0.max_exposure, "warmup": r0.warmup,
+        "symbol": series.symbol, "path": prov.get("path"),
+        "source": prov.get("source"), "adjusted": prov.get("adjusted"),
+        "total_return_through": prov.get("total_return_through"),
+        "integrity": integ, "leak_check": leak, "qc_verdict": qc["verdict"],
+        "distributions": ({k_: v for k_, v in placed.items() if k_ != "applied"}
+                          | {"applied": {d.isoformat(): x for d, x in placed["applied"].items()}}
+                          if placed else None),
+        "window": {"start_close": start_date.isoformat(), "first_session": dates[0].isoformat(),
+                   "last_session": dates[-1].isoformat(), "sessions": len(dates),
+                   "legs": len(levels), "cycles": len(cycles),
+                   "window_starts_and_ends_on_anchors": bool(complete),
+                   "halves": {"mode": halves_mode, "split": split.isoformat(), "cut": cut},
+                   "crisis_spans": [(dates[a].isoformat(), dates[b].isoformat()) for a, b in spans]},
+        "settings": {"trials": trials, "trials_sensitivity": trials_sensitivity, "seed": seed,
+                     "placebo_methods": list(placebo_methods), "placebo_draws": placebo_draws,
+                     "dsr_benchmark": dsr_benchmark, "dsr_draws": dsr_draws, "dsr_block": dsr_block,
+                     "marks": marks_mode, "crises": [list(c) for c in crises], "sso": sso,
+                     "accrual": accrual},
+        "conventions": {"drift": DRIFT_NOTE, "instrument": MARGIN_NOTE,
+                        "cash": f"idle cash and borrowed money {ACCRUAL_NOTE[accrual]}",
+                        "information": INFO_NOTE,
+                        "dividends": dividend_note(prov.get("adjusted"), prov.get("total_return_through")),
+                        "price_only_tail": tail_note,
+                        "bar_A": f"constant exposure {p_hat:.6f} = the rule's mean declared "
+                                 f"exposure over its {len(levels)} scored legs; reset at the "
+                                 f"{len(trade_legs)} auctions where the rule trades"},
+        "p_hat": p_hat, "p_hat_calendar_days": p_hat_days, "cells": [],
+    }
+    if not integ["pass"]:
+        return out                      # VOID: nothing performance-related is computed
+    for cost_bps, cash, spread in cells:
+        cost = cost_bps / 1e4
+        ML = margin_legs(bars, s0, last, cash, spread, cal, accrual, applied)
+        rp = margin_walk(rule_changes, ML, cost, detail=True)
+        a_changes = constant_changes(p_hat, trade_legs)
+        ap = margin_walk(a_changes, ML, cost, detail=True)
+        bp_ = margin_walk([(0, 1.0, False)], ML, cost, detail=True)
+        lp = margin_walk(levels_to_changes(lf_levels), ML, cost, detail=True)
+        S_rule = score_margin(rp, ML, start_date, levels, marks_mode)
+        S_A = score_margin(ap, ML, start_date, [p_hat] * len(levels), marks_mode)
+        S_B = score_margin(bp_, ML, start_date, [1.0] * len(levels), marks_mode)
+        S_L = score_margin(lp, ML, start_date, lf_levels, marks_mode)
+        books = {"rule": rp["marks"][2::2], "bar_A": ap["marks"][2::2], "buy_and_hold": bp_["marks"][2::2]}
+        r_rets = session_returns(books["rule"])
+        a_rets = session_returns(books["bar_A"])
+        ML2 = margin_legs(bars, s0, last, cash, spread, cal, other_accrual, applied)
+        yrs = S_rule["years"]
+        d_this = S_rule["cagr"] - S_A["cagr"]
+        d_other = (cagr_of(margin_walk(rule_changes, ML2, cost)["final"], yrs)
+                   - cagr_of(margin_walk(a_changes, ML2, cost)["final"], yrs))
+        cell = {"cost_bps_per_side": cost_bps, "round_trip_bps": 2 * cost_bps, "cash": cash.label,
+                "spread": spread, "rule": S_rule, "bar_A": S_A, "buy_and_hold": S_B,
+                "long_flat_1x": S_L, "per_year": per_year_books(dates, books, rp["auctions"],
+                                                                ML.prev_dates),
+                "halves": halves_books(dates, start_date, books, ML.g_cash, halves_mode),
+                "accrual_residual": {"accrual": accrual, "other": other_accrual,
+                                     "rule_minus_A_cagr": d_this, "rule_minus_A_cagr_other": d_other,
+                                     "residual": d_this - d_other}}
+        if sso:
+            sw = sso_switch_path(levels, series, s0, last, cash, cal, sso.get("k", 2),
+                                 sso["expense_ratio"], cost, sso.get("cost_bps_per_side_fund",
+                                                                     cost_bps) / 1e4,
+                                 accrual, applied)
+            if sw is not None:
+                cl = sw["closes"]
+                cell["sso_switch"] = {**{k_: v for k_, v in sw.items() if k_ != "closes"},
+                                      "cagr": cagr_of(cl[-1], S_rule["years"]),
+                                      "total_return": cl[-1] - 1.0,
+                                      "max_drawdown": replay.max_drawdown([1.0] + cl)}
+            else:
+                cell["sso_switch"] = "not applicable: exposures are not all 1x or kx"
+        cell["placebo"] = {}
+        for m, (gen, okey) in gens.items():
+            cell["placebo"][m] = run_placebo(m, gen, rule_changes, okey, ML, cost, probes,
+                                             placebo_draws, seed)
+        bench = books["bar_A"] if dsr_benchmark == "constant" else books["buy_and_hold"]
+        b_rets = session_returns(bench)
+        ex_r = [x - g for x, g in zip(r_rets, ML.g_cash)]
+        ex_b = [x - g for x, g in zip(b_rets, ML.g_cash)]
+        cell["dsr"] = (dsr_paired(ex_r, ex_b, trials, trials_sensitivity, dsr_block, dsr_draws, seed)
+                       if trials is not None else None)
+        if cell["dsr"] is not None:
+            cell["dsr"]["benchmark"] = dsr_benchmark
+        cell["timing_book"] = (timing_book(r_rets, a_rets, trials, trials_sensitivity, dsr_block,
+                                           dsr_draws, seed) if dsr_draws else None)
+        cell["g6"] = g6_inputs(levels, r0.baseline, r_rets, ML, cycles, cut, a_rets)
+        wc_res = cell["placebo"].get("within_cycle")
+        cell["g6"]["drop_crises_minus_placebo_median"] = (wc_res or {}).get("ex_crises_minus_median")
+        cell["g7"] = g7_inputs(wc_res, cell["timing_book"])
+        out["cells"].append(cell)
+    return out
+
+
 def decompose(series, start=None, end=None):
     """
     Buy-and-hold split into its overnight and intraday legs: DESCRIPTIVE — no
@@ -1403,8 +2589,13 @@ def decompose(series, start=None, end=None):
             "calendar": calendar_report(series, cal)}
 
 
-def dividend_note(adjusted):
+def dividend_note(adjusted, total_return_through=None):
     """Where a dividend lands in the leg split — the bias that matters most for a two-leg rule."""
+    if total_return_through:
+        return (f"total-return THROUGH {total_return_through} (each ex-date's dividend added back on "
+                f"that day's OVERNIGHT leg), price-only AFTER it: a later ex-date's drop lands in an "
+                f"overnight leg with no dividend credited, and a book holding more exposure that night "
+                f"is charged more of it (r1-quartermaster §5; r2-bench §1a)")
     if adjusted is True:
         return ("in the prices as stated (total-return): each ex-date's dividend is added back in "
                 "that day's OVERNIGHT leg, which is where a holder of record earns it")
@@ -1564,6 +2755,289 @@ def render(r):
     L += ["-" * 100, f"NOT MODELLED     {NOT_MODELLED}",
           "RECORD           nothing is written to the ledger; a run that is a trial needs a row in "
           "trials.json citing its saved output"]
+    return "\n".join(L)
+
+
+def render_integrity(integ):
+    L = [f"INTEGRITY (G0)   {'PASS' if integ['pass'] else 'FAIL — VOID'}"]
+    for name, ok, note in integ["items"]:
+        L.append(f"   {'ok  ' if ok else 'FAIL'} {name:<26}{note}")
+    if not integ["pass"]:
+        L.append("VOID — no performance number is printed when an integrity item fails (r1-redteam G0)")
+    return "\n".join(L)
+
+
+def _cell_label(c):
+    return f"{c['cost_bps_per_side']:g} bp/side · cash {c['cash']} · spread {c['spread']:.2%}"
+
+
+def render_margin(r):
+    """The report of one margin-model run: integrity first; nothing else when it fails."""
+    w = r["window"]
+    L = ["=" * 112,
+         f"EDGELAB v{r['edgelab_version']} · MARGIN OVERLAY · rule {r['rule']} on {r['symbol']} · "
+         f"{os.path.basename(r['path'] or '')}", "=" * 112, render_integrity(r["integrity"])]
+    if not r["integrity"]["pass"]:
+        return "\n".join(L)
+    c0 = r["cells"][0]
+    cv = r["conventions"]
+    L += [f"COST CONVENTION  {c0['cost_bps_per_side']:g} bp PER SIDE on traded notional (primary) — a round "
+          f"trip costs {c0['round_trip_bps']:g} bp. {COST_NOTE}",
+          f"CASH, FINANCING  {c0['cash']}; borrowed money pays cash + {c0['spread']:.2%}/yr; {cv['cash']}",
+          f"INSTRUMENT       {cv['instrument']}",
+          f"DRIFT            {cv['drift']}",
+          f"DIVIDENDS        {cv['dividends']}"]
+    if cv.get("price_only_tail"):
+        L.append(f"                 WARNING: {cv['price_only_tail']}")
+    if r.get("distributions"):
+        d = r["distributions"]
+        L.append(f"                 added back on the ex-date's overnight leg, every book alike: "
+                 + (", ".join(f"{k} {v:g}" for k, v in d["applied"].items()) or "none in the window")
+                 + f" (from {os.path.basename(d['path'])}, sha256 {d['sha256'][:16]}…)")
+    L += [f"INFORMATION      {INFO_NOTE}",
+          f"WINDOW           from the close of {w['start_close']} to the close of {w['last_session']}: "
+          f"{w['sessions']} sessions, {w['legs']} legs, {w['cycles']} cycles"
+          + ("" if w["window_starts_and_ends_on_anchors"] else
+             " — NOTE: the window does not start and end on cycle anchors, so its first or last "
+             "cycle is partial"),
+          f"                 halves split by {w['halves']['mode']} at {w['halves']['split']} "
+          f"(first half = {w['halves']['cut']} sessions); crisis spans removed for G6: "
+          + (", ".join(f"{a}..{b}" for a, b in w["crisis_spans"]) or "none in the window"),
+          f"BAR (A)          {cv['bar_A']}; weighted by the calendar days of each overnight leg the "
+          f"mean exposure would be {r['p_hat_calendar_days']:.6f}",
+          f"BASELINE         {r['baseline']:g}x — placebos move departures from it",
+          "-" * 112]
+    cols = [("rule", c0["rule"]), ("bar (A)", c0["bar_A"]), ("buy & hold 1x", c0["buy_and_hold"]),
+            ("1x long/flat*", c0["long_flat_1x"])]
+    sw = c0.get("sso_switch")
+    L.append(f"{'':32}" + "".join(f"{n:>17}" for n, _ in cols)
+             + (f"{'SSO switch*':>17}" if isinstance(sw, dict) else ""))
+
+    def row(label, key, fmt):
+        cells = [fmt(x.get(key)) for _, x in cols]
+        extra = ""
+        if isinstance(sw, dict):
+            extra = f"{fmt(sw.get(key)) if key in sw else '':>17}"
+        return f"{label:<32}" + "".join(f"{c:>17}" for c in cells) + extra
+    L += [row("total return (ROI on capital)", "total_return", _p),
+          row("CAGR", "cagr", lambda x: _p(x, 2)),
+          row("volatility (annualised)", "volatility", lambda x: _p(x, 1).lstrip("+")),
+          row("Sharpe (excess of cash)", "sharpe", _f),
+          row("Sortino (excess of cash)", "sortino", _f),
+          row(f"max drawdown (marks: {c0['rule']['marks']})", "max_drawdown", _p),
+          row("-15% STOP episodes", "stop_episodes", lambda x: _f(x, "{:d}")),
+          row("mean exposure", "mean_exposure", lambda x: _f(x, "{:.4f}")),
+          row("trades (sides)", "sides", lambda x: _f(x, "{:d}")),
+          row("cost paid (x initial capital)", "cost_paid", lambda x: _f(x, "{:.4f}")),
+          row("financing paid (x initial)", "financing_paid", lambda x: _f(x, "{:.4f}")),
+          row("cash interest (x initial)", "interest_earned", lambda x: _f(x, "{:.4f}"))]
+    L.append(f"{'max drawdown dates (rule)':<32}peak {c0['rule']['peak']} → trough {c0['rule']['trough']} "
+             f"→ recovered {c0['rule']['recovered']}")
+    L.append("* declared descriptive lines, never gates: the window alone at 1x (cash outside), and the "
+             "cash-account switch into a modelled kx fund")
+    ar = c0["accrual_residual"]
+    L.append(f"ACCRUAL RESIDUAL CAGR(rule) − CAGR(A) is {_p(ar['rule_minus_A_cagr'], 3)} with financing "
+             f"accrued by {ar['accrual']}, {_p(ar['rule_minus_A_cagr_other'], 3)} by {ar['other']}: "
+             f"residual {_p(ar['residual'], 3)}")
+    L += ["-" * 112, "PER YEAR (rule, bar A, buy & hold; rule sides)"]
+    for y in c0["per_year"]:
+        L.append(f"  {y['year']}  {y['sessions']:>3} sess  {_p(y['rule']):>8}  {_p(y['bar_A']):>8}  "
+                 f"{_p(y['buy_and_hold']):>8}  {y.get('sides', 0):>4}")
+    h = c0["halves"]
+    L += ["-" * 112, f"HALVES (split by {h['mode']} at {h['split']})"]
+    for name in ("first", "second"):
+        x = h.get(name)
+        if not x:
+            L.append(f"  {name}: too short")
+            continue
+        L.append(f"  {name:<6} {x['from']} → {x['to']} ({x['sessions']} sess)  CAGR rule "
+                 f"{_p(x['rule']['cagr'], 2)} · bar A {_p(x['bar_A']['cagr'], 2)} · B&H "
+                 f"{_p(x['buy_and_hold']['cagr'], 2)}; Sharpe rule {_f(x['rule']['sharpe'])} · A "
+                 f"{_f(x['bar_A']['sharpe'])} · B&H {_f(x['buy_and_hold']['sharpe'])}")
+    L.append("-" * 112)
+    for m, p in c0["placebo"].items():
+        if p["degenerate"] or p.get("p_cagr") is None:
+            why = (f"degenerate ({p['unique_arrangements']} arrangement(s)): no timing to test"
+                   if p["degenerate"] else "not run (0 draws)")
+            L.append(f"PLACEBO {m:<13}{why}")
+            continue
+        L.append(f"PLACEBO {m:<13}{p['draws']} draws, seed {p['seed']}, {p['unique_arrangements']} unique: "
+                 f"p(CAGR) = {p['p_cagr']:.4f}; rule CAGR {_p(p['observed_cagr'], 2)} vs null median "
+                 f"{_p(p['null_cagr_median'], 2)} [5% {_p(p['null_cagr_q05'], 2)}, 95% "
+                 f"{_p(p['null_cagr_q95'], 2)}]; z {_f(p['z_cagr'])}; beats the median in each half: "
+                 f"{'yes' if p['beats_median_each_half'] else 'no'}")
+    ds = c0["dsr"]
+    if ds:
+        L.append(f"DEFLATED SHARPE  paired circular-block bootstrap vs {ds['benchmark']}: dSR "
+                 f"{ds['dSR']:+.4f} (rule {ds['sr_rule']:.4f} − {ds['sr_benchmark']:.4f}), SE {ds['se']:.4f} "
+                 f"(block {ds['block']}, {ds['draws']} resamples); N={ds['primary']['trials']}: z "
+                 f"{ds['primary']['z']:+.3f}, DSR {ds['primary']['dsr']:.4f}; N={ds['sensitivity']['trials']}: "
+                 f"DSR {ds['sensitivity']['dsr']:.4f}; dSR needed for DSR 0.5 / 0.8 at N="
+                 f"{ds['primary']['trials']}: {ds['primary']['dSR_for_dsr_0.5']:.3f} / "
+                 f"{ds['primary']['dSR_for_dsr_0.8']:.3f}")
+    else:
+        L.append(f"DEFLATED SHARPE  not computed: pass --trials N ({_prior_trials_note()})")
+    tb = c0.get("timing_book")
+    if tb:
+        for form in ("log", "simple"):
+            t = tb[form]
+            dsr_txt = ""
+            if "primary" in t:
+                dsr_txt = (f"; deflated at N={t['primary']['trials']}: {t['primary']['dsr']:.4f} (needs z ≥ "
+                           f"{t['primary']['z_for_dsr_0.8']:.2f} for 0.8), N={t['sensitivity']['trials']}: "
+                           f"{t['sensitivity']['dsr']:.4f} (z ≥ {t['sensitivity']['z_for_dsr_0.8']:.2f})")
+            L.append(f"TIMING BOOK {form:<7}rule − bar A per session ({'ln(1+R) − ln(1+R_A)' if form == 'log' else 'R − R_A'}): "
+                     f"mean {_p(t['mean_annual'], 3)}/yr, tracking error {_p(t['tracking_error'], 2).lstrip('+')}; "
+                     f"z boot {_f(t['z_boot'], '{:+.3f}')} (SE {t['se_boot']:.4f}), z analytic "
+                     f"{t['z_analytic']:+.3f}, z i.i.d. {t['z_iid']:+.3f}; used {t['z_used']:+.3f}{dsr_txt}")
+    g = c0["g6"]
+    L += ["-" * 112,
+          f"G6 INPUTS        episodes {g['episodes']} ({g['episodes_first_half']} / {g['episodes_second_half']} "
+          f"by half; runs < {g['merge_gap']} sessions apart merge); cycles {g['cycles']} "
+          f"({g['cycles_first_half']} / {g['cycles_second_half']} by the half they start in)",
+          f"   redteam_r1    top-5 positive episodes' share of the summed log excess over cash: "
+          f"{_f(g['redteam_r1']['share'], '{:.3f}')} (sum {g['redteam_r1']['sum']:+.4f}; r1 gate ≤ 0.50)"]
+    for name in ("flow_formula", "book_simple", "book_log"):
+        if name in g:
+            x = g[name]
+            L.append(f"   {name:<13} per-cycle sum {x['sum']:+.5f}; 5 largest positive cycles {x['top5']:+.5f}; "
+                     f"without them {x['sum_without_top5']:+.5f} (gate ≥ 0: {'pass' if x['pass'] else 'fail'})")
+    L.append(f"   drop-crises   CAGR(rule) − within-cycle placebo median, crisis spans removed from both: "
+             f"{_p(g['drop_crises_minus_placebo_median'], 3)}")
+    g7 = c0.get("g7") or {}
+    if g7:
+        L.append("G7 INPUTS        (read on the replication file; veto forms: r1 'same sign' | r2 'z < −1')")
+        for name, x in g7.items():
+            L.append(f"   {name:<13} z {_f(x['z'], '{:+.3f}')}"
+                     + (f", percentile {x['percentile']:.3f}" if "percentile" in x else
+                        f" (i.i.d. {x['z_iid']:+.3f})")
+                     + f"; veto same-sign: {'YES' if x['veto_same_sign'] else 'no'}; veto z < −1: "
+                       f"{'YES' if x['veto_z_below_minus_1'] else 'no'}")
+    if len(r["cells"]) > 1:
+        L += ["-" * 112, "STRESS GRID (every cell of the invocation; the first row is primary)",
+              f"{'cost':>5}{'cash':>7}{'spread':>8}{'CAGR rule':>11}{'bar A':>8}{'B&H':>8}{'rule−A':>8}"
+              f"{'rule−B&H':>9}{'MDD rule':>9}{'MDD A':>8}{'p WC':>7}{'DSR':>7}{'DSR100':>7}"
+              f"{'z log':>7}{'DSRlog':>7}{'top5':>6}{'log-5':>8}{'crisis':>9}{'accr':>8}"]
+        for c in r["cells"]:
+            p = (c["placebo"].get("within_cycle") or {})
+            ds = c["dsr"] or {}
+            tl = (c.get("timing_book") or {}).get("log") or {}
+            gl = c["g6"].get("book_log") or {}
+            cash_v = c["cash"].split("%")[0] if "%" in c["cash"] else c["cash"][:6]
+            L.append(f"{c['cost_bps_per_side']:>5g}{cash_v:>7}{c['spread']:>8.2%}"
+                     f"{_p(c['rule']['cagr'], 2):>11}{_p(c['bar_A']['cagr'], 2):>8}"
+                     f"{_p(c['buy_and_hold']['cagr'], 2):>8}"
+                     f"{_p(c['rule']['cagr'] - c['bar_A']['cagr'], 2):>8}"
+                     f"{_p(c['rule']['cagr'] - c['buy_and_hold']['cagr'], 2):>9}"
+                     f"{_p(c['rule']['max_drawdown']):>9}{_p(c['bar_A']['max_drawdown']):>8}"
+                     f"{_f(p.get('p_cagr'), '{:.4f}'):>7}"
+                     f"{_f((ds.get('primary') or {}).get('dsr'), '{:.3f}'):>7}"
+                     f"{_f((ds.get('sensitivity') or {}).get('dsr'), '{:.3f}'):>7}"
+                     f"{_f(tl.get('z_used'), '{:+.2f}'):>7}"
+                     f"{_f((tl.get('primary') or {}).get('dsr'), '{:.3f}'):>7}"
+                     f"{_f(c['g6']['redteam_r1']['share'], '{:.2f}'):>6}"
+                     f"{_f(gl.get('sum_without_top5'), '{:+.3f}'):>8}"
+                     f"{_p(c['g6']['drop_crises_minus_placebo_median'], 2):>9}"
+                     f"{_p(c['accrual_residual']['residual'], 3):>8}")
+    L += ["-" * 112, f"NOT MODELLED     {NOT_MODELLED}; margin calls; whole-share rounding",
+          "RECORD           nothing is written to the ledger; a run that is a trial needs a row in "
+          "trials.json citing its saved output"]
+    return "\n".join(L)
+
+
+def offset_profile(series, offsets, labels, breaks, exclude=(), contrast=None, start=None, end=None):
+    """
+    DESCRIPTIVE — declared in advance; it cannot confirm or refute anything.
+    The mean close-to-close return of the session at each offset from its
+    month's last SCHEDULED session T (T+o for o in `offsets`; o <= 0 counts back
+    inside the month, o >= 1 into the next), per group of months, with count
+    and standard error. A month's group is decided by T's date: labels[0]
+    before breaks[0], labels[i] from breaks[i-1]. Sessions whose overnight leg
+    spans a missing scheduled session are left out, and so is every date in
+    `exclude`. `contrast` = (offset, groups_a, groups_b) prints
+    mean(offset | a) − mean(offset | b) with its SE (independent groups).
+    """
+    gate(series)
+    if len(labels) != len(breaks) + 1:
+        raise ValueError("one more label than break dates")
+    breaks = [dt.date.fromisoformat(str(x)) for x in breaks]
+    if breaks != sorted(breaks):
+        raise ValueError("break dates must be increasing")
+    bars = series.bars
+    dates = [b.ts.date() for b in bars]
+    cal = Calendar(dates[0], dates[-1])
+    offs = sorted(set(int(o) for o in offsets))
+    excl = {dt.date.fromisoformat(str(x)) for x in exclude}
+    label_of = lambda T: labels[bisect.bisect_right(breaks, T)]
+    cells = {(o, lab): [] for o in offs for lab in labels}
+    skipped = {"gap legs": 0, "excluded dates": 0}
+    for j in range(1, len(bars)):
+        d = dates[j]
+        if (start and d < start) or (end and d > end):
+            continue
+        if cal.between(dates[j - 1], d):
+            skipped["gap legs"] += 1
+            continue
+        if d in excl:
+            skipped["excluded dates"] += 1
+            continue
+        f = cal.facts(d)
+        r = bars[j].close / bars[j - 1].close - 1.0
+        o_own = f.month_ordinal_from_end + 1
+        if o_own in offs:
+            cells[(o_own, label_of(cal.last_session(d.year, d.month)))].append(r)
+        if f.month_ordinal in offs:
+            py, pm = (d.year, d.month - 1) if d.month > 1 else (d.year - 1, 12)
+            cells[(f.month_ordinal, label_of(cal.last_session(py, pm)))].append(r)
+
+    def st(xs):
+        n = len(xs)
+        if n == 0:
+            return {"n": 0, "mean": None, "se": None}
+        m = sum(xs) / n
+        sd = math.sqrt(sum((x - m) ** 2 for x in xs) / (n - 1)) if n > 1 else None
+        return {"n": n, "mean": m, "se": sd / math.sqrt(n) if sd is not None else None, "sd": sd}
+    table = {f"{o:+d}|{lab}": st(cells[(o, lab)]) for o in offs for lab in labels}
+    out = {"label": "DESCRIPTIVE — declared in advance; cannot confirm or refute",
+           "symbol": series.symbol, "offsets": offs, "labels": list(labels),
+           "breaks": [b.isoformat() for b in breaks], "excluded": sorted(x.isoformat() for x in excl),
+           "skipped": skipped, "table": table}
+    if contrast:
+        o, ga, gb = contrast
+        xa = [x for lab in ga for x in cells[(int(o), lab)]]
+        xb = [x for lab in gb for x in cells[(int(o), lab)]]
+        sa, sb = st(xa), st(xb)
+        if sa["n"] > 1 and sb["n"] > 1:
+            se = math.sqrt(sa["se"] ** 2 + sb["se"] ** 2)
+            out["contrast"] = {"offset": int(o), "groups_a": list(ga), "groups_b": list(gb),
+                               "mean_a": sa["mean"], "n_a": sa["n"], "mean_b": sb["mean"],
+                               "n_b": sb["n"], "delta": sa["mean"] - sb["mean"], "se": se,
+                               "t": (sa["mean"] - sb["mean"]) / se if se > 0 else None}
+        else:
+            out["contrast"] = {"offset": int(o), "error": "a group has fewer than 2 sessions"}
+    return out
+
+
+def render_offset_profile(p):
+    L = [f"OFFSET PROFILE · {p['symbol']} · {p['label']}",
+         f"mean close-to-close return by session offset from T (the month's last scheduled session), "
+         f"bp, by group (breaks {', '.join(p['breaks'])}); skipped {p['skipped']}",
+         f"{'offset':>7}" + "".join(f"{('group ' + str(lab)):>24}" for lab in p["labels"])]
+    for o in p["offsets"]:
+        cells = []
+        for lab in p["labels"]:
+            x = p["table"][f"{o:+d}|{lab}"]
+            cells.append("n/a" if x["mean"] is None else
+                         f"{1e4 * x['mean']:+7.1f} ±{1e4 * (x['se'] or 0):5.1f} (n {x['n']})")
+        L.append(f"{('T' + format(o, '+d')) if o else 'T':>7}" + "".join(f"{c:>24}" for c in cells))
+    c = p.get("contrast")
+    if c and "delta" in c:
+        L.append(f"declared contrast: mean r(T{c['offset']:+d} | {','.join(map(str, c['groups_a']))}) − "
+                 f"mean r(T{c['offset']:+d} | {','.join(map(str, c['groups_b']))}) = "
+                 f"{1e4 * c['delta']:+.1f} bp ± {1e4 * c['se']:.1f} (n {c['n_a']} vs {c['n_b']}) — "
+                 f"descriptive; it cannot confirm or refute")
+    elif c:
+        L.append(f"declared contrast: {c['error']}")
     return "\n".join(L)
 
 
