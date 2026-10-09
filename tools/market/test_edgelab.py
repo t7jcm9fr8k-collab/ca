@@ -145,11 +145,17 @@ QUIET = dict(placebo_draws=0, boot_draws=0, leak_samples=20)
 
 # ================================================================== registry
 
-print("registry — empty but for the benchmark and two test-only rules")
+print("registry — the benchmark, two test-only rules, and the one pre-registered rule")
 
-check("the registry holds exactly buy_and_hold and the two test-only rules",
-      sorted(E.RULES) == ["buy_and_hold", "test_intraday_only", "test_overnight_only"],
+check("the registry holds buy_and_hold, the two test-only rules and month_end_overlay, nothing else",
+      sorted(E.RULES) == ["buy_and_hold", "month_end_overlay", "test_intraday_only", "test_overnight_only"],
       str(sorted(E.RULES)))
+_meo = E.RULES["month_end_overlay"]()
+check("month_end_overlay is a margin rule at 1x baseline, 2x maximum, not test-only, citing its "
+      "pre-registration and the file's SHA-256",
+      _meo.model == "margin" and _meo.baseline == 1.0 and _meo.max_exposure == 2.0 and not _meo.test_only
+      and _meo.warmup == 0 and "PREREG-2026-10-09-month-end.md" in _meo.doc
+      and "85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f" in _meo.doc)
 check("the two test rules are flagged test-only and buy_and_hold is not",
       E.RULES["test_overnight_only"]().test_only and E.RULES["test_intraday_only"]().test_only
       and not E.RULES["buy_and_hold"]().test_only)
@@ -1419,8 +1425,18 @@ _sc_items = E.harness_selfcheck(barqc.sessions_between(dt.date(2015, 1, 2), dt.d
                                 [(2.0, 0.015, 0.015), (2.0, 0.0, 0.04), (2.0, 0.03, 0.04)],
                                 start_close=dt.date(2015, 1, 26), end=dt.date(2021, 11, 23), seed=1,
                                 draws=600, closes_only=True)
-check("the synthetic harness checks 1-4 pass on an S1-shaped rule and report their numbers",
-      len(_sc_items) == 4 and all(ok for _, ok, _ in _sc_items), str(_sc_items))
+check("the synthetic harness checks 1-4 and 7 pass on an S1-shaped rule and report their numbers",
+      len(_sc_items) == 5 and all(ok for _, ok, _ in _sc_items)
+      and [n.split(":")[0] for n, _, _ in _sc_items] == ["self-check 1", "self-check 2", "self-check 3",
+                                                         "self-check 7", "self-check 4"], str(_sc_items))
+_real_identity = E.identity_check
+E.identity_check = lambda *a, **k: 1e-3                     # an evaluator that treats a null unlike the rule
+_sc_bad = E.harness_selfcheck(barqc.sessions_between(dt.date(2019, 1, 2), dt.date(2021, 12, 31)), _MW,
+                              [(2.0, 0.015, 0.015)], start_close=dt.date(2019, 1, 25), end=dt.date(2021, 11, 23),
+                              seed=1, draws=20, closes_only=True)
+E.identity_check = _real_identity
+check("self-check 7 fails when the placebo evaluator reproduces the rule's numbers only approximately",
+      [ok for n, ok, _ in _sc_bad if n.startswith("self-check 7")] == [False])
 _mw0 = _MW()
 E.register_factory("_test_margin_window", lambda: E.Rule("_test_margin_window", _mw0.decide, 0, "TEST", True,
                                                          "margin", 1.0, None, _mw0.anchor))
@@ -1522,6 +1538,226 @@ check("a placeholder bar (open = high = low = close, volume 0) is flagged by the
 check("a declared total-return cutoff is printed as such: total-return THROUGH it, price-only AFTER",
       "THROUGH 2025-03-21" in E.dividend_note(True, "2025-03-21")
       and "price-only AFTER" in E.dividend_note(True, "2025-03-21"))
+
+
+print("\nthe pre-registered rule and its reading rule (synthetic result dicts and synthetic bars)")
+
+_mw_s = _mw_series(dt.date(2019, 1, 2), dt.date(2021, 12, 31), seed=606)
+_mw_d = [b.ts.date() for b in _mw_s.bars]
+_mw_c = E.Calendar(_mw_d[0], _mw_d[-1])
+_lv_a = E.decide_all(_mw_s, E.RULES["month_end_overlay"](), _mw_c, 10, len(_mw_d) - 1, 1)[:2]
+_lv_b = E.decide_all(_mw_s, E.month_window_rule(-3, 3, inside=2.0, outside=1.0, model="margin")(), _mw_c, 10,
+                     len(_mw_d) - 1, 1)[:2]
+check("month_end_overlay decides exactly as month_window_rule(-3, 3, inside=2, outside=1, margin), at both auctions",
+      _lv_a == _lv_b and set(_lv_a[0]) == {1.0, 2.0} and _lv_a[0] == _lv_a[1])
+_FZ = E.FROZEN["month_end_overlay"]
+check("the frozen reading rule carries the pre-registration's numbers",
+      _FZ["prereg_sha256"] == "85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f"
+      and _FZ["window"] == {"start_close": "2005-03-24", "first_session": "2005-03-28", "last_session": "2026-08-25",
+                            "sessions": 5387, "cycles": 257}
+      and _FZ["halves"] == {"mode": "session", "cut": 2694, "split": "2015-12-07"} and _FZ["window_sessions"] == 1796
+      and _FZ["replication_window"] == {"start_close": "1999-03-25", "last_session": "2005-02-22", "sessions": 1485,
+                                        "cycles": 71}
+      and sorted(_FZ["gated_pairs"]) == [(0.0, 0.015), (0.0, 0.04), (0.015, 0.015), (0.015, 0.04), (0.03, 0.015),
+                                         (0.03, 0.04)]
+      and (_FZ["cost"], _FZ["cost_g1_stress"], _FZ["trials"], _FZ["trials_sensitivity"], _FZ["dsr_bar"],
+           _FZ["g3_tolerance"], _FZ["g4_alpha"], _FZ["g6_cycles"], _FZ["g6_cycles_per_half"], _FZ["g7_z"])
+      == (2.0, 5.0, 40, 100, 0.80, 0.05, 0.05, 100, 40, -1.0)
+      and _FZ["gating_placebo"] == "within_cycle_circular")
+check("the frozen reasons are the pre-registration's table, verbatim",
+      _FZ["reasons"] == {"G1": "timing not worth its drag and costs", "G2": "unstable", "G3": "riskier than (A)",
+                         "G5'": "below the selection-adjusted bar", "G6": "concentrated", "G7'": "did not replicate"}
+      and _FZ["g4_fail_partial"] == "beat (A), indistinguishable from random placement")
+
+
+def _rd():
+    """A synthetic run and replication on which every gate passes at every pair."""
+    def cell(cost, c, s):
+        return {"cost_bps_per_side": cost, "cash_rate": c, "spread": s,
+                "rule": {"cagr": 0.12, "max_drawdown": -0.50}, "bar_A": {"cagr": 0.10, "max_drawdown": -0.48},
+                "halves": {"first": {"rule": {"cagr": 0.11}, "bar_A": {"cagr": 0.09}},
+                           "second": {"rule": {"cagr": 0.13}, "bar_A": {"cagr": 0.11}}},
+                "placebo": {"within_cycle_circular": {"p_cagr": 0.01, "beats_median_each_half": True}},
+                "timing_book": {"log": {"z_used": 4.0}},
+                "g6": {"cycles": 257, "cycles_first_half": 129, "cycles_second_half": 128,
+                       "book_log": {"sum_without_top5": 0.5}, "drop_crises_minus_placebo_median": 0.01}}
+    cells = [cell(k, c, s) for k in (2.0, 5.0, 1.0) for c, s in _FZ["gated_pairs"]] + [cell(2.0, 0.0, 0.0775)]
+    r = {"rule": "month_end_overlay", "integrity": {"pass": True},
+         "settings": {"placebo_methods": ["within_cycle_circular"]},
+         "window": {"halves": {"cut": 2694, "split": "2015-12-07"}}, "cells": cells}
+    v = {"symbol": "QQQ", "integrity": {"pass": True},
+         "cells": [{"cost_bps_per_side": k, "cash_rate": c, "spread": s, "timing_book": {"log": {"z_used": 0.5}}}
+                   for k in (2.0, 5.0, 1.0) for c, s in _FZ["gated_pairs"]]}
+    return r, v
+
+
+def _at(rv, cost=2.0, pair=(0.015, 0.015)):
+    return next(c for c in rv["cells"] if c["cost_bps_per_side"] == cost and (c["cash_rate"], c["spread"]) == pair)
+
+
+def _verdict(edit=None):
+    r, v = _rd()
+    if edit:
+        edit(r, v)
+    return E.read(r, v, _FZ)
+
+
+_v0 = _verdict()
+check("every gate passing at every pair reads WORKS, with no reason",
+      _v0["verdict"] == "WORKS" and _v0["reasons"] == [] and _v0["failed"] == []
+      and all(g["pass"] for g in _v0["gates"].values()) and "not eligible for money" in _v0["headline"])
+check("VOID when the run's integrity failed, when the replication is missing or failed, or a gated pair is missing",
+      _verdict(lambda r, v: r["integrity"].update({"pass": False}))["verdict"] == "VOID"
+      and E.read(_rd()[0], None, _FZ)["verdict"] == "VOID"
+      and _verdict(lambda r, v: v["integrity"].update({"pass": False}))["verdict"] == "VOID"
+      and _verdict(lambda r, v: r["cells"].remove(_at(r, 5.0, (0.03, 0.04))))["verdict"] == "VOID"
+      and _verdict(lambda r, v: r["settings"].update({"placebo_methods": ["shift"]}))["verdict"] == "VOID")
+_reason = {g: _FZ["reasons"][g] for g in _FZ["reasons"]}
+
+
+def _single(edit, gate):
+    vd = _verdict(edit)
+    return vd["verdict"] == "PARTIAL" and vd["headline"] == "PARTIAL — DO NOT TRADE" and vd["reasons"] == [_reason[gate]] \
+        and vd["failed"] == [gate]
+
+
+check("G1 fails at one pair when S1 only ties (A) at 2 bp: PARTIAL, 'timing not worth its drag and costs'",
+      _single(lambda r, v: _at(r)["rule"].update({"cagr": 0.10}), "G1"))
+check("G1's 5 bp leg: a tie passes (>=), one basis point of CAGR short fails",
+      _verdict(lambda r, v: _at(r, 5.0, (0.03, 0.04))["rule"].update({"cagr": 0.10}))["verdict"] == "WORKS"
+      and _single(lambda r, v: _at(r, 5.0, (0.03, 0.04))["rule"].update({"cagr": 0.0999}), "G1"))
+check("G2 fails when one half ties at one pair: 'unstable'",
+      _single(lambda r, v: _at(r, 2.0, (0.0, 0.04))["halves"]["second"]["rule"].update({"cagr": 0.11}), "G2"))
+check("G3 on signed drawdowns: exactly 5 points deeper than (A) passes; 5.01 fails, 'riskier than (A)'",
+      _verdict(lambda r, v: _at(r)["rule"].update({"max_drawdown": -0.53}))["verdict"] == "WORKS"
+      and _single(lambda r, v: _at(r)["rule"].update({"max_drawdown": -0.5301}), "G3")
+      and _verdict(lambda r, v: _at(r)["rule"].update({"max_drawdown": -0.20}))["verdict"] == "WORKS")
+check("G5' at N = 40: z_used 3.0310 fails, 'below the selection-adjusted bar'",
+      _single(lambda r, v: _at(r, 2.0, (0.03, 0.015))["timing_book"]["log"].update({"z_used": 3.0310}), "G5'"))
+_vf = _verdict(lambda r, v: [c["timing_book"]["log"].update({"z_used": 3.0312}) for c in r["cells"]])
+check("G5' at N = 40: z_used 3.0312 passes, but below 3.3722 it flips at N = 100: PARTIAL, same reason",
+      _vf["gates"]["G5'"]["pass"] and _vf["flip_n100"] and _vf["verdict"] == "PARTIAL"
+      and _vf["reasons"] == [_reason["G5'"]])
+check("G5' clear of both bars (z_used 3.3723 everywhere): WORKS",
+      _verdict(lambda r, v: [c["timing_book"]["log"].update({"z_used": 3.3723}) for c in r["cells"]])["verdict"]
+      == "WORKS")
+check("G6: 99 cycles, or 39 in either half, fails 'concentrated'; 100 and 40 pass",
+      _single(lambda r, v: [c["g6"].update({"cycles": 99}) for c in r["cells"]], "G6")
+      and _single(lambda r, v: [c["g6"].update({"cycles_first_half": 39}) for c in r["cells"]], "G6")
+      and _single(lambda r, v: [c["g6"].update({"cycles_second_half": 39}) for c in r["cells"]], "G6")
+      and _verdict(lambda r, v: [c["g6"].update({"cycles": 100, "cycles_first_half": 40, "cycles_second_half": 60})
+                                 for c in r["cells"]])["verdict"] == "WORKS")
+check("G6: the sum without the 5 best cycles must be >= 0 (0 passes), the drop-crisis margin > 0 (0 fails)",
+      _verdict(lambda r, v: _at(r)["g6"]["book_log"].update({"sum_without_top5": 0.0}))["verdict"] == "WORKS"
+      and _single(lambda r, v: _at(r)["g6"]["book_log"].update({"sum_without_top5": -1e-9}), "G6")
+      and _single(lambda r, v: _at(r)["g6"].update({"drop_crises_minus_placebo_median": 0.0}), "G6"))
+check("G7': z_used of exactly -1 is no veto; -1.0001 at one 2 bp pair is, 'did not replicate'",
+      _verdict(lambda r, v: _at(v)["timing_book"]["log"].update({"z_used": -1.0}))["verdict"] == "WORKS"
+      and _single(lambda r, v: _at(v, 2.0, (0.0, 0.015))["timing_book"]["log"].update({"z_used": -1.0001}), "G7'"))
+check("ungated cells (1 bp; the 0% / 7.75% line; the replication at 5 bp) never move the verdict",
+      _verdict(lambda r, v: (_at(r, 1.0)["rule"].update({"cagr": -0.5}), _at(r, 2.0, (0.0, 0.0775))["rule"].update(
+          {"cagr": -0.5}), _at(v, 5.0)["timing_book"]["log"].update({"z_used": -9.0})))["verdict"] == "WORKS")
+
+
+def _many(r, v):
+    _at(r)["rule"].update({"cagr": 0.09})
+    _at(r, 2.0, (0.0, 0.04))["rule"].update({"max_drawdown": -0.60})
+    _at(r)["g6"]["book_log"].update({"sum_without_top5": -0.1})
+    _at(v)["timing_book"]["log"].update({"z_used": -2.0})
+
+
+_vm = _verdict(_many)
+check("several gates failing with G4 passing: PARTIAL — DO NOT TRADE, every reason in the table's order",
+      _vm["verdict"] == "PARTIAL" and _vm["reasons"] == [_reason["G1"], _reason["G3"], _reason["G6"], _reason["G7'"]])
+_vp = _verdict(lambda r, v: _at(r)["placebo"]["within_cycle_circular"].update({"p_cagr": 0.05}))
+check("G4: p = 0.05 is not < 0.05; with G1-G3 passing that reads PARTIAL 'beat (A), indistinguishable from "
+      "random placement'", _vp["verdict"] == "PARTIAL" and _vp["reasons"] == [_FZ["g4_fail_partial"]]
+      and _vp["failed"] == ["G4"])
+_vh = _verdict(lambda r, v: _at(r, 2.0, (0.03, 0.04))["placebo"]["within_cycle_circular"].update(
+    {"beats_median_each_half": False}))
+check("G4 passing on p alone but losing to the placebo median in a half fails G4",
+      not _vh["gates"]["G4"]["pass"] and _vh["verdict"] == "PARTIAL" and _vh["reasons"] == [_FZ["g4_fail_partial"]])
+_vn = _verdict(lambda r, v: (_at(r)["placebo"]["within_cycle_circular"].update({"p_cagr": 0.2}),
+                             _at(r)["halves"]["first"]["rule"].update({"cagr": 0.0})))
+check("G4 failing with G2 failing: NULL, and the failed gate's reason is still printed",
+      _vn["verdict"] == "NULL" and _vn["headline"] == "NULL" and _vn["reasons"] == [_reason["G2"]]
+      and _vn["failed"] == ["G4", "G2"])
+_vq = _verdict(lambda r, v: (_at(r)["placebo"]["within_cycle_circular"].update({"p_cagr": 0.2}),
+                             [c["timing_book"]["log"].update({"z_used": 1.0}) for c in r["cells"]]))
+check("G4 failing with G1-G3 passing and G5' failing: PARTIAL 'beat (A) ...' plus 'below the selection-adjusted bar'",
+      _vq["verdict"] == "PARTIAL" and _vq["reasons"] == [_FZ["g4_fail_partial"], _reason["G5'"]])
+_vt = E.render_verdict(_vm)
+check("the verdict block prints the headline, every reason verbatim and every gate's line",
+      "VERDICT          PARTIAL — DO NOT TRADE" in _vt and all(f"reason        {x}" in _vt for x in _vm["reasons"])
+      and all(f"   {g:<4} " in _vt for g in ("G1", "G2", "G3", "G4", "G5'", "G6", "G7'")) and "FAIL" in _vt)
+
+print("\nthe frozen invocation: G0 voids any deviation (synthetic files and a synthetic frozen spec)")
+
+_inv_p = os.path.join(_tmpd, "inv.sh")
+with open(_inv_p, "w") as _f:
+    _f.write('#!/bin/sh\n# a comment\npython3 -B edgelab.py --rule x \\\n  --event-name "two words" \\\n'
+             '  --contrast=-3:2,1:3 --out runs/o.txt\n')
+check("a frozen invocation parses to its arguments: comments dropped, continuations joined, quotes kept",
+      E.parse_invocation(_inv_p) == ["--rule", "x", "--event-name", "two words", "--contrast=-3:2,1:3", "--out",
+                                     "runs/o.txt"])
+_fx = os.path.join(_tmp, "fx")
+os.makedirs(os.path.join(_fx, "pr"), exist_ok=True)
+_fx_main, _fx_rep = os.path.join(_fx, "MW-1d.csv"), os.path.join(_fx, "QQ-1d.csv")
+B.to_csv(_mw_series(dt.date(2019, 1, 2), dt.date(2021, 12, 31), seed=707, symbol="MW"), _fx_main)
+B.to_csv(_mw_series(dt.date(2019, 1, 2), dt.date(2021, 12, 31), seed=708, symbol="QQ"), _fx_rep)
+_fx_pre = os.path.join(_fx, "PREREG-test.md")
+with open(_fx_pre, "w") as _f:
+    _f.write("a synthetic stand-in for a frozen pre-registration\n")
+_fx_argv = ["--rule", "_test_frozen", "--allow-test-rule", "--csv", _fx_main, "--source", "test", "--adjusted", "yes",
+            "--start-close", "2019-01-25", "--end", "2021-11-23", "--closes-only", "--cost-bps-per-side", "2", "5",
+            "--cash-yield", "0.015", "0", "0.03", "--spread", "0.015", "0.04", "--trials", "40", "--seed", "11",
+            "--placebo", "within_cycle_circular", "--placebo-draws", "30", "--dsr-draws", "40",
+            "--prereg", _fx_pre, "--veto-csv", _fx_rep, "--veto-source", "test", "--veto-adjusted", "yes",
+            "--veto-start-close", "2019-01-25", "--veto-end", "2021-11-23"]
+with open(os.path.join(_fx, "pr", "invocation.sh"), "w") as _f:
+    _f.write("#!/bin/sh\npython3 -B edgelab.py " + " ".join(_fx_argv) + "\n")
+_mwz = E.month_window_rule(-3, 3, inside=2.0, outside=1.0, model="margin")
+E.register_factory("_test_frozen", lambda: E.Rule("_test_frozen", _mwz().decide, 0, "TEST", True, "margin", 1.0,
+                                                  None, _mwz().anchor))
+_ri = E.run_margin(E.load(_fx_main, "MW", "test", True), "_test_frozen", [(2.0, 0.015, 0.015)], integrity_only=True,
+                   start_close=dt.date(2019, 1, 25), end=dt.date(2021, 11, 23), placebo_draws=0, dsr_draws=0,
+                   leak_samples=5, prereg=_fx_pre)
+_vi = E.run_margin(E.load(_fx_rep, "QQ", "test", True), "_test_frozen", [(2.0, 0.015, 0.015)], integrity_only=True,
+                   start_close=dt.date(2019, 1, 25), end=dt.date(2021, 11, 23), placebo_draws=0, dsr_draws=0,
+                   leak_samples=5)
+_spec = dict(_FZ, prereg="PREREG-test.md", prereg_sha256=_ri["integrity"]["prereg_sha256"],
+             invocation="pr/invocation.sh",
+             invocation_sha256=__import__("hashlib").sha256(open(os.path.join(_fx, "pr", "invocation.sh"), "rb")
+                                                            .read()).hexdigest(),
+             window={k: _ri["window"][k] for k in ("start_close", "first_session", "last_session", "sessions", "cycles")},
+             halves={"mode": "session", "cut": _ri["window"]["halves"]["cut"], "split": _ri["window"]["halves"]["split"]},
+             window_sessions=round((_ri["p_hat"] - 1.0) * _ri["window"]["sessions"]),
+             replication_window={k: _vi["window"][k] for k in ("start_close", "last_session", "sessions", "cycles")})
+_cf = E.frozen_conformance(_spec, _fx_argv, _ri, _vi, _fx_pre)
+check("the conformance items pass when the command, the files and the window facts are the frozen ones",
+      [n for n, ok, _ in _cf] == ["frozen invocation", "frozen pre-registration", "frozen window facts"]
+      and all(ok for _, ok, _ in _cf), str(_cf))
+_cf2 = E.frozen_conformance(_spec, [x if x != "30" else "31" for x in _fx_argv], _ri, _vi, _fx_pre)
+check("one changed token in the command fails 'frozen invocation' and names the token",
+      not _cf2[0][1] and "'31'" in _cf2[0][2] and "'30'" in _cf2[0][2])
+_cf3 = E.frozen_conformance(dict(_spec, window=dict(_spec["window"], sessions=1)), _fx_argv, _ri, _vi, _fx_pre)
+check("a window fact that differs from the frozen one fails 'frozen window facts'", not _cf3[2][1] and "sessions" in _cf3[2][2])
+E.FROZEN["_test_frozen"] = _spec
+_fx_out = os.path.join(_fx, "out.txt")
+_c, _o, _e = _cli(_fx_argv)
+_fx_text = _o
+check("the frozen invocation runs (exit 0) and prints the verdict after the gates, before any descriptive",
+      _c == 0 and "VERDICT          " in _o and "frozen invocation" in _o and _o.index("STRESS GRID") < _o.index("VERDICT"),
+      _e[-300:])
+_c, _o, _ = _cli([x if x != "30" else "31" for x in _fx_argv])
+check("the same run with one argument changed is VOID: exit 3, and no performance number is printed",
+      _c == 3 and "VOID" in _o and "CAGR" not in _o and "VERDICT" not in _o)
+_c, _o, _ = _cli(_fx_argv + ["--out", _fx_out])
+check("an extra argument (even --out) is a deviation: VOID", _c == 3 and "frozen invocation" in _o)
+del E.FROZEN["_test_frozen"]
+del E.RULES["_test_frozen"]
+if os.environ.get("EDGELAB_SHOW_VERDICT"):
+    print(_fx_text[_fx_text.index("=" * 112 + "\nVERDICT"):])
 
 # ================================================================== cleanup
 

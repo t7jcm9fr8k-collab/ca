@@ -4,8 +4,11 @@ edgelab.py — the bench. Runs ONE pre-registered once- or twice-a-day rule on
 daily bars, at the only two moments it can trade (the open auction and the
 close auction), and scores it against buy-and-hold over the identical window,
 with a placebo, a deflated Sharpe and a bootstrap. It was built before any
-candidate rule existed: the registry holds `buy_and_hold` and two TEST-ONLY
-rules, nothing else. Rules are added after the pre-registration is frozen.
+candidate rule existed. The registry holds `buy_and_hold`, two TEST-ONLY rules
+and one pre-registered rule, `month_end_overlay`, registered after
+PREREG-2026-10-09-month-end.md was committed; its frozen reading rule is read()
+with FROZEN["month_end_overlay"], and its one invocation is
+prereg-2026-10-09/invocation.sh, which G0 enforces token for token.
 
 THE SESSION, AS TWO LEGS
     Session t has an OVERNIGHT leg, close[t-1] -> open[t], and an INTRADAY leg,
@@ -658,6 +661,19 @@ def _test_intraday_only(v):
 # Add them below this line after the pre-registration is frozen, one @register
 # each, citing the pre-registration file in the docstring. Nothing goes here
 # before the freeze: a rule that exists is a rule somebody will run.
+
+def _month_end_overlay():
+    """month_end_overlay: pre-registered in PREREG-2026-10-09-month-end.md, SHA-256
+    85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f (commit 3201ce4), and
+    registered after that file was committed. Exactly month_window_rule(-3, 3, inside=2.0,
+    outside=1.0, model="margin"), nothing else: 2x SPY over the scheduled sessions T-3..T+3 of every
+    month (T = the month's last scheduled NYSE session), 1x otherwise, changed only at close
+    auctions (MOC); the reading rule is read() with FROZEN["month_end_overlay"]."""
+    return month_window_rule(-3, 3, inside=2.0, outside=1.0, model="margin", name="month_end_overlay",
+                             doc=" ".join(_month_end_overlay.__doc__.split()))()
+
+
+register_factory("month_end_overlay", _month_end_overlay)
 
 
 # =================================================================== the view
@@ -1471,7 +1487,7 @@ def month_window_anchor(first):
     return lambda f: f.month_ordinal == first - 1
 
 
-def month_window_rule(first, last, inside=2.0, outside=1.0, name=None, model="margin"):
+def month_window_rule(first, last, inside=2.0, outside=1.0, name=None, model="margin", doc=None):
     """
     GENERIC — registers nothing and is not a candidate. A factory for "exposure
     `inside` over sessions T+first .. T+last of every month, `outside`
@@ -1487,8 +1503,8 @@ def month_window_rule(first, last, inside=2.0, outside=1.0, name=None, model="ma
         nxt = v.next_cal
         return inside if nxt is not None and in_month_window(nxt, first, last) else outside
     nm = name or f"month_window[{first:+d},{last:+d}] {inside:g}x in / {outside:g}x out"
-    doc = (f"GENERIC month window, MOC only: {inside:g}x over T{first:+d}..T{last:+d}, "
-           f"{outside:g}x otherwise")
+    doc = doc or (f"GENERIC month window, MOC only: {inside:g}x over T{first:+d}..T{last:+d}, "
+                  f"{outside:g}x otherwise")
     return lambda: Rule(nm, decide, 0, doc, False, model, baseline=outside,
                         anchor=month_window_anchor(first))
 
@@ -2569,6 +2585,40 @@ def synthetic_like(dates, seed=0, sigma=0.0121, mu=4.6e-4, extra=None, symbol="S
                                         "fetched_at": "1970-01-01T00:00:00+00:00", "adjusted": True})
 
 
+def identity_check(series, rule, cells, start_close=None, end=None, closes_only=False, accrual="calendar",
+                   crises=DEFAULT_CRISES):
+    """The pre-registration's harness check 7: every placebo design's IDENTITY arrangement, fed
+    through the placebo evaluator (margin_walk + ProbeSet), against the rule's own change list, in
+    every cell. Returns the largest absolute difference over CAGR, both halves' CAGRs and the
+    drop-crisis CAGR; anything but 0.0 means the evaluator treats the rule and its nulls unalike."""
+    factory = _as_factory(rule)
+    r0 = factory()
+    bars = series.bars
+    dates_all = [b.ts.date() for b in bars]
+    cal = Calendar(dates_all[0], dates_all[-1])
+    s0, last = _window(dates_all, r0.warmup, None, end, start_close)
+    w_on, w_id, _ = decide_all(series, r0, cal, s0, last, 1)
+    levels = interleave(w_on, w_id)
+    dates = dates_all[s0 + 1:last + 1]
+    cycles, _ = session_cycles(dates, cal, r0.anchor or (lambda f: f.is_month_end))
+    cut, _ = split_halves(dates, dates_all[s0], "session")
+    probes = ProbeSet(dates, dates_all[s0], cut, crisis_spans(dates, crises))
+    ch = levels_to_changes(levels)
+    wl, wc = WithinCycle(levels, cycles, r0.baseline), WithinCycle(levels, cycles, r0.baseline, wrap=True)
+    bp = BlocksPlacebo(levels, r0.baseline)
+    ids = [wl.arrange(wl.observed), wc.arrange(wc.observed), ShiftPlacebo(levels).arrange(0),
+           bp.arrange(*bp.identity())]
+    worst = 0.0
+    for cost_bps, cash, spread in cells:
+        cash = cash if isinstance(cash, CashRate) else CashRate(rate=float(cash))
+        ML = margin_legs(bars, s0, last, cash, spread, cal, accrual, None, closes_only)
+        obs = probes.stats(margin_walk(ch, ML, cost_bps / 1e4, probes.points)["probes"])
+        for x in ids:
+            st = probes.stats(margin_walk(x, ML, cost_bps / 1e4, probes.points)["probes"])
+            worst = max(worst, max(abs(a - b) for a, b in zip(st, obs)))
+    return worst
+
+
 def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, block=10, draws=5000,
                       closes_only=False, accrual="calendar"):
     """
@@ -2585,6 +2635,8 @@ def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, bl
     4. The Sharpe difference vs bar (A) uses the paired SE: within 15% of
        sqrt(2(1-corr)) single-Sharpe SEs (0.073 at corr 0.943 over 21.4 years), and
        under half the single-Sharpe 1/(T-1) SE that round 1 used.
+    7. Every placebo design's identity arrangement reproduces the rule's numbers through the
+       placebo evaluator exactly (identity_check).
     """
     items = []
     kw = dict(placebo_methods=(), placebo_draws=0, start_close=start_close, end=end, seed=seed,
@@ -2628,6 +2680,11 @@ def harness_selfcheck(dates, rule, cells, start_close=None, end=None, seed=0, bl
     items.append(("self-check 3: G5' z", abs(t["z_used"] / zt - 1) <= 0.05,
                   f"z used {t['z_used']:.3f} (boot {t['z_boot']:.3f}, analytic {t['z_analytic']:.3f}) vs "
                   f"mean sqrt(years)/TE {zt:.3f}: ratio {t['z_used'] / zt:.4f}"))
+    worst7 = identity_check(base, rule, cells, start_close, end, closes_only, accrual)
+    items.append(("self-check 7: placebo identity", worst7 == 0.0,
+                  f"each design's identity arrangement through the placebo evaluator reproduces the rule's "
+                  f"CAGR, half CAGRs and drop-crisis CAGR: largest difference {worst7:.1e} over "
+                  f"{len(cells)} cells"))
     r4 = run_margin(base, rule, cells[:1], dsr_draws=draws, dsr_block=block, trials=1, **kw)
     c4 = r4["cells"][0]
     ds = c4["dsr"]
@@ -2827,6 +2884,7 @@ def run_margin(series, rule, cells, trials=None, trials_sensitivity=100, seed=0,
         d_other = (cagr_of(margin_walk(rule_changes, ML2, cost)["final"], yrs)
                    - cagr_of(margin_walk(a_changes, ML2, cost)["final"], yrs))
         cell = {"cost_bps_per_side": cost_bps, "round_trip_bps": 2 * cost_bps, "cash": cash.label,
+                "cash_rate": cash.rate,
                 "spread": spread, "rule": S_rule, "bar_A": S_A, "buy_and_hold": S_B,
                 "long_flat_1x": S_L, "constant_p_1x": S_C,
                 "per_year": per_year_books(dates, books, rp["auctions"],
@@ -2936,6 +2994,249 @@ def descriptives(d, levels, baseline, dates, start_date, cycles, spans=(), overl
                          "share_with_event": len(w_in) / n_cov if n_cov else None,
                          "mean_cycle_excess_with": sum(w_in) / len(w_in) if w_in else None,
                          "mean_cycle_excess_without": sum(w_out) / len(w_out) if w_out else None}
+    return out
+
+
+# =================================================================== the frozen reading rule
+
+FROZEN = {
+    # PREREG-2026-10-09-month-end.md, "The reading rule — fixed now, applied without discretion".
+    # Every number here is copied from that file; read() applies them and nothing else.
+    "month_end_overlay": {
+        "prereg": "PREREG-2026-10-09-month-end.md",
+        "prereg_sha256": "85dede81d000967b474ed22b2dea94312887fc9ee9241f1cd3030db8b943fa1f",
+        "invocation": "prereg-2026-10-09/invocation.sh",
+        "invocation_sha256": "0ec3dde1d4011b14425bf476c5072ced16217143abedab473afa9143ff5370c2",
+        "window": {"start_close": "2005-03-24", "first_session": "2005-03-28", "last_session": "2026-08-25",
+                   "sessions": 5387, "cycles": 257},
+        "halves": {"mode": "session", "cut": 2694, "split": "2015-12-07"},
+        "window_sessions": 1796,
+        "replication_window": {"start_close": "1999-03-25", "last_session": "2005-02-22", "sessions": 1485,
+                               "cycles": 71},
+        "gated_pairs": ((0.015, 0.015), (0.015, 0.04), (0.0, 0.015), (0.0, 0.04), (0.03, 0.015),
+                        (0.03, 0.04)),
+        "cost": 2.0, "cost_g1_stress": 5.0,
+        "gating_placebo": "within_cycle_circular",
+        "trials": 40, "trials_sensitivity": 100, "dsr_bar": 0.80,
+        "g3_tolerance": 0.05, "g4_alpha": 0.05,
+        "g6_cycles": 100, "g6_cycles_per_half": 40,
+        "g7_z": -1.0,
+        "reasons": {"G1": "timing not worth its drag and costs", "G2": "unstable", "G3": "riskier than (A)",
+                    "G5'": "below the selection-adjusted bar", "G6": "concentrated",
+                    "G7'": "did not replicate"},
+        "g4_fail_partial": "beat (A), indistinguishable from random placement",
+    },
+}
+
+
+def parse_invocation(path):
+    """The arguments after edgelab.py in a frozen shell invocation: comments dropped, backslash
+    continuations joined, shell quoting honoured. Exactly one edgelab.py command is expected."""
+    import shlex
+    cmds, buf = [], ""
+    with open(path) as f:
+        for raw in f.read().splitlines():
+            line = raw.rstrip()
+            if not buf and (not line.strip() or line.lstrip().startswith("#")):
+                continue
+            if line.endswith("\\"):
+                buf += line[:-1] + " "
+                continue
+            cmds.append(buf + line)
+            buf = ""
+    if buf:
+        cmds.append(buf)
+    cmds = [c for c in cmds if "edgelab.py" in c]
+    if len(cmds) != 1:
+        raise ValueError(f"{path}: expected exactly one edgelab.py command, found {len(cmds)}")
+    toks = shlex.split(cmds[0])
+    i = next(k for k, t in enumerate(toks) if t.endswith("edgelab.py"))
+    return toks[i + 1:]
+
+
+def frozen_conformance(spec, argv, r_i, v_i, prereg_path):
+    """
+    G0 for a pre-registered rule: "the frozen command ... run verbatim. Any
+    deviation from that command makes the run VOID." Computed from the
+    integrity-only runs (dates and the declared path; no price), so a deviation
+    voids the run before any performance number exists. Items: the command line
+    equals the frozen invocation file token for token, and that file and the
+    pre-registration are the frozen ones (SHA-256); the scored windows of both
+    files have the frozen dates, session and cycle counts, halves and window
+    share.
+    """
+    items = []
+    base = os.path.dirname(os.path.abspath(prereg_path)) if prereg_path else HERE
+    inv = os.path.join(base, spec["invocation"])
+    try:
+        with open(inv, "rb") as f:
+            sha = hashlib.sha256(f.read()).hexdigest()
+        want = parse_invocation(inv)
+        got = list(argv)
+        diff = next((k for k, (x, y) in enumerate(zip(got, want)) if x != y), None)
+        if diff is None and len(got) != len(want):
+            diff = min(len(got), len(want))
+        same = diff is None
+        note = (f"{spec['invocation']} sha256 {sha}"
+                + ("" if sha == spec["invocation_sha256"] else f" — frozen {spec['invocation_sha256']}")
+                + ("; the command line is that invocation, token for token" if same else
+                   f"; the command line differs at token {diff + 1}: "
+                   f"{got[diff] if diff < len(got) else '(missing)'!r} vs frozen "
+                   f"{want[diff] if diff < len(want) else '(none)'!r}"))
+        items.append(("frozen invocation", same and sha == spec["invocation_sha256"], note))
+    except (OSError, ValueError, StopIteration) as e:
+        items.append(("frozen invocation", False, f"{inv}: {e}"))
+    pr = r_i["integrity"].get("prereg_sha256")
+    items.append(("frozen pre-registration", pr == spec["prereg_sha256"],
+                  f"--prereg sha256 {pr}" + ("" if pr == spec["prereg_sha256"] else
+                                              f" — frozen {spec['prereg_sha256']}")))
+    w = r_i["window"]
+    got_w = {k: w.get(k) for k in spec["window"]}
+    got_h = {"mode": w["halves"]["mode"], "cut": w["halves"]["cut"], "split": w["halves"]["split"]}
+    n2 = round((r_i["p_hat"] - r_i["baseline"]) * w["sessions"])
+    bad = [f"{k} {got_w[k]} (frozen {v})" for k, v in spec["window"].items() if got_w[k] != v]
+    bad += [f"halves {k} {got_h[k]} (frozen {v})" for k, v in spec["halves"].items() if got_h[k] != v]
+    if n2 != spec["window_sessions"] or abs(r_i["p_hat"] - r_i["baseline"]
+                                            - spec["window_sessions"] / spec["window"]["sessions"]) > 1e-9:
+        bad.append(f"window sessions {n2} (frozen {spec['window_sessions']})")
+    if v_i is None:
+        bad.append("no replication file")
+    else:
+        rw = v_i["window"]
+        bad += [f"replication {k} {rw.get(k)} (frozen {v})" for k, v in spec["replication_window"].items()
+                if rw.get(k) != v]
+    items.append(("frozen window facts", not bad,
+                  "; ".join(bad) if bad else
+                  f"S1 {w['start_close']} close -> {w['last_session']}: {w['sessions']} sessions, {w['cycles']} "
+                  f"cycles, {n2} at 2x, halves cut after session {got_h['cut']} ({got_h['split']}); "
+                  f"replication {v_i['window']['sessions']} sessions, {v_i['window']['cycles']} cycles"))
+    return items
+
+
+def _pair_label(pair):
+    return f"cash {pair[0]:.1%} / spread {pair[1]:.1%}"
+
+
+def read(r, v, spec):
+    """
+    The verdict, exactly as the frozen reading rule states it. `r` is the run,
+    `v` its replication run, `spec` FROZEN[rule]. Every gate is read at the six
+    gated (cash, spread) pairs at the frozen cost (G1 also at 5 bp; G7' on the
+    replication file). Verdicts: VOID (G0 failed); WORKS (G1-G7' pass at every
+    pair, no flip at N = 100); PARTIAL — DO NOT TRADE (G4 passes and another
+    gate fails, each with its frozen reason); and when G4 fails, PARTIAL "beat
+    (A), indistinguishable from random placement" if G1-G3 all pass, else NULL.
+    Every failed gate is listed with its reason.
+    """
+    reasons = spec["reasons"]
+    out = {"rule": r.get("rule"), "prereg": spec["prereg"], "prereg_sha256": spec["prereg_sha256"],
+           "verdict": None, "headline": None, "reasons": [], "failed": [], "gates": {}, "flip_n100": False}
+
+    def void(why):
+        out.update(verdict="VOID", headline="VOID", reasons=[why])
+        return out
+    if not r["integrity"]["pass"]:
+        return void("G0 failed: an integrity item of the run failed")
+    if v is None or not v["integrity"]["pass"]:
+        return void("G0 failed: the replication file was not run, or failed its integrity items")
+    if not r["settings"]["placebo_methods"] or r["settings"]["placebo_methods"][0] != spec["gating_placebo"]:
+        return void(f"G0 failed: the gating placebo is not {spec['gating_placebo']}")
+
+    def pick(cells, cost):
+        got = {}
+        for c in cells:
+            key = (c.get("cash_rate"), c["spread"])
+            if c["cost_bps_per_side"] == cost and key in spec["gated_pairs"]:
+                got[key] = c
+        return got
+    m2, m5, v2 = pick(r["cells"], spec["cost"]), pick(r["cells"], spec["cost_g1_stress"]), \
+        pick(v["cells"], spec["cost"])
+    need = set(spec["gated_pairs"])
+    if set(m2) != need or set(m5) != need or set(v2) != need:
+        return void("G0 failed: the run does not hold every gated (cash, spread) pair at the frozen costs")
+    pairs = list(spec["gated_pairs"])
+    out["pairs"] = len(pairs)
+    gm = spec["gating_placebo"]
+    e40 = combine.expected_max_sharpe(spec["trials"], 1.0)
+    e100 = combine.expected_max_sharpe(spec["trials_sensitivity"], 1.0)
+    phi = NormalDist().cdf
+
+    def gate(name, per_pair, detail):
+        bad = [_pair_label(k) for k in pairs if not per_pair[k]]
+        out["gates"][name] = {"pass": not bad, "failing_pairs": bad, "detail": detail}
+        return not bad
+
+    g1a = {k: m2[k]["rule"]["cagr"] > m2[k]["bar_A"]["cagr"] for k in pairs}
+    g1b = {k: m5[k]["rule"]["cagr"] >= m5[k]["bar_A"]["cagr"] for k in pairs}
+    d1a = min(m2[k]["rule"]["cagr"] - m2[k]["bar_A"]["cagr"] for k in pairs)
+    d1b = min(m5[k]["rule"]["cagr"] - m5[k]["bar_A"]["cagr"] for k in pairs)
+    gate("G1", {k: g1a[k] and g1b[k] for k in pairs},
+         f"CAGR(S1) - CAGR(A): smallest {d1a:+.4%} at {spec['cost']:g} bp (must be > 0) and "
+         f"{d1b:+.4%} at {spec['cost_g1_stress']:g} bp (must be >= 0)")
+    h = {k: (m2[k]["halves"]["first"], m2[k]["halves"]["second"]) for k in pairs}
+    g2 = {k: all(x is not None and x["rule"]["cagr"] > x["bar_A"]["cagr"] for x in h[k]) for k in pairs}
+    d2 = min(min(x["rule"]["cagr"] - x["bar_A"]["cagr"] for x in h[k] if x is not None) for k in pairs)
+    gate("G2", g2, f"CAGR(S1) - CAGR(A) in each half (split after session {r['window']['halves']['cut']}, "
+                   f"{r['window']['halves']['split']}): smallest {d2:+.4%} (must be > 0)")
+    g3 = {k: m2[k]["rule"]["max_drawdown"] >= m2[k]["bar_A"]["max_drawdown"] - spec["g3_tolerance"]
+          for k in pairs}
+    d3 = min(m2[k]["rule"]["max_drawdown"] - (m2[k]["bar_A"]["max_drawdown"] - spec["g3_tolerance"])
+             for k in pairs)
+    gate("G3", g3, f"maxDD(S1) - (maxDD(A) - {spec['g3_tolerance']:g}), signed drawdowns: smallest "
+                   f"{d3:+.4f} (must be >= 0)")
+    pl = {k: m2[k]["placebo"].get(gm) or {} for k in pairs}
+    g4 = {k: pl[k].get("p_cagr") is not None and pl[k]["p_cagr"] < spec["g4_alpha"]
+          and bool(pl[k].get("beats_median_each_half")) for k in pairs}
+    ps = [pl[k].get("p_cagr") for k in pairs]
+    gate("G4", g4, f"{gm} placebo: largest p {max((p for p in ps if p is not None), default=float('nan')):.4f} "
+                   f"(must be < {spec['g4_alpha']:g}); S1 above the placebo median CAGR in both halves at "
+                   f"{sum(1 for k in pairs if pl[k].get('beats_median_each_half'))} of {len(pairs)} pairs")
+    zu = {k: m2[k]["timing_book"]["log"]["z_used"] for k in pairs}
+    g5 = {k: phi(zu[k] - e40) >= spec["dsr_bar"] for k in pairs}
+    flip = {k: g5[k] and phi(zu[k] - e100) < spec["dsr_bar"] for k in pairs}
+    zmin = min(zu.values())
+    ok5 = gate("G5'", g5, f"z_used = min(bootstrap z, analytic z) on d: smallest {zmin:+.4f}; "
+                          f"Phi(z - E[max Z_{spec['trials']}]) smallest {phi(zmin - e40):.4f} (must be >= "
+                          f"{spec['dsr_bar']:.2f}, i.e. z >= {e40 + NormalDist().inv_cdf(spec['dsr_bar']):.4f})")
+    out["flip_n100"] = ok5 and any(flip.values())
+    out["gates"]["G5'"]["flip_n100"] = out["flip_n100"]
+    out["gates"]["G5'"]["detail"] += (f"; at N = {spec['trials_sensitivity']}: smallest Phi "
+                                      f"{phi(zmin - e100):.4f} (z >= "
+                                      f"{e100 + NormalDist().inv_cdf(spec['dsr_bar']):.4f})"
+                                      + (" — FLIP at N = 100" if out["flip_n100"] else ""))
+    g6c = m2[pairs[0]]["g6"]
+    counts_ok = (g6c["cycles"] >= spec["g6_cycles"] and g6c["cycles_first_half"] >= spec["g6_cycles_per_half"]
+                 and g6c["cycles_second_half"] >= spec["g6_cycles_per_half"])
+    g6 = {k: counts_ok and m2[k]["g6"]["book_log"]["sum_without_top5"] >= 0
+          and m2[k]["g6"]["drop_crises_minus_placebo_median"] is not None
+          and m2[k]["g6"]["drop_crises_minus_placebo_median"] > 0 for k in pairs}
+    gate("G6", g6, f"cycles {g6c['cycles']} ({g6c['cycles_first_half']} / {g6c['cycles_second_half']} by "
+                   f"entry close; need >= {spec['g6_cycles']} and >= {spec['g6_cycles_per_half']} each); "
+                   f"sum of d without the 5 largest positive cycles: smallest "
+                   f"{min(m2[k]['g6']['book_log']['sum_without_top5'] for k in pairs):+.5f} (must be >= 0); "
+                   f"drop-crisis CAGR(S1) - {gm} median: smallest "
+                   f"{min((m2[k]['g6']['drop_crises_minus_placebo_median'] for k in pairs if m2[k]['g6']['drop_crises_minus_placebo_median'] is not None), default=float('nan')):+.4%} "
+                   f"(must be > 0)")
+    zv = {k: v2[k]["timing_book"]["log"]["z_used"] for k in pairs}
+    g7 = {k: not (zv[k] < spec["g7_z"]) for k in pairs}
+    gate("G7'", g7, f"{v.get('symbol')}: z_used on its own log timing book, smallest {min(zv.values()):+.4f} "
+                    f"(veto if < {spec['g7_z']:g} at any pair)")
+    g = {n: out["gates"][n]["pass"] for n in ("G1", "G2", "G3", "G4", "G5'", "G6", "G7'")}
+    g5_bad = not g["G5'"] or out["flip_n100"]           # a flip at N = 100 reads as a G5' failure
+    failed = ([n for n in ("G1", "G2", "G3") if not g[n]] + (["G5'"] if g5_bad else [])
+              + [n for n in ("G6", "G7'") if not g[n]])
+    out["failed"] = (["G4"] if not g["G4"] else []) + failed
+    gate_reasons = [reasons[n] for n in failed]
+    if all(g.values()) and not out["flip_n100"]:
+        out.update(verdict="WORKS", headline="WORKS — eligible for a forward paper period (at least 6 months "
+                                             "and 6 windows); not eligible for money")
+    elif g["G4"]:
+        out.update(verdict="PARTIAL", headline="PARTIAL — DO NOT TRADE", reasons=gate_reasons)
+    elif g["G1"] and g["G2"] and g["G3"]:
+        out.update(verdict="PARTIAL", headline="PARTIAL — DO NOT TRADE",
+                   reasons=[spec["g4_fail_partial"]] + gate_reasons)
+    else:
+        out.update(verdict="NULL", headline="NULL", reasons=gate_reasons)
     return out
 
 
@@ -3589,6 +3890,25 @@ def render_veto(r):
     return "\n".join(L)
 
 
+def render_verdict(vd):
+    """The verdict block: the verdict, every failed gate's frozen reason, then every gate's numbers."""
+    L = ["=" * 112, f"VERDICT          {vd['headline']}   (reading rule of {vd['prereg']}, sha256 "
+                    f"{vd['prereg_sha256'][:16]}…)"]
+    for x in vd["reasons"]:
+        L.append(f"   reason        {x}")
+    if vd["verdict"] != "VOID":
+        L.append("GATES            each read at the six gated (cash, spread) pairs at 2 bp a side (G1 also at "
+                 "5 bp; G7' on the replication file); a gate passes only if it holds at every pair")
+        for n in ("G1", "G2", "G3", "G4", "G5'", "G6", "G7'"):
+            x = vd["gates"][n]
+            n_bad = len(x["failing_pairs"])
+            L.append(f"   {n:<4} {'pass' if x['pass'] else 'FAIL'}   {x['detail']}"
+                     + ("" if x["pass"] else "; fails at every pair" if n_bad == vd.get("pairs") else
+                        f"; fails at {n_bad} pair(s): " + ", ".join(x["failing_pairs"])))
+    L.append("=" * 112)
+    return "\n".join(L)
+
+
 def render_descriptive(r):
     d = r.get("descriptive")
     if not d:
@@ -3785,7 +4105,8 @@ def main(argv=None):
         print(f"REFUSED: {e}", file=sys.stderr)
         return 2
     if r0.model == "margin":
-        return _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args)
+        return _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args,
+                            list(argv) if argv is not None else sys.argv[1:])
 
     if len(a.cost_bps_per_side) != 1 or len(a.cash_yield) != 1 or a.spread or a.cell:
         ap.error("a weight-model rule takes one --cost-bps-per-side and one --cash-yield (grids and "
@@ -3840,8 +4161,10 @@ def main(argv=None):
     return 0
 
 
-def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args):
-    """A margin-model rule: one file (plus an optional G7' replication file), every cell, G0 first."""
+def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_args, argv_list):
+    """A margin-model rule: one file (plus an optional G7' replication file), every cell, G0 first.
+    A pre-registered rule (in FROZEN) must be invoked exactly as frozen, and gets its verdict."""
+    spec = FROZEN.get(a.rule)
     if len(a.csv) != 1:
         ap.error("a margin run takes one --csv (the replication file goes in --veto-csv)")
     if not a.spread:
@@ -3897,24 +4220,30 @@ def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_arg
                                       a.dsr_draws, a.closes_only, a.accrual)
         r_i = run_margin(series, factory, cells, integrity_only=True, extra_integrity=items, **main_kw)
         v_i = run_margin(veto, factory, cells, integrity_only=True, **veto_kw) if veto else None
-        void = not r_i["integrity"]["pass"] or (v_i is not None and not v_i["integrity"]["pass"])
+        conf = frozen_conformance(spec, argv_list, r_i, v_i, a.prereg) if spec else []
+        conf_ok = all(ok for _, ok, _ in conf)
+        void = (not r_i["integrity"]["pass"] or not conf_ok
+                or (v_i is not None and not v_i["integrity"]["pass"]))
         if void:
-            text = render_margin(r_i, v_i)
-            if r_i["integrity"]["pass"]:
+            shown = dict(r_i, integrity=dict(r_i["integrity"], items=r_i["integrity"]["items"] + conf,
+                                             **{"pass": r_i["integrity"]["pass"] and conf_ok}))
+            text = render_margin(shown, v_i)
+            if shown["integrity"]["pass"]:
                 text += "\nVOID — the replication file failed G0"
             text += "\nVOID — G0 covers both files; nothing performance-related was computed or printed"
             print(text)
             if a.out:
                 _write(a.out, text + "\n\n" + json.dumps(_json_safe(_strip_private(
-                    {"argv": sys.argv, "integrity": r_i["integrity"],
+                    {"argv": argv_list, "integrity": shown["integrity"],
                      "replication_integrity": v_i and v_i["integrity"]})), indent=1, default=str) + "\n")
             return 3
         if a.overlap_strategy:
             main_kw["overlap"] = {"name": a.overlap_strategy, "held": strategy_holdings(series, a.overlap_strategy),
                                   "definition": "held after that session's open fill (replay.py), i.e. "
                                                 "through the session's close"}
-        r = run_margin(series, factory, cells, extra_integrity=items, **main_kw)
+        r = run_margin(series, factory, cells, extra_integrity=items + conf, **main_kw)
         v = run_margin(veto, factory, cells, **veto_kw) if veto else None
+        verdict = read(r, v, spec) if spec else None
         prof = None
         if a.offset_profile:
             applied = [dt.date.fromisoformat(k) for k in (r.get("distributions") or {}).get("applied", {})]
@@ -3926,13 +4255,15 @@ def _main_margin(a, ap, factory, cashes, sources, adj, leak_samples, profile_arg
     text = render_margin(r, v)
     if v:
         text += "\n" + render_veto(v)
+    if verdict:
+        text += "\n" + render_verdict(verdict)
     text += "\n" + render_descriptive(r) if r.get("descriptive") else ""
     if prof:
         text += "\n" + "-" * 112 + "\n" + render_offset_profile(prof)
     print(text)
     if a.out:
-        payload = {"argv": sys.argv, "run": _strip_private(r), "replication": v and _strip_private(v),
-                   "offset_profile": prof}
+        payload = {"argv": argv_list, "verdict": verdict, "run": _strip_private(r),
+                   "replication": v and _strip_private(v), "offset_profile": prof}
         _write(a.out, text + "\n\n" + json.dumps(_json_safe(payload), indent=1, default=str) + "\n")
         print(f"\nwrote {a.out}", file=sys.stderr)
     return 0
