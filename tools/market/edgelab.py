@@ -1,0 +1,1690 @@
+#!/usr/bin/env python3
+"""
+edgelab.py — the bench. Runs ONE pre-registered once- or twice-a-day rule on
+daily bars, at the only two moments it can trade (the open auction and the
+close auction), and scores it against buy-and-hold over the identical window,
+with a placebo, a deflated Sharpe and a bootstrap. It was built before any
+candidate rule existed: the registry holds `buy_and_hold` and two TEST-ONLY
+rules, nothing else. Rules are added after the pre-registration is frozen.
+
+THE SESSION, AS TWO LEGS
+    Session t has an OVERNIGHT leg, close[t-1] -> open[t], and an INTRADAY leg,
+    open[t] -> close[t]. A rule declares a weight for each leg. Trades happen
+    only at the auctions a retail broker takes orders for:
+        close auction of t-1 (MOC)   sets the weight for the overnight leg of t
+        open auction of t    (MOO)   sets the weight for the intraday leg of t
+    Scoring is close-to-close: the window opens at a close auction, so every
+    scored session has both of its legs and a session return is close-to-close.
+
+INFORMATION SETS — enforced by the view, then checked by the leak check
+    open auction of t    bars through close[t-1]. NOT open[t]: that is the
+                         price this auction is about to set.
+    close auction of t   bars through close[t-1], plus open[t]. NOT close[t],
+                         high[t], low[t] or volume[t]: an MOC order is due
+                         before ~15:50 ET and none of those exist yet.
+    calendar             the SCHEDULED NYSE calendar (barqc.nyse_holidays),
+                         for any date, because it is published in advance. An
+                         unscheduled closure (a day of mourning, a hurricane)
+                         is not in it, because it was not known in advance. The
+                         BAR dates never feed a calendar fact a rule sees: "the
+                         last session of the month" read off the bars is known
+                         only once the month is over, and a missing bar would
+                         silently shift every ordinal after it.
+
+COST — PER SIDE, said loudly because the repo already has two conventions
+    cost_bps_per_side is charged on the traded notional at every auction that
+    trades. A full round trip (in, then out) therefore costs TWICE that.
+    replay.py charges cost_bps per fill — the same convention. nulltest.py
+    charges cost_bps ONCE per round trip — half this for the same number.
+    Every output opens by saying which one it used.
+
+CASH, DRAG, LEVERAGE
+    Idle cash earns a constant annual rate or a dated series, accrued on
+    CALENDAR days, all of it on the overnight leg: interest is paid on the
+    end-of-day balance, and a weekend or a holiday is part of the overnight
+    leg. Intraday legs accrue nothing.
+    A labelled leveraged variant (k = 2 or 3) trades a MODELLED k-times
+    daily-reset ETF built from the same bars: overnight k*r_on; intraday
+    k*r_id*(1+r_on)/(1+k*r_on), because the fund reset its exposure at the
+    previous close and the gap changed it; close-to-close exactly k*r_cc; less
+    an annual expense ratio and financing of (k-1) at the cash rate, accrued
+    like cash on the overnight leg. It is a model, not data, and every output
+    that uses it says so.
+
+WHAT IT MEASURES
+    total return (ROI on all capital), CAGR, volatility, Sharpe and Sortino in
+    excess of the cash rate, max drawdown with its dates, exposure (share of
+    legs held; mean and capital-weighted), return per unit of exposure, round
+    trips, turnover, cost paid, a per-year table, and halves split at the DATE
+    midpoint. The benchmark is buy-and-hold of the underlying, bought at the
+    SAME close auction the rule could first act at and scored over the
+    identical legs: `buy_and_hold` run as a rule equals it to the last digit.
+
+THE NULLS
+    placebo    the rule's own exposure, moved in time. `shift`: a random
+               circular shift of the session-by-session exposure — every block
+               and its spacing kept, the phase moved. `blocks`: the same
+               contiguous blocks of exposed sessions and the same flat gaps, in
+               a random order. Both keep the number of exposed legs of each
+               kind and their clustering. p = (1 + #null >= observed) /
+               (1 + draws). With both, the LARGER p is the conservative reading.
+               An exposure with no timing (every session alike) has no placebo
+               and is reported as degenerate rather than given a p.
+    deflated   Bailey & López de Prado (2014), against the BENCHMARK's Sharpe
+               instead of zero (EVIDENCE.md, "One limitation in how the
+               deflation was wired"); the trial count is an argument.
+    bootstrap  stationary bootstrap (Politis & Romano 1994) of paired session
+               returns: a CI for the CAGR difference and the Sharpe difference
+               against buy-and-hold.
+
+ADDING A RULE (after the pre-registration is frozen, never before)
+    @register("name_from_the_prereg", warmup=0)
+    def _name_from_the_prereg(v):
+        '''What it holds and when, and the pre-registration it comes from.'''
+        if v.auction == "close":           # weight for the overnight leg into v.next_cal
+            return 1.0 if v.next_cal.month_ordinal_from_end == -1 else 0.0
+        return 0.0                         # weight for today's intraday leg
+    A rule returns a weight in [0, 1] of the instrument, is a pure function of
+    the view, and keeps no state between calls: the leak check rebuilds it for
+    every sample and compares.
+
+USAGE
+    python3 edgelab.py --list-rules
+    python3 edgelab.py --calendar-report --csv bars/SPY-1d.csv
+    python3 edgelab.py --rule buy_and_hold --csv bars/SPY-1d.csv --source stooq --adjusted yes \\
+        --cost-bps-per-side 1 --cash-yield 0.03 --seed 0 --out runs/x.txt
+    python3 edgelab.py --rule NAME --csv bars/DIA-1d-long.csv bars/QQQ-1d-long.csv --source stooq \\
+        --cost-bps-per-side 1 --cash-yield 0.03 --trials 42 --placebo-draws 1000 --out runs/y.txt
+"""
+
+import argparse
+import bisect
+import csv
+import datetime as dt
+import json
+import math
+import os
+import random
+import sys
+from dataclasses import dataclass
+from statistics import NormalDist
+
+import bars as B
+import barqc
+import combine
+import replay
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+EDGELAB_VERSION = 1
+
+LookAhead = replay.LookAhead          # one exception type for the whole pipeline
+Blocked = replay.Blocked
+
+SESSIONS_PER_YEAR = 252               # annualises per-session statistics, as replay.py does
+ACCRUAL_DAYS = 365.0                  # calendar-day basis for cash, expense and financing
+MAX_LEVERAGE = 3
+EPS = 1e-12
+HOLIDAY_HORIZON = 10                  # pre/post-holiday ranks are reported up to this many sessions
+PARTIAL_BAR_VOLUME = 0.5              # final bar under this share of the trailing median → suspect
+RATE_BOUNDS = (-0.05, 0.25)           # an annual rate outside this is a percent, or a typo
+
+# Closures the scheduled calendar cannot know. Used ONLY to label the bar-vs-
+# calendar report ("closure" vs "DATA HOLE"); never shown to a rule.
+KNOWN_UNSCHEDULED_CLOSURES = {
+    dt.date(1994, 4, 27): "national day of mourning (Nixon)",
+    dt.date(2001, 9, 11): "September 11 attacks",
+    dt.date(2001, 9, 12): "September 11 attacks",
+    dt.date(2001, 9, 13): "September 11 attacks",
+    dt.date(2001, 9, 14): "September 11 attacks",
+    dt.date(2004, 6, 11): "national day of mourning (Reagan)",
+    dt.date(2007, 1, 2): "national day of mourning (Ford)",
+    dt.date(2012, 10, 29): "Hurricane Sandy",
+    dt.date(2012, 10, 30): "Hurricane Sandy",
+    dt.date(2018, 12, 5): "national day of mourning (G. H. W. Bush)",
+    dt.date(2025, 1, 9): "national day of mourning (Carter)",
+}
+
+COST_NOTE = ("replay.py charges per fill (= per side, the same as here); nulltest.py charges "
+             "ONCE per round trip (half this for the same number). Convert before comparing.")
+CASH_NOTE = ("accrued on calendar days, all of it on the overnight leg (end-of-day balance; "
+             "weekends and holidays fall in the overnight leg); intraday legs earn nothing")
+INFO_NOTE = ("open auction of t sees bars through close[t-1]; close auction of t sees bars "
+             "through close[t-1] plus open[t]; calendar = the SCHEDULED NYSE calendar (barqc), "
+             "so an unscheduled closure is not known to the rule")
+NOT_MODELLED = (
+    "slippage beyond the stated per-side cost; the auction price versus the bar's open/close "
+    "(on Alpaca IEX files the open and close are IEX prints, not the primary-market auctions "
+    "MOO/MOC orders receive); auction imbalance and partial fills; order cut-offs (MOC ~15:50 ET, "
+    "12:50 on half-days, which this calendar does not mark); taxes; borrow; dividends on files "
+    "that are not total-return; settlement (T+1) and cash-account good-faith rules; the "
+    "pattern-day-trader rule, which every same-session round trip (in at the open, out at the "
+    "close) counts against")
+
+
+# =================================================================== calendar
+
+def third_friday(y, m):
+    first = dt.date(y, m, 1)
+    return first + dt.timedelta(days=(4 - first.weekday()) % 7 + 14)
+
+
+@dataclass(frozen=True)
+class Facts:
+    """What the SCHEDULED calendar says about one session. Known in advance."""
+    date: dt.date
+    weekday: int                    # 0 = Monday
+    month_ordinal: int              # 1 = first session of the month
+    month_ordinal_from_end: int     # -1 = last session of the month
+    month_sessions: int
+    is_month_end: bool
+    is_quarter_end: bool
+    is_year_end: bool
+    pre_holiday_rank: object        # 1 = the session right before a weekday exchange holiday; None if > horizon
+    post_holiday_rank: object       # 1 = the first session after one; None if > horizon
+    holiday_ahead: object           # that holiday's date (with pre_holiday_rank), else None
+    is_opex: bool                   # monthly options expiration: third Friday, or the session before it when it is a holiday
+    opex_offset: int                # sessions from this month's opex session (0 on it, -1 the session before)
+    prev_session: object
+    next_session: object
+    days_since_prev_session: object  # calendar days the overnight leg INTO this session spans
+    days_to_next_session: object     # calendar days the overnight leg OUT of it spans
+
+
+class Calendar:
+    """
+    The scheduled NYSE calendar from barqc, with the facts a calendar rule
+    keys on, precomputed per session. Built from DATES only — no bar touches
+    it — so it is the same object in the full run and in the leak check.
+    """
+
+    def __init__(self, first, last):
+        y0, y1 = first.year - 1, last.year + 1
+        hol = set()
+        for y in range(y0, y1 + 1):
+            hol |= barqc.nyse_holidays(y)
+        self.holidays = sorted(hol)
+        self.sessions = barqc.sessions_between(dt.date(y0, 1, 1), dt.date(y1, 12, 31))
+        self._index = {d: i for i, d in enumerate(self.sessions)}
+        months = {}
+        for i, d in enumerate(self.sessions):
+            months.setdefault((d.year, d.month), []).append(i)
+        self._months = months
+        opex = {ym: bisect.bisect_right(self.sessions, third_friday(*ym)) - 1 for ym in months}
+        self._opex = opex
+        self._facts = {}
+        S, H = self.sessions, self.holidays
+        for (y, m), idxs in months.items():
+            n = len(idxs)
+            for k, i in enumerate(idxs):
+                d = S[i]
+                pre = ahead = post = None
+                hi = bisect.bisect_right(H, d)
+                if hi < len(H):
+                    j = bisect.bisect_right(S, H[hi])       # first session after that holiday
+                    if j - i <= HOLIDAY_HORIZON:
+                        pre, ahead = j - i, H[hi]
+                hi = bisect.bisect_left(H, d) - 1
+                if hi >= 0:
+                    j = bisect.bisect_right(S, H[hi])
+                    if i - j + 1 <= HOLIDAY_HORIZON:
+                        post = i - j + 1
+                prev = S[i - 1] if i > 0 else None
+                nxt = S[i + 1] if i + 1 < len(S) else None
+                last = k == n - 1
+                self._facts[d] = Facts(
+                    date=d, weekday=d.weekday(), month_ordinal=k + 1,
+                    month_ordinal_from_end=k - n, month_sessions=n,
+                    is_month_end=last, is_quarter_end=last and m in (3, 6, 9, 12),
+                    is_year_end=last and m == 12,
+                    pre_holiday_rank=pre, post_holiday_rank=post, holiday_ahead=ahead,
+                    is_opex=i == opex[(y, m)], opex_offset=i - opex[(y, m)],
+                    prev_session=prev, next_session=nxt,
+                    days_since_prev_session=(d - prev).days if prev else None,
+                    days_to_next_session=(nxt - d).days if nxt else None)
+
+    def is_session(self, d):
+        return d in self._index
+
+    def facts(self, d):
+        try:
+            return self._facts[d]
+        except KeyError:
+            raise ValueError(f"{d} is not a scheduled NYSE session") from None
+
+    def next_session(self, d):
+        i = bisect.bisect_right(self.sessions, d)
+        return self.sessions[i] if i < len(self.sessions) else None
+
+    def prev_session(self, d):
+        i = bisect.bisect_left(self.sessions, d) - 1
+        return self.sessions[i] if i >= 0 else None
+
+    def between(self, a, b):
+        """Scheduled sessions strictly between dates a and b."""
+        return self.sessions[bisect.bisect_right(self.sessions, a):bisect.bisect_left(self.sessions, b)]
+
+    def month(self, y, m):
+        return [self.sessions[i] for i in self._months.get((y, m), [])]
+
+    def opex(self, y, m):
+        return self.sessions[self._opex[(y, m)]]
+
+    def last_session(self, y, m):
+        return self.sessions[self._months[(y, m)][-1]]
+
+
+def calendar_report(series, cal=None):
+    """
+    Bar dates against the scheduled calendar. Dates only — no return is
+    computed here. Says which scheduled sessions have no bar (an unscheduled
+    closure, or a DATA HOLE: a session that traded and the file lacks), which
+    bars sit on a closed day, which overnight legs span a missing session, how
+    many bars a bar-counted month ordinal would have mislabelled and why, and
+    whether the final bar looks like a partial session.
+    """
+    bars = series.bars
+    if not bars:
+        return {"bars": 0}
+    dates = [b.ts.date() for b in bars]
+    cal = cal or Calendar(dates[0], dates[-1])
+    have = set(dates)
+    sched = [d for d in cal.sessions if dates[0] <= d <= dates[-1]]
+    missing = []
+    for d in sched:
+        if d not in have:
+            why = KNOWN_UNSCHEDULED_CLOSURES.get(d)
+            missing.append({"date": d.isoformat(),
+                            "class": f"unscheduled closure: {why}" if why else "DATA HOLE"})
+    extra = [d.isoformat() for d in dates if not cal.is_session(d)]
+    gaps = []
+    for a, b in zip(dates, dates[1:]):
+        inside = cal.between(a, b)
+        if inside:
+            gaps.append({"into": b.isoformat(), "spans": [x.isoformat() for x in inside],
+                         "class": "closure" if all(x in KNOWN_UNSCHEDULED_CLOSURES for x in inside)
+                         else "DATA HOLE"})
+    # A bar-counted ordinal, and why it disagrees with the scheduled one.
+    by_month = {}
+    for d in dates:
+        if cal.is_session(d):
+            by_month.setdefault((d.year, d.month), []).append(d)
+    missing_months = {}
+    for x in missing:
+        d = dt.date.fromisoformat(x["date"])
+        missing_months.setdefault((d.year, d.month), []).append(x["class"])
+    first_m, last_m = (dates[0].year, dates[0].month), (dates[-1].year, dates[-1].month)
+    shifts = {"from_start": 0, "from_end": 0, "by_cause": {}, "examples": []}
+    for ym, ds in by_month.items():
+        full = cal.month(*ym)
+        causes = []
+        if ym == first_m and ds[0] != full[0]:
+            causes.append("file starts mid-month")
+        if ym == last_m and ds[-1] != full[-1]:
+            causes.append("file ends mid-month (a bar-counted 'last session' is not one)")
+        for c in missing_months.get(ym, []):
+            causes.append("DATA HOLE" if c == "DATA HOLE" else "unscheduled closure")
+        cause = "; ".join(sorted(set(causes))) or "unexplained"
+        n = len(ds)
+        for k, d in enumerate(ds):
+            f = cal.facts(d)
+            bs, be = k + 1, k - n
+            if bs != f.month_ordinal or be != f.month_ordinal_from_end:
+                shifts["from_start"] += bs != f.month_ordinal
+                shifts["from_end"] += be != f.month_ordinal_from_end
+                shifts["by_cause"][cause] = shifts["by_cause"].get(cause, 0) + 1
+                if len(shifts["examples"]) < 12:
+                    shifts["examples"].append({
+                        "date": d.isoformat(), "bar_counted": [bs, be],
+                        "scheduled": [f.month_ordinal, f.month_ordinal_from_end], "cause": cause})
+    final = {"date": dates[-1].isoformat(), "suspect_partial": False, "volume_ratio": None}
+    vols = sorted(b.volume for b in bars[-21:-1])
+    if len(vols) >= 5:
+        med = vols[len(vols) // 2]
+        if med > 0:
+            ratio = bars[-1].volume / med
+            final["volume_ratio"] = ratio
+            final["suspect_partial"] = ratio < PARTIAL_BAR_VOLUME
+    return {"first": dates[0].isoformat(), "last": dates[-1].isoformat(), "bars": len(bars),
+            "scheduled_sessions": len(sched), "missing": missing, "extra": extra,
+            "gap_legs": gaps, "ordinal_shifts": shifts, "final_bar": final,
+            "holes": [x["date"] for x in missing if x["class"] == "DATA HOLE"],
+            "closures": [x["date"] for x in missing if x["class"] != "DATA HOLE"]}
+
+
+def render_calendar(rep):
+    L = [f"calendar: {rep['bars']} bars, {rep['scheduled_sessions']} scheduled sessions "
+         f"{rep['first']} → {rep['last']}; {len(rep['missing'])} scheduled session(s) without a bar "
+         f"({len(rep['closures'])} unscheduled closure(s), {len(rep['holes'])} DATA HOLE(s)); "
+         f"{len(rep['extra'])} bar(s) on a closed day"]
+    for x in rep["missing"]:
+        L.append(f"    missing {x['date']}  {x['class']}")
+    for x in rep["extra"][:10]:
+        L.append(f"    bar on a closed day {x}")
+    for g in rep["gap_legs"]:
+        L.append(f"    overnight leg into {g['into']} spans {', '.join(g['spans'])} ({g['class']})")
+    sh = rep["ordinal_shifts"]
+    if sh["from_start"] or sh["from_end"]:
+        L.append(f"    a BAR-COUNTED month ordinal would differ from the scheduled one on "
+                 f"{sh['from_start']} bar(s) from the start and {sh['from_end']} from the end — "
+                 f"this harness uses the scheduled ordinal:")
+        for cause, n in sorted(sh["by_cause"].items()):
+            L.append(f"      {n:>4}  {cause}")
+        for e in sh["examples"][:6]:
+            L.append(f"      e.g. {e['date']}: bar-counted {e['bar_counted']}, "
+                     f"scheduled {e['scheduled']} ({e['cause']})")
+    fb = rep["final_bar"]
+    if fb["volume_ratio"] is not None:
+        flag = ("  POSSIBLY A PARTIAL SESSION — consider --end on the previous session"
+                if fb["suspect_partial"] else "")
+        L.append(f"    final bar {fb['date']}: volume {fb['volume_ratio']:.0%} of the trailing "
+                 f"20-bar median{flag}")
+    return "\n".join(L)
+
+
+# =================================================================== cash
+
+class CashRate:
+    """
+    The annual rate idle cash earns: a constant, or a dated series read from a
+    CSV with `date,rate` columns (annual decimals, the rate in force from that
+    date). A date before the first row is refused, never extrapolated.
+    """
+
+    def __init__(self, rate=None, dated=None, label=None):
+        if (rate is None) == (dated is None):
+            raise ValueError("give a constant rate or a dated series, not both or neither")
+        if rate is not None:
+            _check_rate(rate, "cash yield")
+            self.rate, self.dates, self.rates = float(rate), None, None
+            self.label = label or f"{rate:.2%}/yr constant"
+        else:
+            self.rate = None
+            self.dates = [d for d, _ in dated]
+            self.rates = [r for _, r in dated]
+            if any(b <= a for a, b in zip(self.dates, self.dates[1:])):
+                raise ValueError("dated cash series must be strictly increasing in date")
+            for d, r in dated:
+                _check_rate(r, f"cash yield on {d}")
+            self.label = label or (f"dated series, {len(self.dates)} rates "
+                                   f"{self.dates[0]} → {self.dates[-1]}")
+
+    def at(self, d):
+        if self.rate is not None:
+            return self.rate
+        i = bisect.bisect_right(self.dates, d) - 1
+        if i < 0:
+            raise ValueError(f"no cash rate in force on {d}: the dated series starts "
+                             f"{self.dates[0]}. Refused rather than extrapolated.")
+        return self.rates[i]
+
+    @classmethod
+    def from_csv(cls, path):
+        if not os.path.exists(path):
+            raise ValueError(f"--cash-yield {path!r} is neither a number nor a file")
+        rows = []
+        with open(path, newline="") as f:
+            rdr = csv.reader(f)
+            head = [h.strip().lower() for h in next(rdr, [])]
+            if "date" not in head or "rate" not in head:
+                raise ValueError(f"{path}: header must have 'date' and 'rate' (annual decimals)")
+            di, ri = head.index("date"), head.index("rate")
+            for n, row in enumerate(rdr, start=2):
+                if not row or all(not c.strip() for c in row):
+                    continue
+                try:
+                    rows.append((dt.date.fromisoformat(row[di].strip()), float(row[ri])))
+                except (ValueError, IndexError) as e:
+                    raise ValueError(f"{path} row {n}: {e} — {row}")
+        if not rows:
+            raise ValueError(f"{path}: no rates")
+        return cls(dated=rows, label=f"dated series {os.path.basename(path)}, {len(rows)} rates "
+                                     f"{rows[0][0]} → {rows[-1][0]}")
+
+    @classmethod
+    def parse(cls, text):
+        try:
+            return cls(rate=float(text))
+        except ValueError as e:
+            if os.path.exists(str(text)):
+                return cls.from_csv(text)
+            raise ValueError(f"--cash-yield {text!r}: {e}") from None
+
+
+def _check_rate(r, what):
+    if not isinstance(r, (int, float)) or not math.isfinite(r) or not (RATE_BOUNDS[0] <= r <= RATE_BOUNDS[1]):
+        raise ValueError(f"{what} {r!r} is outside {RATE_BOUNDS}: rates are annual decimals "
+                         f"(0.05 is 5%)")
+
+
+# =================================================================== legs
+
+@dataclass
+class Legs:
+    """Per scored session j: the bar index, the dates, the underlying's two leg
+    returns, the instrument's two leg returns, the cash growth of the overnight
+    leg, its calendar days, and whether it spans a scheduled session with no bar."""
+    t: list
+    dates: list
+    prev_dates: list
+    r_on: list
+    r_id: list
+    i_on: list
+    i_id: list
+    g_on: list
+    days: list
+    gap: list
+    leverage: int
+    wiped: list
+
+
+def build_legs(bars, s0, last, cash, leverage=1, expense_ratio=0.0, cal=None):
+    k = int(leverage)
+    out = Legs([], [], [], [], [], [], [], [], [], [], k, [])
+    for t in range(s0 + 1, last + 1):
+        p, b = bars[t - 1], bars[t]
+        d0, d1 = p.ts.date(), b.ts.date()
+        D = (d1 - d0).days
+        r_on = b.open / p.close - 1.0
+        r_id = b.close / b.open - 1.0
+        y = cash.at(d0)
+        g = (1.0 + y) ** (D / ACCRUAL_DAYS) - 1.0
+        if k == 1:
+            i_on, i_id = r_on, r_id
+        else:
+            a = expense_ratio + (k - 1) * y
+            delta = (1.0 + a) ** (-D / ACCRUAL_DAYS)
+            base = 1.0 + k * r_on
+            if base <= 0.0:                     # the modelled fund is wiped out at the open
+                i_on, i_id = -1.0, 0.0
+                out.wiped.append(d1.isoformat())
+            else:
+                i_on = base * delta - 1.0
+                i_id = k * r_id * (1.0 + r_on) / base
+        out.t.append(t)
+        out.dates.append(d1)
+        out.prev_dates.append(d0)
+        out.r_on.append(r_on)
+        out.r_id.append(r_id)
+        out.i_on.append(i_on)
+        out.i_id.append(i_id)
+        out.g_on.append(g)
+        out.days.append(D)
+        out.gap.append(bool(cal.between(d0, d1)) if cal is not None else False)
+    return out
+
+
+# =================================================================== rules
+
+class Rule:
+    """A named decision function plus the closed bars it needs before it can act."""
+
+    def __init__(self, name, decide, warmup=0, doc="", test_only=False):
+        self.name = name
+        self.decide = decide
+        self.warmup = int(warmup)
+        self.doc = doc
+        self.test_only = bool(test_only)
+        if self.warmup < 0:
+            raise ValueError("warmup is a count of closed bars, >= 0")
+
+
+RULES = {}
+
+
+def register(name, warmup=0, test_only=False):
+    """@register("name", warmup=N) over decide(view) -> weight in [0, 1]."""
+    def deco(fn):
+        if name in RULES:
+            raise ValueError(f"rule {name!r} is registered twice")
+        doc = (fn.__doc__ or "").strip()
+        RULES[name] = lambda: Rule(name, fn, warmup, doc, test_only)
+        return fn
+    return deco
+
+
+def register_factory(name, factory):
+    """For a rule with parameters or closures: factory() must return a FRESH Rule."""
+    if name in RULES:
+        raise ValueError(f"rule {name!r} is registered twice")
+    RULES[name] = factory
+
+
+def get_rule(name):
+    if name not in RULES:
+        raise KeyError(f"no rule named {name!r}; registered: {', '.join(sorted(RULES))}")
+    return RULES[name]
+
+
+@register("buy_and_hold", warmup=0)
+def _buy_and_hold(v):
+    """Fully invested in every leg from the first auction. The benchmark, as a rule."""
+    return 1.0
+
+
+@register("test_overnight_only", warmup=0, test_only=True)
+def _test_overnight_only(v):
+    """Not a candidate. In for every overnight leg: buys each close, sells each open."""
+    return 1.0 if v.auction == "close" else 0.0
+
+
+@register("test_intraday_only", warmup=0, test_only=True)
+def _test_intraday_only(v):
+    """Not a candidate. In for every intraday leg: buys each open, sells each close."""
+    return 1.0 if v.auction == "open" else 0.0
+
+
+# ------------------------------------------------------------------ PRE-REGISTERED RULES
+# Add them below this line after the pre-registration is frozen, one @register
+# each, citing the pre-registration file in the docstring. Nothing goes here
+# before the freeze: a rule that exists is a rule somebody will run.
+
+
+# =================================================================== the view
+
+class View:
+    """
+    A rule's whole world at one auction: the bars that have CLOSED, plus — at
+    the close auction only — today's open, and the scheduled calendar.
+
+    Integer indexing past the closed bars raises LookAhead, exactly as
+    replay.Cursor does; slices clamp. `open_today` raises at the open auction,
+    where the open is the price being set. Today's close, high, low and volume
+    raise at both auctions. `held` is the weight of the leg that just ended,
+    so a rule that needs to know whether it is in reads it here instead of
+    keeping state.
+    """
+    __slots__ = ("_bars", "_n", "_open", "auction", "date", "cal", "next_cal", "calendar",
+                 "held", "symbol", "leverage")
+
+    def __init__(self, bars, n, auction, date, today_open, calendar, held=0.0, symbol="",
+                 leverage=1):
+        if auction not in ("open", "close"):
+            raise ValueError(f"auction must be 'open' or 'close', not {auction!r}")
+        if n < 0 or n > len(bars):
+            raise ValueError(f"view n={n} outside 0..{len(bars)}")
+        self._bars = bars
+        self._n = n
+        self._open = today_open if auction == "close" else None
+        self.auction = auction
+        self.date = date
+        self.calendar = calendar
+        self.cal = calendar.facts(date)
+        nxt = calendar.next_session(date)
+        self.next_cal = calendar.facts(nxt) if nxt is not None else None
+        self.held = float(held)
+        self.symbol = symbol
+        self.leverage = leverage
+
+    def __len__(self):
+        return self._n
+
+    def __getitem__(self, k):
+        if isinstance(k, slice):
+            a, b, s = k.indices(self._n)
+            return self._bars[a:b:s]
+        if k < 0:
+            k += self._n
+        if k < 0 or k >= self._n:
+            raise LookAhead(f"bar {k} requested at the {self.auction} auction of {self.date} with "
+                            f"{self._n} bar(s) closed — it has not closed yet")
+        return self._bars[k]
+
+    def __iter__(self):
+        return iter(self._bars[:self._n])
+
+    @property
+    def last(self):
+        if self._n == 0:
+            raise LookAhead("no bar has closed yet")
+        return self._bars[self._n - 1]
+
+    def closes(self, n=None):
+        lo = 0 if n is None else max(0, self._n - n)
+        return [b.close for b in self._bars[lo:self._n]]
+
+    @property
+    def open_today(self):
+        if self.auction != "close":
+            raise LookAhead(f"open_today at the OPEN auction of {self.date}: the open is the price "
+                            f"this auction sets, not something an order placed before it can know")
+        return self._open
+
+    def _never(self, what):
+        raise LookAhead(f"today's {what} at the {self.auction} auction of {self.date}: it does not "
+                        f"exist until the close, after the MOC deadline")
+
+    close_today = property(lambda self: self._never("close"))
+    high_today = property(lambda self: self._never("high"))
+    low_today = property(lambda self: self._never("low"))
+    volume_today = property(lambda self: self._never("volume"))
+
+
+def _weight(x, rule, date, auction):
+    try:
+        w = float(x)
+    except (TypeError, ValueError):
+        raise ValueError(f"rule {rule.name} returned {x!r} at the {auction} auction of {date}; "
+                         f"a weight is a number") from None
+    if not math.isfinite(w) or w < -EPS or w > 1.0 + EPS:
+        raise ValueError(f"rule {rule.name} returned {x!r} at the {auction} auction of {date}: a "
+                         f"weight must be a finite number in [0, 1] of the instrument (leverage "
+                         f"belongs to the instrument, --leverage, not to the weight)")
+    return min(1.0, max(0.0, w))
+
+
+def decide_all(series, rule, cal, s0, last, leverage=1):
+    """
+    Call the rule at every auction of the window, in time order. Returns the
+    weights per scored session and the decision log the leak check samples:
+    (today's bar index, auction, closed bars, held, weight).
+    """
+    bars = series.bars
+    w_on, w_id, log = [], [], []
+    held = 0.0
+    for t in range(s0 + 1, last + 1):
+        u = t - 1                                  # the close auction of u sets the overnight leg of t
+        d = bars[u].ts.date()
+        w = _weight(rule.decide(View(bars, u, "close", d, bars[u].open, cal, held, series.symbol,
+                                     leverage)), rule, d, "close")
+        log.append((u, "close", u, held, w))
+        w_on.append(w)
+        held = w
+        d = bars[t].ts.date()                      # the open auction of t sets its intraday leg
+        w = _weight(rule.decide(View(bars, t, "open", d, None, cal, held, series.symbol,
+                                     leverage)), rule, d, "open")
+        log.append((t, "open", t, held, w))
+        w_id.append(w)
+        held = w
+    return w_on, w_id, log
+
+
+# =================================================================== the walk
+
+def walk(w_on, w_id, i_on, i_id, g_on, cost, detail=False):
+    """
+    The one accounting path — the rule, the benchmark, the zero-cost path and
+    every placebo draw all go through it, so a null never differs from the
+    real run by anything but the weights.
+
+    Equity starts at 1.0, all cash, at the close auction of the start
+    session. At each auction the book is set to exactly the declared weight;
+    the traded notional is |target - current weight| x equity before the
+    trade, and cost = cost_per_side x notional comes out of equity. A 0/1 rule
+    never trades on drift; a fractional one is rebalanced back to its weight at
+    every auction and pays for it. Cash grows only on the overnight leg.
+    """
+    S = len(w_on)
+    E, h = 1.0, 0.0
+    closes = [0.0] * S
+    sides = entries = 0
+    notional = paid = paid_frac = 0.0
+    if detail:
+        opens = [0.0] * S
+        start_on, start_id = [0.0] * S, [0.0] * S
+        auctions = []                   # (session j, "close"|"open", notional, cost)
+    ruined_at = None
+    for j in range(S):
+        w = w_on[j]
+        dw = w - h
+        if dw > EPS or dw < -EPS:
+            n = (dw if dw > 0 else -dw) * E
+            c = n * cost
+            if h <= EPS:
+                entries += 1
+            sides += 1
+            notional += n
+            paid += c
+            paid_frac += c / E
+            E -= c
+            if detail:
+                auctions.append((j, "close", n, c))
+        A = w * E
+        C = E - A
+        if detail:
+            start_on[j] = E
+        A *= 1.0 + i_on[j]
+        C *= 1.0 + g_on[j]
+        E = A + C
+        if E <= 0.0:
+            ruined_at = j
+            break
+        h = A / E
+        if detail:
+            opens[j] = E
+        w = w_id[j]
+        dw = w - h
+        if dw > EPS or dw < -EPS:
+            n = (dw if dw > 0 else -dw) * E
+            c = n * cost
+            if h <= EPS:
+                entries += 1
+            sides += 1
+            notional += n
+            paid += c
+            paid_frac += c / E
+            E -= c
+            if detail:
+                auctions.append((j, "open", n, c))
+        A = w * E
+        C = E - A
+        if detail:
+            start_id[j] = E
+        A *= 1.0 + i_id[j]
+        E = A + C
+        if E <= 0.0:
+            ruined_at = j
+            break
+        h = A / E
+        closes[j] = E
+    if ruined_at is not None:
+        for j in range(ruined_at, S):
+            closes[j] = 0.0
+            if detail:
+                opens[j] = 0.0
+    out = {"closes": closes, "sides": sides, "entries": entries, "notional": notional,
+           "cost_paid": paid, "cost_frac": paid_frac, "ruined_at": ruined_at,
+           "open_at_end": h > EPS and ruined_at is None}
+    if detail:
+        out.update(opens=opens, start_on=start_on, start_id=start_id, auctions=auctions)
+    return out
+
+
+def session_returns(closes):
+    out, prev = [], 1.0
+    for c in closes:
+        out.append(c / prev - 1.0 if prev > 0 else 0.0)
+        prev = c
+    return out
+
+
+def cagr_of(final, years):
+    if years <= 0:
+        return None
+    if final <= 0:
+        return -1.0
+    return final ** (1.0 / years) - 1.0
+
+
+def cagr_sharpe(closes, g_on, years):
+    """The two numbers the placebo compares — the SAME function scores the observed run."""
+    rets = session_returns(closes)
+    ex = [r - g for r, g in zip(rets, g_on)]
+    st = replay._stats(ex, SESSIONS_PER_YEAR)
+    return cagr_of(closes[-1], years), st["sharpe"]
+
+
+def drawdown(marks):
+    """marks: [(date, 'open'|'close', equity)] in time order → worst peak-to-trough, with dates."""
+    peak_i, worst, wp, wt = 0, 0.0, 0, 0
+    for i, m in enumerate(marks):
+        if m[2] > marks[peak_i][2]:
+            peak_i = i
+        elif marks[peak_i][2] > 0:
+            dd = m[2] / marks[peak_i][2] - 1.0
+            if dd < worst:
+                worst, wp, wt = dd, peak_i, i
+    rec = None
+    if worst < 0:
+        for m in marks[wt + 1:]:
+            if m[2] >= marks[wp][2]:
+                rec = m
+                break
+
+    def lab(m):
+        return f"{m[0].isoformat()} {m[1]}"
+    return {"max_drawdown": worst,
+            "peak": lab(marks[wp]) if worst < 0 else None,
+            "trough": lab(marks[wt]) if worst < 0 else None,
+            "recovered": lab(rec) if rec else (None if worst == 0 else "not recovered")}
+
+
+def _marks(start_date, legs, path):
+    m = [(start_date, "close", 1.0)]
+    for j, d in enumerate(legs.dates):
+        m.append((d, "open", path["opens"][j]))
+        m.append((d, "close", path["closes"][j]))
+    return m
+
+
+def score(path, legs, start_date, w_on, w_id, k):
+    """Every headline number for one path over the scored legs."""
+    closes = path["closes"]
+    S = len(closes)
+    rets = session_returns(closes)
+    ex = [r - g for r, g in zip(rets, legs.g_on)]
+    years = (legs.dates[-1] - start_date).days / 365.25
+    st = replay._stats(rets, SESSIONS_PER_YEAR)
+    sx = replay._stats(ex, SESSIONS_PER_YEAR)
+    down = math.sqrt(sum(x * x for x in ex if x < 0) / S) if S else 0.0
+    mean_ex = sum(ex) / S if S else 0.0
+    dd = drawdown(_marks(start_date, legs, path))
+    on_x = sum(1 for w in w_on if w > EPS)
+    id_x = sum(1 for w in w_id if w > EPS)
+    wsum = sum(w_on) + sum(w_id)
+    eq_sum = sum(path["start_on"]) + sum(path["start_id"])
+    cap_w = (sum(w * e for w, e in zip(w_on, path["start_on"]))
+             + sum(w * e for w, e in zip(w_id, path["start_id"])))
+    gross_legs = (sum(w * r for w, r in zip(w_on, legs.i_on))
+                  + sum(w * r for w, r in zip(w_id, legs.i_id)))
+    mean_eq = sum(closes) / S if S else 0.0
+    return {
+        "final_equity": closes[-1], "total_return": closes[-1] - 1.0,
+        "cagr": cagr_of(closes[-1], years), "years": years,
+        "volatility": st["volatility"], "sharpe": sx["sharpe"],
+        "sharpe_per_session": sx["sharpe_per_bar"], "skew": sx["skew"], "kurt": sx["kurt"],
+        "sortino": (mean_ex / down * math.sqrt(SESSIONS_PER_YEAR)) if down > 0 else None,
+        **dd,
+        "legs": 2 * S, "legs_exposed": on_x + id_x,
+        "exposure_share": (on_x + id_x) / (2 * S),
+        "exposure_share_overnight": on_x / S, "exposure_share_intraday": id_x / S,
+        "mean_exposure": k * wsum / (2 * S),
+        "capital_weighted_exposure": (k * cap_w / eq_sum) if eq_sum > 0 else 0.0,
+        "gross_bp_per_unit_exposure": (1e4 * gross_legs / (k * wsum)) if wsum > 0 else None,
+        "net_bp_per_unit_exposure": (1e4 * (gross_legs - path["cost_frac"]) / (k * wsum))
+                                    if wsum > 0 else None,
+        "sides": path["sides"], "round_trips": path["entries"], "open_at_end": path["open_at_end"],
+        "turnover_per_year": (path["notional"] / mean_eq / years) if mean_eq > 0 and years > 0 else None,
+        "cost_paid": path["cost_paid"], "ruined_at": path["ruined_at"],
+    }
+
+
+def per_year(legs, s_path, b_path, w_on, w_id):
+    rows, j0 = [], 0
+    S = len(legs.dates)
+    ps, pb = 1.0, 1.0
+    close_dates = legs.prev_dates            # the close auction before session j happens on prev_dates[j]
+    while j0 < S:
+        y = legs.dates[j0].year
+        j1 = j0
+        while j1 + 1 < S and legs.dates[j1 + 1].year == y:
+            j1 += 1
+        cs, cb = s_path["closes"][j1], b_path["closes"][j1]
+        sides = cost = 0
+        for (j, kind, n, c) in s_path["auctions"]:
+            d = close_dates[j] if kind == "close" else legs.dates[j]
+            if d.year == y:
+                sides += 1
+                cost += c
+        exp = sum(1 for j in range(j0, j1 + 1) for w in (w_on[j], w_id[j]) if w > EPS)
+        rows.append({"year": y, "sessions": j1 - j0 + 1,
+                     "strategy": cs / ps - 1.0 if ps > 0 else None,
+                     "benchmark": cb / pb - 1.0 if pb > 0 else None,
+                     "exposure_share": exp / (2 * (j1 - j0 + 1)),
+                     "sides": sides, "cost_pct_of_start_equity": cost / ps if ps > 0 else None})
+        ps, pb = cs, cb
+        j0 = j1 + 1
+    return rows
+
+
+def halves(legs, start_date, s_path, b_path):
+    """Split at the DATE midpoint of the scored window, never the bar midpoint."""
+    end = legs.dates[-1]
+    split = start_date + dt.timedelta(days=(end - start_date).days // 2)
+    cut = bisect.bisect_right(legs.dates, split)          # sessions [0, cut) are the first half
+    out = {"split_date": split.isoformat()}
+    for name, a, b in (("first", 0, cut), ("second", cut, len(legs.dates))):
+        if b - a < 2:
+            out[name] = None
+            continue
+        d0 = start_date if a == 0 else legs.dates[a - 1]
+        years = (legs.dates[b - 1] - d0).days / 365.25
+        row = {"from": d0.isoformat(), "to": legs.dates[b - 1].isoformat(), "sessions": b - a}
+        for who, p in (("strategy", s_path), ("benchmark", b_path)):
+            base = 1.0 if a == 0 else p["closes"][a - 1]
+            seg = p["closes"][a:b]
+            if base <= 0:
+                row[who] = None
+                continue
+            rets = session_returns([c / base for c in seg])
+            ex = [r - g for r, g in zip(rets, legs.g_on[a:b])]
+            row[who] = {"return": seg[-1] / base - 1.0, "cagr": cagr_of(seg[-1] / base, years),
+                        "sharpe": replay._stats(ex, SESSIONS_PER_YEAR)["sharpe"],
+                        "max_drawdown": replay.max_drawdown([base] + seg)}
+        out[name] = row
+    return out
+
+
+# =================================================================== the nulls
+
+def _segments(states):
+    runs = []
+    for s in states:
+        exposed = s[0] > EPS or s[1] > EPS
+        if runs and runs[-1][0] == exposed:
+            runs[-1][1].append(s)
+        else:
+            runs.append((exposed, [s]))
+    blocks = [r for e, r in runs if e]
+    gaps = [r for e, r in runs if not e]
+    return blocks, gaps, (runs[0][0] if runs else True)
+
+
+def placebo_states(states, method, rng):
+    """One placebo arrangement of the session states (w_on, w_id)."""
+    S = len(states)
+    if method == "shift":
+        if S < 2:
+            return list(states)
+        u = rng.randrange(1, S)
+        return states[-u:] + states[:-u]
+    if method == "blocks":
+        blocks, gaps, first_block = _segments(states)
+        b, g = blocks[:], gaps[:]
+        rng.shuffle(b)
+        rng.shuffle(g)
+        a, c = (b, g) if first_block else (g, b)
+        out = []
+        for i in range(max(len(a), len(c))):
+            if i < len(a):
+                out.extend(a[i])
+            if i < len(c):
+                out.extend(c[i])
+        return out
+    raise ValueError(f"placebo method {method!r} is not shift or blocks")
+
+
+def placebo(w_on, w_id, legs, cost, years, method, draws, seed):
+    """p-values of the observed CAGR and Sharpe against the rule's own exposure, moved in time."""
+    states = list(zip(w_on, w_id))
+    obs_cagr, obs_sharpe = cagr_sharpe(
+        walk(w_on, w_id, legs.i_on, legs.i_id, legs.g_on, cost)["closes"], legs.g_on, years)
+    rng = random.Random(f"edgelab/{seed}/{method}")
+    cagrs, sharpes, seen = [], [], set()
+    for _ in range(draws):
+        st = placebo_states(states, method, rng)
+        seen.add(hash(tuple(st)))
+        p = walk([s[0] for s in st], [s[1] for s in st], legs.i_on, legs.i_id, legs.g_on, cost)
+        c, s = cagr_sharpe(p["closes"], legs.g_on, years)
+        cagrs.append(c)
+        sharpes.append(s)
+    degenerate = len(seen) <= 1 and (not seen or hash(tuple(states)) in seen)
+    out = {"method": method, "draws": draws, "seed": seed, "unique_arrangements": len(seen),
+           "degenerate": degenerate, "observed_cagr": obs_cagr, "observed_sharpe": obs_sharpe,
+           "null_cagr": cagrs, "null_sharpe": sharpes}
+    if degenerate or not draws:
+        out.update(p_cagr=None, p_sharpe=None)
+        return out
+    out["p_cagr"] = (1 + sum(1 for x in cagrs if x >= obs_cagr - EPS)) / (1 + draws)
+    out["p_sharpe"] = (1 + sum(1 for x in sharpes if x >= obs_sharpe - EPS)) / (1 + draws)
+    for key, xs in (("cagr", cagrs), ("sharpe", sharpes)):
+        srt = sorted(xs)
+        out[f"null_{key}_q"] = {q: _quantile(srt, q) for q in (0.05, 0.5, 0.95)}
+    return out
+
+
+def _quantile(srt, q):
+    if not srt:
+        return None
+    x = q * (len(srt) - 1)
+    lo = int(math.floor(x))
+    hi = min(lo + 1, len(srt) - 1)
+    return srt[lo] + (srt[hi] - srt[lo]) * (x - lo)
+
+
+def deflated_sharpe_vs(sr, sr_bench, T, n_trials, var_sr=None, skew=0.0, kurt=3.0):
+    """
+    P(true Sharpe > the benchmark's | the observed per-session Sharpe sr over T
+    sessions, after n_trials tries) — Bailey & López de Prado 2014 with the
+    null moved from zero to the benchmark: the threshold is sr_bench plus the
+    expected maximum of n_trials zero-edge Sharpe estimates. Per-session Sharpes,
+    not annualised. var_sr defaults to the sampling variance of one Sharpe
+    estimate under the null, 1/(T-1): the number N independent nothings scatter
+    by. The benchmark's Sharpe is treated as known; its own sampling error is
+    not in this number (the bootstrap carries it).
+    """
+    if T < 3:
+        return {"dsr": None, "sr0": None, "z": None, "var_sr": None}
+    v = (1.0 / (T - 1)) if var_sr is None else float(var_sr)
+    sr0 = combine.expected_max_sharpe(n_trials, v)
+    denom = math.sqrt(max(1e-12, 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr * sr))
+    z = (sr - sr_bench - sr0) * math.sqrt(T - 1) / denom
+    return {"dsr": NormalDist().cdf(z), "sr0": sr0, "z": z, "var_sr": v,
+            "threshold_per_session": sr_bench + sr0}
+
+
+def bootstrap(a, b, g, years, draws, block_len, seed):
+    """
+    Stationary bootstrap of PAIRED session returns: the same resampled sessions
+    for the rule and for buy-and-hold, so their correlation is kept. Returns
+    the 95% CI of the CAGR difference and the Sharpe difference, and the share
+    of resamples in which the rule did not beat the benchmark.
+    """
+    n = len(a)
+    if draws <= 0 or n < 2:
+        return None
+    p = 1.0 / block_len
+    rng = random.Random(f"edgelab/{seed}/bootstrap")
+    rr, rand = rng.randrange, rng.random
+    ann = math.sqrt(SESSIONS_PER_YEAR)
+    dc, ds = [], []
+    for _ in range(draws):
+        i = rr(n)
+        pa = pb = 1.0
+        sa = sb = qa = qb = 0.0
+        for _k in range(n):
+            x, y, z = a[i], b[i], g[i]
+            pa *= 1.0 + x
+            pb *= 1.0 + y
+            ea, eb = x - z, y - z
+            sa += ea
+            sb += eb
+            qa += ea * ea
+            qb += eb * eb
+            i = rr(n) if rand() < p else (i + 1) % n
+        ca, cb = cagr_of(pa, years), cagr_of(pb, years)
+        dc.append(ca - cb)
+        va = (qa - sa * sa / n) / (n - 1)
+        vb = (qb - sb * sb / n) / (n - 1)
+        sha = (sa / n) / math.sqrt(va) * ann if va > 0 else 0.0
+        shb = (sb / n) / math.sqrt(vb) * ann if vb > 0 else 0.0
+        ds.append(sha - shb)
+    dc.sort()
+    ds.sort()
+    return {"draws": draws, "block_len": block_len, "seed": seed,
+            "cagr_diff_ci95": [_quantile(dc, 0.025), _quantile(dc, 0.975)],
+            "cagr_diff_median": _quantile(dc, 0.5),
+            "p_cagr_diff_le_0": sum(1 for x in dc if x <= 0) / draws,
+            "sharpe_diff_ci95": [_quantile(ds, 0.025), _quantile(ds, 0.975)],
+            "sharpe_diff_median": _quantile(ds, 0.5),
+            "p_sharpe_diff_le_0": sum(1 for x in ds if x <= 0) / draws}
+
+
+# =================================================================== leak check
+
+def _partial(bar):
+    """Today's bar as a close-auction order sees it: the open, and nothing else."""
+    nan = float("nan")
+    return B.Bar(bar.ts, bar.open, nan, nan, nan, nan)
+
+
+def leak_check(series, factory, log, cal, samples=100, changes=200, seed=0, leverage=1):
+    """
+    replay.leak_check's idea at both auctions: re-decide a sample of the run's
+    decisions on bars TRUNCATED at that auction's information set — at an open
+    auction the bars through close[t-1]; at a close auction those plus a bar
+    for today holding only its open (high, low, close and volume are NaN) — with
+    a FRESH rule from the factory and the held weight the run had, and compare.
+    The view already raises on public access past the information set; this
+    catches the rest: a peek through private attributes, a feature computed
+    once over the whole series, state kept between calls. Every point where the
+    decision changed is checked (up to `changes`), plus `samples` at random.
+    """
+    bars = series.bars
+    rng = random.Random(f"edgelab/{seed}/leak")
+    idx = list(range(len(log)))
+    pick = set(rng.sample(idx, min(samples, len(idx))))
+    flips = [i for i in idx if i > 0 and abs(log[i][4] - log[i - 1][4]) > EPS]
+    if len(flips) > changes:
+        step = len(flips) / changes
+        flips = [flips[int(k * step)] for k in range(changes)]
+    pick |= set(flips)
+    diffs, by = [], {"open": 0, "close": 0}
+    for i in sorted(pick):
+        today, auction, n, held, w = log[i]
+        by[auction] += 1
+        if auction == "close":
+            trunc = tuple(bars[:n]) + (_partial(bars[today]),)
+            v = View(trunc, n, "close", bars[today].ts.date(), bars[today].open, cal, held,
+                     series.symbol, leverage)
+        else:
+            trunc = tuple(bars[:n])
+            v = View(trunc, n, "open", bars[today].ts.date(), None, cal, held, series.symbol,
+                     leverage)
+        rule = factory()
+        try:
+            got = _weight(rule.decide(v), rule, v.date, auction)
+        except Exception as e:                      # a peek that now finds nothing
+            diffs.append({"date": v.date.isoformat(), "auction": auction, "run": w,
+                          "check": f"raised {type(e).__name__}: {e}"})
+            continue
+        if abs(got - w) > EPS:
+            diffs.append({"date": v.date.isoformat(), "auction": auction, "run": w, "check": got})
+    return {"checked": len(pick), "open": by["open"], "close": by["close"], "differences": diffs}
+
+
+# =================================================================== the run
+
+def load(path, symbol=None, source=None, adjusted=None):
+    sym = symbol or symbol_from_path(path)
+    return B.load_csv(path, sym, "1d", source, adjusted)
+
+
+def symbol_from_path(path):
+    return os.path.basename(path).split("-")[0].split(".")[0].upper()
+
+
+def gate(series):
+    """barqc decides whether these bars may be used at all — exactly as everywhere else."""
+    if series.timeframe != "1d":
+        raise Blocked(f"edgelab runs on daily bars; {series.describe()} is {series.timeframe}")
+    qc = barqc.inspect(series)
+    if qc["verdict"] == "blocked":
+        raise Blocked(f"barqc blocked {series.describe()}: {', '.join(qc['failed'])}. "
+                      f"Fix the data first.")
+    return qc
+
+
+def _as_factory(rule):
+    if isinstance(rule, str):
+        return get_rule(rule)
+    if isinstance(rule, Rule):
+        raise TypeError("pass a FACTORY (a callable returning a fresh Rule), not a Rule: the "
+                        "leak check rebuilds the rule for every sample")
+    return rule
+
+
+def run(series, rule, cost_bps_per_side, cash, leverage=1, expense_ratio=None, start=None,
+        end=None, trials=None, sr_var=None, seed=0, placebo_draws=1000, placebo_method="both",
+        boot_draws=1000, block_len=20, leak_samples=100, leak_changes=200):
+    """
+    One rule, one file. `rule` is a registry name or a factory returning a
+    fresh Rule. Raises Blocked (data), ValueError (arguments, or a weight out
+    of range) and LookAhead (a rule that reached past its information set).
+    """
+    factory = _as_factory(rule)
+    if not isinstance(cash, CashRate):
+        cash = CashRate(rate=float(cash))
+    cost_bps_per_side = float(cost_bps_per_side)
+    if not math.isfinite(cost_bps_per_side) or not 0 <= cost_bps_per_side < 1000:
+        raise ValueError(f"cost {cost_bps_per_side} bp per side is not a cost")
+    k = int(leverage)
+    if k != leverage or not 1 <= k <= MAX_LEVERAGE:
+        raise ValueError(f"leverage {leverage}: the modelled instrument is 1x, 2x or 3x")
+    if k > 1:
+        if expense_ratio is None:
+            raise ValueError(f"a {k}x variant needs a stated annual expense ratio (--expense-ratio)")
+        if not math.isfinite(expense_ratio) or not 0 <= expense_ratio < 0.2:
+            raise ValueError(f"expense ratio {expense_ratio} is not an annual decimal")
+    else:
+        expense_ratio = 0.0
+    if placebo_method not in ("shift", "blocks", "both"):
+        raise ValueError("placebo is shift, blocks or both")
+    if trials is not None and int(trials) < 1:
+        raise ValueError("trials counts every specification tried, >= 1")
+    if block_len < 1:
+        raise ValueError("block length is >= 1 session")
+
+    qc = gate(series)
+    bars = series.bars
+    r0 = factory()
+    dates = [b.ts.date() for b in bars]
+    cal = Calendar(dates[0], dates[-1])
+    first = 0 if start is None else bisect.bisect_left(dates, start)
+    s0 = max(r0.warmup, first - 1, 0)
+    last = len(bars) - 1 if end is None else bisect.bisect_right(dates, end) - 1
+    if last - s0 < 3:
+        raise Blocked(f"{series.describe()}: {last - s0} scored session(s) after a warm-up of "
+                      f"{r0.warmup} bar(s) and the requested window — nothing to measure")
+    legs = build_legs(bars, s0, last, cash, k, expense_ratio, cal)
+    w_on, w_id, log = decide_all(series, r0, cal, s0, last, k)
+    cost = cost_bps_per_side / 1e4
+    S = len(w_on)
+    start_date = dates[s0]
+    years = (legs.dates[-1] - start_date).days / 365.25
+
+    s_path = walk(w_on, w_id, legs.i_on, legs.i_id, legs.g_on, cost, detail=True)
+    g_path = walk(w_on, w_id, legs.i_on, legs.i_id, legs.g_on, 0.0)
+    ones = [1.0] * S
+    b_path = walk(ones, ones, legs.r_on, legs.r_id, legs.g_on, cost, detail=True)
+    strategy = score(s_path, legs, start_date, w_on, w_id, k)
+    strategy["gross_final_equity"] = g_path["closes"][-1]
+    strategy["gross_cagr"] = cagr_of(g_path["closes"][-1], years)
+    bl = Legs(legs.t, legs.dates, legs.prev_dates, legs.r_on, legs.r_id, legs.r_on, legs.r_id,
+              legs.g_on, legs.days, legs.gap, 1, [])
+    benchmark = score(b_path, bl, start_date, ones, ones, 1)
+    lev_bh = None
+    if k > 1:
+        lp = walk(ones, ones, legs.i_on, legs.i_id, legs.g_on, cost, detail=True)
+        lev_bh = score(lp, legs, start_date, ones, ones, k)
+
+    res = {
+        "edgelab_version": EDGELAB_VERSION,
+        "rule": r0.name, "rule_doc": r0.doc, "test_only_rule": r0.test_only, "warmup": r0.warmup,
+        "symbol": series.symbol, "path": series.provenance.get("path"),
+        "source": series.provenance.get("source"), "adjusted": series.provenance.get("adjusted"),
+        "qc_verdict": qc["verdict"], "qc_unrun": qc["unrun"],
+        "settings": {"cost_bps_per_side": cost_bps_per_side,
+                     "round_trip_bps": 2 * cost_bps_per_side,
+                     "cash": cash.label, "leverage": k,
+                     "expense_ratio": expense_ratio if k > 1 else None,
+                     "start": start.isoformat() if start else None,
+                     "end": end.isoformat() if end else None,
+                     "trials": trials, "seed": seed, "placebo_draws": placebo_draws,
+                     "placebo_method": placebo_method, "boot_draws": boot_draws,
+                     "block_len": block_len},
+        "conventions": {"cost": f"{cost_bps_per_side:g} bp PER SIDE on traded notional; a round "
+                                f"trip costs {2 * cost_bps_per_side:g} bp. {COST_NOTE}",
+                        "cash": CASH_NOTE, "information": INFO_NOTE,
+                        "annualisation": f"{SESSIONS_PER_YEAR} sessions/yr for volatility and "
+                                         f"Sharpe; calendar years (days/365.25) for CAGR",
+                        "instrument": instrument_note(series.symbol, k, expense_ratio)},
+        "calendar": calendar_report(series, cal),
+        "window": {"start_close": start_date.isoformat(), "first_session": legs.dates[0].isoformat(),
+                   "last_session": legs.dates[-1].isoformat(), "sessions": S, "legs": 2 * S,
+                   "years": years, "warmup_bars": r0.warmup,
+                   "gap_legs_in_window": [d.isoformat() for d, gp in zip(legs.dates, legs.gap) if gp],
+                   "benchmark_first_leg": legs.dates[0].isoformat(),
+                   "benchmark_entry": f"close auction of {start_date.isoformat()}"},
+        "strategy": strategy, "benchmark": benchmark, "leveraged_buy_and_hold": lev_bh,
+        "instrument_wiped_out": legs.wiped,
+        "per_year": per_year(legs, s_path, b_path, w_on, w_id),
+        "halves": halves(legs, start_date, s_path, b_path),
+        "not_modelled": NOT_MODELLED,
+    }
+    res["leak_check"] = leak_check(series, factory, log, cal, leak_samples, leak_changes, seed, k)
+
+    res["placebo"] = {}
+    if placebo_draws:
+        for m in (("shift", "blocks") if placebo_method == "both" else (placebo_method,)):
+            p = placebo(w_on, w_id, legs, cost, years, m, placebo_draws, seed)
+            p.pop("null_cagr")
+            p.pop("null_sharpe")
+            res["placebo"][m] = p
+        ps = [p["p_sharpe"] for p in res["placebo"].values() if p["p_sharpe"] is not None]
+        pc = [p["p_cagr"] for p in res["placebo"].values() if p["p_cagr"] is not None]
+        res["placebo_conservative"] = {"p_cagr": max(pc) if pc else None,
+                                       "p_sharpe": max(ps) if ps else None}
+
+    s_rets = session_returns(s_path["closes"])
+    b_rets = session_returns(b_path["closes"])
+    if trials is not None:
+        res["deflated_sharpe"] = deflated_sharpe_vs(
+            strategy["sharpe_per_session"], benchmark["sharpe_per_session"], S, int(trials),
+            sr_var, strategy["skew"], strategy["kurt"])
+        res["deflated_sharpe"]["trials"] = int(trials)
+    else:
+        res["deflated_sharpe"] = None
+    res["bootstrap"] = bootstrap(s_rets, b_rets, legs.g_on, years, boot_draws, block_len, seed)
+    return res
+
+
+def decompose(series, start=None, end=None):
+    """
+    Buy-and-hold split into its overnight and intraday legs: DESCRIPTIVE — no
+    rule, no cost, no cash. It exists to reproduce EVIDENCE.md "Day run" §C on
+    SPY-1d.csv as a check of the leg arithmetic. On any other file it is NEW
+    information about the overnight leg, which is a test, and it waits for a
+    frozen pre-registration like any other.
+    """
+    gate(series)
+    bars = series.bars
+    dates = [b.ts.date() for b in bars]
+    cal = Calendar(dates[0], dates[-1])
+    first = 0 if start is None else bisect.bisect_left(dates, start)
+    s0 = max(first - 1, 0)
+    last = len(bars) - 1 if end is None else bisect.bisect_right(dates, end) - 1
+    legs = build_legs(bars, s0, last, CashRate(rate=0.0), 1, 0.0, cal)
+
+    def part(lo, hi):
+        on, idr = legs.r_on[lo:hi], legs.r_id[lo:hi]
+        p_on = p_id = 1.0
+        for x in on:
+            p_on *= 1.0 + x
+        for x in idr:
+            p_id *= 1.0 + x
+        a, b = replay._stats(on, SESSIONS_PER_YEAR), replay._stats(idr, SESSIONS_PER_YEAR)
+        return {"from_close": (dates[s0] if lo == 0 else legs.dates[lo - 1]).isoformat(),
+                "to_close": legs.dates[hi - 1].isoformat(), "sessions": hi - lo,
+                "overnight": p_on - 1.0, "intraday": p_id - 1.0, "whole": p_on * p_id - 1.0,
+                "mean_bp_overnight": 1e4 * sum(on) / len(on),
+                "mean_bp_intraday": 1e4 * sum(idr) / len(idr),
+                "sharpe_overnight": a["sharpe"], "sharpe_intraday": b["sharpe"]}
+    S = len(legs.dates)
+    split = dates[s0] + dt.timedelta(days=(legs.dates[-1] - dates[s0]).days // 2)
+    cut = bisect.bisect_right(legs.dates, split)
+    return {"symbol": series.symbol, "path": series.provenance.get("path"),
+            "whole": part(0, S), "split_date": split.isoformat(),
+            "first_half": part(0, cut), "second_half": part(cut, S),
+            "close_to_close_check": bars[last].close / bars[s0].close - 1.0,
+            "gap_legs": [d.isoformat() for d, g in zip(legs.dates, legs.gap) if g],
+            "calendar": calendar_report(series, cal)}
+
+
+def instrument_note(symbol, k, expense_ratio):
+    if k == 1:
+        return f"{symbol} as traded (1x)"
+    return (f"LEVERAGED VARIANT — A MODEL, NOT DATA: a {k}x daily-reset fund built from {symbol}'s "
+            f"bars. Overnight {k}*r_on; intraday {k}*r_id*(1+r_on)/(1+{k}*r_on) (reset at the "
+            f"previous close); close-to-close {k}*r_cc; less {expense_ratio:.2%}/yr expense and "
+            f"financing of {k - 1} x the cash rate, accrued on calendar days on the overnight "
+            f"leg. No tracking error, no swap spread, the ETF's own bars not used.")
+
+
+# =================================================================== rendering
+
+def _p(x, nd=1):
+    return "n/a" if x is None else f"{x * 100:+.{nd}f}%"
+
+
+def _f(x, fmt="{:.2f}"):
+    return "n/a" if x is None else fmt.format(x)
+
+
+def render(r):
+    s, b = r["strategy"], r["benchmark"]
+    st, w = r["settings"], r["window"]
+    L = ["=" * 100,
+         f"EDGELAB v{r['edgelab_version']} · rule {r['rule']} on {r['symbol']} · "
+         f"{os.path.basename(r['path'] or '')}",
+         "=" * 100]
+    if r["test_only_rule"]:
+        L.append("TEST-ONLY RULE — exists for the test suite; its numbers are not a candidate's")
+    L += [f"COST CONVENTION  {st['cost_bps_per_side']:g} bp PER SIDE on traded notional — a round "
+          f"trip (in and out) costs {st['round_trip_bps']:g} bp.",
+          f"                 {COST_NOTE}",
+          f"CASH             {st['cash']}, {CASH_NOTE}",
+          f"INSTRUMENT       {r['conventions']['instrument']}",
+          f"INFORMATION      {INFO_NOTE}",
+          f"DATA             {r['path']} · source {r['source']} · adjusted "
+          f"{ {True: 'yes', False: 'no', None: 'NOT STATED'}[r['adjusted']] } (as stated, not "
+          f"measured) · barqc {r['qc_verdict'].upper()}",
+          "                 " + render_calendar(r["calendar"]).replace("\n", "\n                 "),
+          f"WINDOW           scored from the close auction of {w['start_close']} (warm-up "
+          f"{w['warmup_bars']} bar(s)) to the close of {w['last_session']}: {w['sessions']} "
+          f"sessions, {w['legs']} legs, {w['years']:.2f} years.",
+          f"                 The benchmark buys at that same close auction and is scored over the "
+          f"identical legs."]
+    if w["gap_legs_in_window"]:
+        L.append(f"                 {len(w['gap_legs_in_window'])} scored overnight leg(s) span a "
+                 f"scheduled session with no bar: {', '.join(w['gap_legs_in_window'][:8])}")
+    lk = r["leak_check"]
+    L.append(f"LEAK CHECK       {lk['checked']} decisions re-run on truncated bars with a fresh rule "
+             f"({lk['open']} open, {lk['close']} close): {len(lk['differences'])} difference(s)"
+             + ("" if not lk["differences"] else "  ← NOT A RESULT until this is zero"))
+    for d in lk["differences"][:5]:
+        L.append(f"                   {d['date']} {d['auction']}: run {d['run']} vs check {d['check']}")
+    if r["instrument_wiped_out"]:
+        L.append(f"WIPED OUT        the modelled fund lost everything at the open on "
+                 f"{', '.join(r['instrument_wiped_out'])}")
+    lev = r["leveraged_buy_and_hold"]
+    head = f"{'':34}{'strategy':>16}{'buy & hold':>16}" + (f"{'lev. b&h (model)':>18}" if lev else "")
+    L += ["-" * 100, head]
+
+    def row(label, key, fmt):
+        cells = [fmt(x.get(key)) for x in (s, b) + ((lev,) if lev else ())]
+        return f"{label:<34}" + "".join(f"{c:>16}" for c in cells[:2]) + \
+            (f"{cells[2]:>18}" if lev else "")
+    L += [row("total return (ROI on capital)", "total_return", _p),
+          row("CAGR", "cagr", lambda x: _p(x, 2)),
+          row("volatility (annualised)", "volatility", lambda x: _p(x, 1)),
+          row("Sharpe (excess of cash)", "sharpe", _f),
+          row("Sortino (excess of cash)", "sortino", _f),
+          row("max drawdown", "max_drawdown", _p),
+          row("legs exposed", "exposure_share", lambda x: _p(x, 1).lstrip("+")),
+          row("  overnight legs exposed", "exposure_share_overnight", lambda x: _p(x, 1).lstrip("+")),
+          row("  intraday legs exposed", "exposure_share_intraday", lambda x: _p(x, 1).lstrip("+")),
+          row("mean effective exposure", "mean_exposure", lambda x: _f(x, "{:.3f}")),
+          row("capital-weighted exposure", "capital_weighted_exposure", lambda x: _f(x, "{:.3f}")),
+          row("gross bp per leg per unit exposure", "gross_bp_per_unit_exposure", lambda x: _f(x, "{:+.2f}")),
+          row("net bp per leg per unit exposure", "net_bp_per_unit_exposure", lambda x: _f(x, "{:+.2f}")),
+          row("trades (sides)", "sides", lambda x: _f(x, "{:d}")),
+          row("round trips (entries)", "round_trips", lambda x: _f(x, "{:d}")),
+          row("turnover (x equity per year)", "turnover_per_year", lambda x: _f(x, "{:.1f}")),
+          row("cost paid (x initial capital)", "cost_paid", lambda x: _f(x, "{:.4f}"))]
+    L.append(f"{'max drawdown dates (strategy)':<34}peak {s['peak']} → trough {s['trough']} → "
+             f"recovered {s['recovered']}")
+    L.append(f"{'max drawdown dates (benchmark)':<34}peak {b['peak']} → trough {b['trough']} → "
+             f"recovered {b['recovered']}")
+    L.append(f"{'gross of cost (strategy)':<34}final {s['gross_final_equity']:.4f} vs net "
+             f"{s['final_equity']:.4f}; CAGR {_p(s['gross_cagr'], 2)} gross")
+    L += ["-" * 100, "PER YEAR (strategy, benchmark, difference; legs exposed; sides; cost as % of "
+                     "equity at the year's start)"]
+    for y in r["per_year"]:
+        L.append(f"  {y['year']}  {y['sessions']:>3} sess  {_p(y['strategy']):>8}  "
+                 f"{_p(y['benchmark']):>8}  {_p((y['strategy'] or 0) - (y['benchmark'] or 0)):>8}  "
+                 f"{y['exposure_share']:>6.1%}  {y['sides']:>4}  "
+                 f"{_f(y['cost_pct_of_start_equity'] and 100 * y['cost_pct_of_start_equity'], '{:.3f}')}%")
+    h = r["halves"]
+    L += ["-" * 100, f"HALVES (split at the date midpoint {h['split_date']})"]
+    for name in ("first", "second"):
+        x = h.get(name)
+        if not x:
+            L.append(f"  {name}: too short")
+            continue
+        L.append(f"  {name:<6} {x['from']} → {x['to']} ({x['sessions']} sess)  strategy CAGR "
+                 f"{_p(x['strategy']['cagr'], 2)} Sharpe {_f(x['strategy']['sharpe'])} DD "
+                 f"{_p(x['strategy']['max_drawdown'])}  |  buy&hold CAGR "
+                 f"{_p(x['benchmark']['cagr'], 2)} Sharpe {_f(x['benchmark']['sharpe'])} DD "
+                 f"{_p(x['benchmark']['max_drawdown'])}")
+    L.append("-" * 100)
+    if r["placebo"]:
+        for m, p in r["placebo"].items():
+            if p["degenerate"]:
+                L.append(f"PLACEBO {m:<7} degenerate: every arrangement of this exposure is the "
+                         f"same ({p['unique_arrangements']} unique in {p['draws']} draws) — it has "
+                         f"no timing to test")
+                continue
+            L.append(f"PLACEBO {m:<7} {p['draws']} draws, seed {p['seed']}, "
+                     f"{p['unique_arrangements']} unique arrangements: p(CAGR) = "
+                     f"{p['p_cagr']:.4f}, p(Sharpe) = {p['p_sharpe']:.4f}; null CAGR median "
+                     f"{_p(p['null_cagr_q'][0.5], 2)} [5% {_p(p['null_cagr_q'][0.05], 2)}, 95% "
+                     f"{_p(p['null_cagr_q'][0.95], 2)}], null Sharpe median "
+                     f"{_f(p['null_sharpe_q'][0.5])} [95% {_f(p['null_sharpe_q'][0.95])}]")
+        pc = r.get("placebo_conservative") or {}
+        if len(r["placebo"]) > 1 and pc.get("p_sharpe") is not None:
+            L.append(f"PLACEBO reading  the larger p of the two is the conservative one: p(CAGR) = "
+                     f"{pc['p_cagr']:.4f}, p(Sharpe) = {pc['p_sharpe']:.4f}")
+    else:
+        L.append("PLACEBO          not run (--placebo-draws 0)")
+    ds = r["deflated_sharpe"]
+    if ds and ds["dsr"] is not None:
+        L.append(f"DEFLATED SHARPE  vs the BENCHMARK, {ds['trials']} trials: P(true Sharpe > "
+                 f"buy&hold's) = {ds['dsr']:.4f}; threshold {ds['threshold_per_session'] * math.sqrt(SESSIONS_PER_YEAR):.3f} "
+                 f"annualised = buy&hold {b['sharpe']:.3f} + expected best-of-{ds['trials']} "
+                 f"{ds['sr0'] * math.sqrt(SESSIONS_PER_YEAR):.3f}; z = {ds['z']:.2f}")
+    else:
+        L.append(f"DEFLATED SHARPE  not computed: pass --trials N (every specification ever tried; "
+                 f"{_prior_trials_note()})")
+    bs = r["bootstrap"]
+    if bs:
+        L.append(f"BOOTSTRAP        stationary, mean block {bs['block_len']} sessions, {bs['draws']} "
+                 f"draws, seed {bs['seed']}: CAGR difference 95% CI "
+                 f"[{_p(bs['cagr_diff_ci95'][0], 2)}, {_p(bs['cagr_diff_ci95'][1], 2)}], "
+                 f"P(diff <= 0) = {bs['p_cagr_diff_le_0']:.3f}; Sharpe difference 95% CI "
+                 f"[{bs['sharpe_diff_ci95'][0]:+.3f}, {bs['sharpe_diff_ci95'][1]:+.3f}]")
+    else:
+        L.append("BOOTSTRAP        not run (--boot-draws 0)")
+    L += ["-" * 100, f"NOT MODELLED     {NOT_MODELLED}",
+          "RECORD           nothing is written to the ledger; a run that is a trial needs a row in "
+          "trials.json citing its saved output"]
+    return "\n".join(L)
+
+
+def _prior_trials_note():
+    try:
+        import ledger
+        n, where = ledger.prior_trials()
+        return f"ledger.prior_trials() says {n} before this run ({where})"
+    except Exception as e:                          # a corrupt ledger must not hide the advice
+        return f"ledger.prior_trials() unreadable: {type(e).__name__}"
+
+
+def summary_table(rows):
+    L = [f"{'symbol':<7}{'span':<25}{'sess':>6}{'CAGR s':>9}{'CAGR b':>9}{'Shp s':>7}{'Shp b':>7}"
+         f"{'DD s':>8}{'DD b':>8}{'exp':>6}{'sides':>7}{'leak':>5}{'p plc':>7}{'DSR':>7}"
+         f"   CAGR diff 95% CI", "-" * 132]
+    for x in rows:
+        if x.get("status") != "ok":
+            L.append(f"{x['symbol']:<7}{x['status']}")
+            continue
+        r = x["result"]
+        s, b, w = r["strategy"], r["benchmark"], r["window"]
+        pc = (r.get("placebo_conservative") or {}).get("p_sharpe")
+        ds = (r.get("deflated_sharpe") or {}).get("dsr")
+        bs = r.get("bootstrap")
+        ci = (f"[{_p(bs['cagr_diff_ci95'][0], 2)}, {_p(bs['cagr_diff_ci95'][1], 2)}]" if bs else "n/a")
+        L.append(f"{r['symbol']:<7}{w['start_close'] + ' → ' + w['last_session']:<25}{w['sessions']:>6}"
+                 f"{_p(s['cagr'], 2):>9}{_p(b['cagr'], 2):>9}{_f(s['sharpe']):>7}{_f(b['sharpe']):>7}"
+                 f"{_p(s['max_drawdown']):>8}{_p(b['max_drawdown']):>8}{s['exposure_share']:>6.0%}"
+                 f"{s['sides']:>7}{len(r['leak_check']['differences']):>5}"
+                 f"{_f(pc, '{:.3f}'):>7}{_f(ds, '{:.3f}'):>7}   {ci}")
+    return "\n".join(L)
+
+
+def run_many(paths, rule, symbols=None, sources=None, adjusted=None, **kw):
+    """The same rule on many files. A file barqc blocks is a row that says so, never a gap."""
+    rows = []
+    for i, p in enumerate(paths):
+        sym = (symbols[i] if symbols else None) or symbol_from_path(p)
+        src = sources[i] if sources else None
+        adj = adjusted[i] if adjusted else None
+        try:
+            s = load(p, sym, src, adj)
+            rows.append({"symbol": sym, "status": "ok", "result": run(s, rule, **kw)})
+        except Blocked as e:
+            rows.append({"symbol": sym, "status": f"BLOCKED: {e}"})
+        except (B.Unparseable, B.NoProvenance) as e:
+            rows.append({"symbol": sym, "status": f"REFUSED: {e}"})
+    return rows
+
+
+def _json_safe(r):
+    def conv(o):
+        if isinstance(o, dict):
+            return {str(k): conv(v) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [conv(v) for v in o]
+        if isinstance(o, float) and not math.isfinite(o):
+            return str(o)
+        if isinstance(o, (dt.date, dt.datetime)):
+            return o.isoformat()
+        return o
+    return conv(r)
+
+
+# =================================================================== cli
+
+def _per_file(values, n, what, ap):
+    if not values:
+        return None
+    if len(values) == 1:
+        return values * n
+    if len(values) != n:
+        ap.error(f"give one {what} for all files or one per file ({n})")
+    return values
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--rule", help="a registered rule (see --list-rules)")
+    ap.add_argument("--csv", nargs="+", help="one or more daily bar files")
+    ap.add_argument("--symbol", nargs="+", help="one per file; default: the file name up to its first '-'")
+    ap.add_argument("--source", nargs="+", help="one for all files or one per file; recorded")
+    ap.add_argument("--adjusted", nargs="+", choices=["yes", "no"], help="as stated, never measured")
+    ap.add_argument("--cost-bps-per-side", type=float,
+                    help="REQUIRED. Charged on the traded notional at every auction that trades; "
+                         "a round trip costs twice this")
+    ap.add_argument("--cash-yield", help="REQUIRED. An annual decimal (0.03), or a CSV of date,rate")
+    ap.add_argument("--leverage", type=int, default=1, choices=[1, 2, 3],
+                    help="the instrument: 1 = the file as traded; 2 or 3 = a MODELLED daily-reset fund")
+    ap.add_argument("--expense-ratio", type=float, help="annual, required with --leverage 2 or 3")
+    ap.add_argument("--start", type=dt.date.fromisoformat, help="first session to score (YYYY-MM-DD)")
+    ap.add_argument("--end", type=dt.date.fromisoformat, help="last session to score (YYYY-MM-DD)")
+    ap.add_argument("--trials", type=int, help="every specification ever tried, for the deflated Sharpe")
+    ap.add_argument("--sr-var", type=float, help="override the Sharpe variance used for deflation")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--placebo-draws", type=int, default=1000)
+    ap.add_argument("--placebo", choices=["shift", "blocks", "both"], default="both")
+    ap.add_argument("--boot-draws", type=int, default=1000)
+    ap.add_argument("--block-len", type=float, default=20.0, help="mean block length, sessions")
+    ap.add_argument("--leak-samples", type=int, default=100)
+    ap.add_argument("--out", help="write the full output (text, then JSON) here")
+    ap.add_argument("--allow-test-rule", action="store_true",
+                    help="let a TEST-ONLY rule run on a file (the test suite uses this)")
+    ap.add_argument("--list-rules", action="store_true")
+    ap.add_argument("--calendar-report", action="store_true",
+                    help="bar dates against the scheduled calendar; computes no return")
+    a = ap.parse_args(argv)
+
+    if a.list_rules:
+        for name in sorted(RULES):
+            r = RULES[name]()
+            print(f"{name:<24} warmup {r.warmup:<4} {'TEST ONLY  ' if r.test_only else ''}{r.doc}")
+        return 0
+    if not a.csv:
+        ap.error("--csv is required")
+    n = len(a.csv)
+    if a.symbol and len(a.symbol) != n:
+        ap.error("give one --symbol per --csv file")
+    sources = _per_file(a.source, n, "--source", ap)
+    adj = _per_file(a.adjusted, n, "--adjusted", ap)
+    adj = [{"yes": True, "no": False}[x] for x in adj] if adj else None
+
+    if a.calendar_report:
+        text = []
+        for i, p in enumerate(a.csv):
+            try:
+                s = load(p, a.symbol[i] if a.symbol else None, sources[i] if sources else None,
+                         adj[i] if adj else None)
+            except (B.Unparseable, B.NoProvenance) as e:
+                text.append(f"{p}: REFUSED: {e}")
+                continue
+            qc = barqc.inspect(s)
+            text.append(f"{p} · barqc {qc['verdict'].upper()}\n  "
+                        + render_calendar(calendar_report(s)).replace("\n", "\n  "))
+        out = "\n".join(text)
+        print(out)
+        if a.out:
+            _write(a.out, out)
+        return 0
+
+    if not a.rule:
+        ap.error("--rule is required (or --list-rules / --calendar-report)")
+    if a.cost_bps_per_side is None:
+        ap.error("--cost-bps-per-side is required: no default cost, because the repo has two "
+                 "conventions and a silent one is how they get mixed")
+    if a.cash_yield is None:
+        ap.error("--cash-yield is required (0 is an answer; silence is not)")
+    try:
+        factory = get_rule(a.rule)
+        if factory().test_only and not a.allow_test_rule:
+            ap.error(f"{a.rule} is a TEST-ONLY rule; it exists for test_edgelab.py "
+                     f"(--allow-test-rule to run it anyway)")
+        cash = CashRate.parse(a.cash_yield)
+    except (KeyError, ValueError) as e:
+        print(f"REFUSED: {e}", file=sys.stderr)
+        return 2
+    kw = dict(cost_bps_per_side=a.cost_bps_per_side, cash=cash, leverage=a.leverage,
+              expense_ratio=a.expense_ratio, start=a.start, end=a.end, trials=a.trials,
+              sr_var=a.sr_var, seed=a.seed, placebo_draws=a.placebo_draws,
+              placebo_method=a.placebo, boot_draws=a.boot_draws, block_len=a.block_len,
+              leak_samples=a.leak_samples)
+    try:
+        rows = run_many(a.csv, factory, a.symbol, sources, adj, **kw)
+    except (ValueError, LookAhead) as e:
+        print(f"REFUSED: {type(e).__name__}: {e}", file=sys.stderr)
+        return 2
+    blocks = []
+    if n > 1:
+        blocks.append(f"EDGELAB · rule {a.rule} on {n} files · {a.cost_bps_per_side:g} bp PER SIDE "
+                      f"(a round trip costs {2 * a.cost_bps_per_side:g} bp) · cash {cash.label}\n"
+                      + summary_table(rows))
+    for x in rows:
+        blocks.append(render(x["result"]) if x["status"] == "ok" else f"{x['symbol']}: {x['status']}")
+    text = "\n\n".join(blocks)
+    print(text)
+    if a.out:
+        payload = [{"symbol": x["symbol"], "status": x["status"],
+                    "result": _json_safe(x.get("result"))} for x in rows]
+        _write(a.out, text + "\n\n" + json.dumps({"argv": sys.argv if argv is None else argv,
+                                                  "runs": payload}, indent=1, default=str) + "\n")
+        print(f"\nwrote {a.out}", file=sys.stderr)
+    if any(x["status"] != "ok" for x in rows):
+        return 2
+    if any(x["result"]["leak_check"]["differences"] for x in rows):
+        return 3
+    return 0
+
+
+def _write(path, text):
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
