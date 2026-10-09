@@ -46,6 +46,8 @@ represented in neither cleanly (§4).
 
 ## 2 · The basis, measured rather than asserted
 
+> **Corrected 2026-10-09 (§9).** The conclusion below, that the stooq long files are "the unadjusted ones", holds only after a symbol-specific cutoff. Every stooq file, SPY's included, is distribution back-adjusted with the adjustment on the ex-date open up to that cutoff, and price-only after it. The 2020–26 window measured here lies mostly after the cutoffs. The text is kept as written.
+
 `--adjusted` "records what you tell it; nothing in the pipeline measures it"
 (README). So it was measured. For each symbol holding both a stooq long file
 and an Alpaca short file, over their 1536 common dates:
@@ -345,3 +347,48 @@ rule, and no verdict in EVIDENCE.md is revised by it. The one finding that
 touches a published result — that the long files omit dividends unevenly — is
 recorded as a question for a future pre-registration and deliberately not
 resolved against the existing one.
+
+## 9 · Corrections, 2026-10-09 (found while building the month-end pre-registration)
+
+Each item was measured by the sub-agents of `PREREG-2026-10-09-month-end.md`. Their files are archived under `prereg-2026-10-09/deliberation/`. None changes a published verdict.
+
+**1. The stooq files are back-adjusted up to a cutoff, not unadjusted.**
+- Price ratios against nasdaq.com's official closes for 2016-10 → 2026-09 step at each distribution, on the ex-date's open, until the cutoffs below. After its cutoff, each file is price-only.
+
+  | symbol | cutoff |
+  |---|---|
+  | EFA | 2022-06-09 |
+  | XLF | 2022-09-19 |
+  | IWM | 2022-09-26 |
+  | DIA | 2022-10-21 |
+  | EEM | 2024-12-17 |
+  | SPY | 2025-03-21 |
+  | QQQ | 2025-03-24 |
+  | XLE | 2025-12-22 |
+  | TLT | 2026-04-01 |
+
+- GLD pays nothing and shows no step.
+- Two independent implementations agree on every cutoff (`r1-quartermaster.md` Conclusions 2; `bench/r2/basis-stooq-vs-nasdaq.txt`).
+- Stooq missed two payouts against official lists: TLT 2023-12-14 and QQQ 2023-12-27. SPY's 34 quarterly ex-dates from 2016-12 to 2025-03 are all present.
+- Before 2016-10 there is no unadjusted reference, so completeness there cannot be measured.
+- §2's table is consistent with this: a series price-only for its last years and adjusted before them sits above a total-return series by the later payouts.
+
+**2. `SPY-1d.csv`'s last row (2026-09-02) is an intraday snapshot.** Its volume is 6,128,212 against the official 29,566,220, and its close is 765.595 against 765.16 (`r1-quartermaster.md` Conclusions 1). Score through 2026-09-01.
+
+**3. `SPY-1d-raw.csv` has a placeholder bar and a placeholder volume.**
+- The 2026-04-20 bar reads O = H = L = C = 710.14 with volume 0. The true bar is O 708.78, H 709.91, L 706.14, C 708.72.
+- 2026-04-17 carries a placeholder volume of 9,999,999.
+- barqc reports zero volume but does not block it.
+
+**4. `SPY-1d-agg.csv` is not dividend-adjusted.** README runs it with `--adjusted yes`, but its median close gap to the official close is 0.8–1.3 bp in every year.
+
+**5. Ex-dividend dates fall on calendar-window sessions.**
+- SPY goes ex on the quarterly expiration Friday at all 34 located dates.
+- DIA goes ex on the monthly expiration Friday at all 47.
+- TLT goes ex on the first session of the month: 104 of 113 located, and 185 of 203 in the official list.
+- On any price-only stretch, those sessions carry an artificial overnight drop the size of the payout. A calendar rule must run on a total-return basis or add the payouts back, as `PREREG-2026-10-09-month-end.md` does for SPY's five post-cutoff payouts.
+
+**6. No daily T-bill or cash series is reachable from the cloud sessions.**
+- FRED, the Federal Reserve and home.treasury.gov refuse the connection.
+- nasdaq.com has no bill index, and no dividend history for BIL or SHV (`data/cash/probe-log.txt`).
+- Cash and financing rates must be bracketed, not looked up.
