@@ -1,0 +1,12 @@
+edgelab placebo nulls — size and power on SYNTHETIC bars (power_study.py; no market data)
+rule probe: overnight leg into the first scheduled session of each month; 1 bp per side; 99 draws
+i.i.d. legs, overnight sd 71.3 bp (from EVIDENCE §C: +3.1 bp at Sharpe 0.69), 259 events, 2005-02-25..2026-09-02
+with 99 draws, p < 0.05 <=> observed in the top 4 of 100, so the exact size under no effect is 4.0%
+
+delta/event  reps   shift CAGR  shift Sharpe  blocks CAGR  blocks Sharpe   z of delta (sd/sqrt(events))
+     0 bp     400       0.040         0.035        0.037          0.035     0.00
+     5 bp     100       0.250         0.270        0.230          0.240     1.13
+    10 bp     100       0.640         0.650        0.620          0.590     2.26
+    20 bp     100       1.000         1.000        1.000          1.000     4.51
+
+binomial SE of a 4% rate at 400 reps: 0.0098; at 100 reps: 0.0196

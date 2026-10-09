@@ -1,0 +1,26 @@
+A. Lead's six assumed SPY ex-dates after the stooq cutoff (brief §2)
+   2025-06-20 Fri: T-6 (also T+14 of the previous month-end)
+   2025-09-19 Fri: T-7 (also T+14 of the previous month-end)
+   2025-12-19 Fri: T-7 (also T+15 of the previous month-end)
+   2026-03-20 Fri: T-7 (also T+15 of the previous month-end)
+   2026-06-18 Thu: T-7 (also T+14 of the previous month-end)
+   2026-09-18 Fri: T-8 (also T+13 of the previous month-end)
+
+B. Every ex-date located in round 1 (stooq vs nasdaq, 2016-10..cutover): position vs [T-3, T+3]
+   in-window means T-3..T (k_before <= 3) or T+1..T+3 (k_after <= 3)
+   DIA  n= 47  T-k range for k: min 5 max 10;  in [T-3,T+3]: 0  
+   EEM  n= 18  T-k range for k: min 1 max 16;  in [T-3,T+3]: 1  2021-12-30(T-1)
+   EFA  n= 12  T-k range for k: min 1 max 14;  in [T-3,T+3]: 1  2021-12-30(T-1)
+   IWM  n= 24  T-k range for k: min 2 max 19;  in [T-3,T+3]: 4  2017-07-06(T+3) 2017-09-26(T-3) 2018-07-03(T+2) 2018-09-26(T-2)
+   QQQ  n= 34  T-k range for k: min 4 max 10;  in [T-3,T+3]: 0  
+   SPY  n= 34  T-k range for k: min 5 max 10;  in [T-3,T+3]: 0  
+   TLT  n=113  T-k range for k: min 5 max 22;  in [T-3,T+3]: 104  2016-11-01(T+1) 2016-12-01(T+1) 2017-02-01(T+1) 2017-03-01(T+1) 2017-04-03(T+1) 2017-05-01(T+1) 2017-06-01(T+1) 2017-07-03(T+1) ...
+   XLE  n= 38  T-k range for k: min 1 max 10;  in [T-3,T+3]: 1  2019-12-30(T-1)
+   XLF  n= 24  T-k range for k: min 5 max 10;  in [T-3,T+3]: 0  
+   SPY positions (T-k) histogram: {'T-10': 8, 'T-5': 4, 'T-6': 5, 'T-7': 2, 'T-8': 5, 'T-9': 10}
+   QQQ positions (T-k) histogram: {'T-10': 2, 'T-4': 4, 'T-5': 5, 'T-6': 2, 'T-7': 5, 'T-8': 9, 'T-9': 7}
+
+C. All monthly expirations 1999-2026 (opex-1999-2026.csv): position vs month-end T
+   n = 336; smallest k (latest in month) = T-4 at 2003-11-21, 2008-11-21, 2014-11-21, 2025-11-21
+   largest k (earliest) = T-10;  any in T-3..T: 0
+   k histogram: {4: 4, 5: 38, 6: 49, 7: 48, 8: 55, 9: 76, 10: 66}

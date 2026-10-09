@@ -1,0 +1,97 @@
+T = 5418 sessions; window share p = 0.3339; single-Sharpe SE (round-1 form) = sqrt(1/(T-1))*sqrt(252) = 0.2157
+E[max Z_N]: N=41 2.1992, N=42 2.2087, N=100 2.5306
+
+returns pair                                     corr  SE paired   ratio   dSR for DSR=.5 (N=42)  for DSR=.8    round-1 form .5 / .8
+iid     overlay vs constant (1+p)x              0.943     0.0712    0.33                   0.157       0.217       0.476 / 0.658
+iid     long/flat 1x vs B&H                     0.578     0.1934    0.90                   0.427       0.590       0.476 / 0.658
+iid     B&H vs independent same-law series     -0.008     0.3163    1.47                   0.699       0.965       0.476 / 0.658
+GARCH   overlay vs constant (1+p)x              0.943     0.0704    0.33                   0.156       0.215       0.476 / 0.658
+GARCH   long/flat 1x vs B&H                     0.581     0.1914    0.89                   0.423       0.584       0.476 / 0.658
+GARCH   B&H vs independent same-law series     -0.003     0.3146    1.46                   0.695       0.960       0.476 / 0.658
+
+Block length 10, 5000 resamples, seed 7, circular blocks; dSR in annualised Sharpe units. 'dSR needed' = SE x E[max Z_N] (DSR=0.5) and SE x (E[max Z_N] + 0.8416) (DSR=0.8).
+
+{
+ "T": 5418,
+ "p_window_share": 0.3338870431893688,
+ "se_single_annualised": 0.215685451852155,
+ "E_max_Z": {
+  "41": 2.1992205128938647,
+  "42": 2.208693502883874,
+  "100": 2.5306028932016846
+ },
+ "rows": [
+  {
+   "returns": "iid",
+   "pair": "overlay vs constant (1+p)x",
+   "corr": 0.9427717435054017,
+   "se_paired": 0.0711550292644338,
+   "ratio_to_single": 0.3299018485178506,
+   "dSR_needed_dsr50_N42": 0.15715965083386685,
+   "dSR_needed_dsr80_N42": 0.21704372346281434,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": -0.0631756712054759
+  },
+  {
+   "returns": "iid",
+   "pair": "long/flat 1x vs B&H",
+   "corr": 0.5781457206236617,
+   "se_paired": 0.19338253106120706,
+   "ratio_to_single": 0.8965951546595927,
+   "dSR_needed_dsr50_N42": 0.427122739926127,
+   "dSR_needed_dsr80_N42": 0.5898734780672389,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": -0.30491275574025206
+  },
+  {
+   "returns": "iid",
+   "pair": "B&H vs independent same-law series",
+   "corr": -0.008037132667716284,
+   "se_paired": 0.31631850701171643,
+   "ratio_to_single": 1.466573217133541,
+   "dSR_needed_dsr50_N42": 0.6986506312787052,
+   "dSR_needed_dsr80_N42": 0.9648642867797658,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": 0.09121036895061718
+  },
+  {
+   "returns": "GARCH",
+   "pair": "overlay vs constant (1+p)x",
+   "corr": 0.942759446827671,
+   "se_paired": 0.07040439116498952,
+   "ratio_to_single": 0.32642160405537834,
+   "dSR_needed_dsr50_N42": 0.15550172134060716,
+   "dSR_needed_dsr80_N42": 0.21475405694506236,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": -0.049920892575511355
+  },
+  {
+   "returns": "GARCH",
+   "pair": "long/flat 1x vs B&H",
+   "corr": 0.5814719794613677,
+   "se_paired": 0.19143004959663074,
+   "ratio_to_single": 0.8875427060692507,
+   "dSR_needed_dsr50_N42": 0.42281030680081605,
+   "dSR_needed_dsr80_N42": 0.5839178365413406,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": -0.2898292023785805
+  },
+  {
+   "returns": "GARCH",
+   "pair": "B&H vs independent same-law series",
+   "corr": -0.003361423914663398,
+   "se_paired": 0.3145673718434797,
+   "ratio_to_single": 1.4584542867504335,
+   "dSR_needed_dsr50_N42": 0.6947829104099493,
+   "dSR_needed_dsr80_N42": 0.9595228105534218,
+   "round1_dsr50_N42": 0.4763830561724274,
+   "round1_dsr80_N42": 0.657903932451201,
+   "observed_dSR_this_sample": 0.1660988153912033
+  }
+ ]
+}

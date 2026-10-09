@@ -1,0 +1,1 @@
+python3 -B edgelab.py --rule buy_and_hold --csv bars/SPY-1d.csv --source stooq --adjusted yes --cost-bps-per-side 1 --cash-yield 0.03 --seed 0 --placebo-draws 1000 --boot-draws 1000 --out /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/bench/V4-spy-buy-and-hold-fullsize.txt

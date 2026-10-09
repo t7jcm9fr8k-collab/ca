@@ -533,27 +533,28 @@ ledger.LEDGER = _esc_keep
 
 # The committed trial register: a clone has no out/ledger.json, and the prior
 # count used to fall to 0 there. trials.json holds 37 ledger backtests (a
-# snapshot) and 2 cross-section specs that never reached the ledger.
+# snapshot), 2 cross-section specs and, from 2026-10-09, the month-end overlay
+# (PREREG-2026-10-09-month-end.md): 3 specs that never reached the ledger.
 _reg = json.load(open(ledger.REGISTER))
-check("trials.json totals the 39 trials EVIDENCE.md requires",
-      sum(e["count"] for e in _reg["entries"]) == 39)
+check("trials.json totals the 40 trials: the 39 EVIDENCE.md requires plus the month-end overlay",
+      sum(e["count"] for e in _reg["entries"]) == 40)
 check("every trials.json row cites a saved output that is in the repository",
       all(os.path.exists(os.path.join(os.path.dirname(ledger.REGISTER), e["source"].split(":")[0]))
           for e in _reg["entries"]))
 _led_keep = ledger.LEDGER
 ledger.LEDGER = os.path.join(_tmp, "absent", "ledger.json")
 _pt, _pt_from = ledger.prior_trials()
-check("with no ledger at all the prior count is 39, not 0", _pt == 39 and "trials.json" in _pt_from, _pt_from)
+check("with no ledger at all the prior count is 40, not 0", _pt == 40 and "trials.json" in _pt_from, _pt_from)
 ledger.LEDGER = os.path.join(_tmp, "ledger37.json")
 for _i in range(37):
     ledger.record("backtest", strategy=f"s{_i}", symbol="X")
 _pt, _pt_from = ledger.prior_trials()
-check("a ledger holding the snapshot's 37 adds the 2 off-ledger specs: 39",
-      _pt == 39 and "out/ledger.json" in _pt_from, _pt_from)
+check("a ledger holding the snapshot's 37 adds the 3 off-ledger specs: 40",
+      _pt == 40 and "out/ledger.json" in _pt_from, _pt_from)
 for _i in range(10):
     ledger.record("backtest", strategy=f"t{_i}", symbol="X")
-check("a ledger that has grown to 47 counts 47 + 2, never undercounting the off-ledger rows",
-      ledger.prior_trials()[0] == 49)
+check("a ledger that has grown to 47 counts 47 + 3, never undercounting the off-ledger rows",
+      ledger.prior_trials()[0] == 50)
 _reg_keep = ledger.REGISTER
 ledger.REGISTER = os.path.join(_tmp, "no-register.json")
 check("with no register the count is the ledger's alone", ledger.prior_trials()[0] == 47)

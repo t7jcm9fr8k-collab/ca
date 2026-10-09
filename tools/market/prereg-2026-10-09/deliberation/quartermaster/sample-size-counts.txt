@@ -1,0 +1,9 @@
+Calendar counts inside each data span (sample sizes only; no prices read)
+span                                       sessions month-ends pre-holiday  opex quarter-ends half-days(rule)
+stooq SPY 2005-02-25..2026-09-02               5414        259         195   258           86              45
+stooq long files 2005-02-25..2026-09-04        5416        259         196   258           86              45
+stooq QQQ 1999-03-10..2026-09-04               6916        330         248   330          110              58
+nasdaq.com 2016-10-10..2026-10-08              2513        120          94   120           40              21
+Alpaca/agg 2020-07-27..2026-09-01              1533         74          58    73           24              12
+
+FOMC scheduled statement dates with a date: 111; of which 2005-2016: 95; inside stooq SPY span: 107; inside nasdaq span: 16

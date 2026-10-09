@@ -1,0 +1,22 @@
+garch 0 0 500 200 outc-garch-d0-r0.jsonl within_cycle_circular
+garch 0 500 1000 200 outc-garch-d0-r500.jsonl within_cycle_circular
+regime 0 0 500 200 outc-regime-d0-r0.jsonl within_cycle_circular
+regime 0 500 1000 200 outc-regime-d0-r500.jsonl within_cycle_circular
+iid 0 0 500 200 outc-iid-d0-r0.jsonl within_cycle_circular
+iid 0 500 1000 200 outc-iid-d0-r500.jsonl within_cycle_circular
+garch 40 0 300 200 outc-garch-d40-r0.jsonl within_cycle_circular
+regime 40 0 300 200 outc-regime-d40-r0.jsonl within_cycle_circular
+iid 40 0 300 200 outc-iid-d40-r0.jsonl within_cycle_circular
+garch 80 0 300 200 outc-garch-d80-r0.jsonl within_cycle_circular
+regime 80 0 300 200 outc-regime-d80-r0.jsonl within_cycle_circular
+iid 80 0 300 200 outc-iid-d80-r0.jsonl within_cycle_circular
+garch 20 0 300 200 outc-garch-d20-r0.jsonl within_cycle_circular
+regime 20 0 300 200 outc-regime-d20-r0.jsonl within_cycle_circular
+iid 20 0 300 200 outc-iid-d20-r0.jsonl within_cycle_circular
+garch 10 0 300 200 outc-garch-d10-r0.jsonl within_cycle_circular
+regime 10 0 300 200 outc-regime-d10-r0.jsonl within_cycle_circular
+iid 10 0 300 200 outc-iid-d10-r0.jsonl within_cycle_circular
+iid 20 0 300 200 out-iid-d20-r0b.jsonl
+garch 10 0 300 200 out-garch-d10-r0b.jsonl
+regime 10 0 300 200 out-regime-d10-r0b.jsonl
+iid 10 0 300 200 out-iid-d10-r0b.jsonl

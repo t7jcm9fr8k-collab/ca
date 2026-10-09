@@ -1,0 +1,5 @@
+N=40: E[maxZ]=2.1895; z needed for DSR>=0.80: 3.0311; Phi(3.03-E)=0.7997; Phi(3.37-E)=0.8811
+N=100: E[maxZ]=2.5306; z needed for DSR>=0.80: 3.3722; Phi(3.03-E)=0.6913; Phi(3.37-E)=0.7994
+half of 10 bp/day (5 bp): z=0.98; P(G4 fails)=0.76; P(NULL) >= 0.45 (G3 always passes), ~0.51 if P(G3)=0.8, <= 0.76
+half of 14 bp/day (7 bp): z=1.55; P(G4 fails)=0.55; P(NULL) >= 0.27 (G3 always passes), ~0.32 if P(G3)=0.8, <= 0.55
+no effect: z=-0.46; P(G1 at 2 bp)=0.32; P(G1 at 2 and 5 bp)=0.20 (5 bp shifts z by -0.37)

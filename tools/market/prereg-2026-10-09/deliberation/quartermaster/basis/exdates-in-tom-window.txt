@@ -1,0 +1,10 @@
+Located ex-dividend dates inside a turn-of-month window (session ordinal -2..-1 or +1..+4). Calendar placement only.
+  DIA-1d-long.csv      0 of  47  
+  EEM-1d-long.csv      1 of  18  2021-12-30(+21/-2)
+  EFA-1d-long.csv      1 of  12  2021-12-30(+21/-2)
+  IWM-1d-long.csv      2 of  24  2017-07-06(+3/-18) 2018-07-03(+2/-20)
+  QQQ-1d-long.csv      0 of  34  
+  SPY-1d.csv           0 of  34  
+  TLT-1d-long.csv    104 of 113  2016-11-01(+1/-21) 2016-12-01(+1/-21) 2017-02-01(+1/-19) 2017-03-01(+1/-23) 2017-04-03(+1/-19) 2017-05-01(+1/-22) 2017-06-01(+1/-22) 2017-07-03(+1/-20) 2017-08-01(+1/-23) 2017-09-01(+1/-20) 2017-10-02(+1/-22) 2017-11-01(+1/-21) ...
+  XLE-1d-long.csv      1 of  38  2019-12-30(+20/-2)
+  XLF-1d-long.csv      0 of  24  

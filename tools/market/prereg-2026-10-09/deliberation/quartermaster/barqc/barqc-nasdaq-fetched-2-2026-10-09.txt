@@ -1,0 +1,126 @@
+### EEM-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — EEM 1d: 2513 bars, 2016-10-10 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       2513 bars, 2515 sessions, 2 missing     <= 25 missing   
+       └─ missing 2018-12-05, 2025-01-09; up to 25 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:34:16+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           2513 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/EEM-1d-nasdaq.csv --symbol EEM
+exit=0
+### EFA-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — EFA 1d: 2513 bars, 2016-10-10 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       2513 bars, 2515 sessions, 2 missing     <= 25 missing   
+       └─ missing 2018-12-05, 2025-01-09; up to 25 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:34:22+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           2513 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/EFA-1d-nasdaq.csv --symbol EFA
+exit=0
+### GLD-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — GLD 1d: 2513 bars, 2016-10-10 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       2513 bars, 2515 sessions, 2 missing     <= 25 missing   
+       └─ missing 2018-12-05, 2025-01-09; up to 25 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:34:28+00:00
+ok    volume         1 zero/negative                         0                 (reported, not blocking)
+       └─ halts and thin names produce real zero-volume bars; look, do not assume
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           2513 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/GLD-1d-nasdaq.csv --symbol GLD
+exit=0
+### XLE-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — XLE 1d: 2513 bars, 2016-10-10 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+FAIL  ohlc sanity    1 bad row(s)                            0               
+       └─ first at row 1673 (2023-06-05): O 40.5325 H 40.3075 L 39.615 C 39.685 V 3.78262e+07
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       2513 bars, 2515 sessions, 2 missing     <= 25 missing   
+       └─ missing 2018-12-05, 2025-01-09; up to 25 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:34:33+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           2513 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ohlc sanity
+exit=2
+### XLF-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — XLF 1d: 2513 bars, 2016-10-10 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+FAIL  ohlc sanity    1 bad row(s)                            0               
+       └─ first at row 1673 (2023-06-05): O 32.84 H 32.75 L 32.48 C 32.63 V 5.05314e+07
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       2513 bars, 2515 sessions, 2 missing     <= 25 missing   
+       └─ missing 2018-12-05, 2025-01-09; up to 25 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:34:40+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           2513 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: BLOCKED
+blocked by: ohlc sanity
+exit=2

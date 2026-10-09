@@ -1,0 +1,18 @@
+TLT official distributions (nasdaq.com dividends endpoint): 203 rows, 2002-09-03..2026-10-01
+inside the stooq TLT span 2005-02-25..2026-09-04: 184 distributions
+ex-dates that are not scheduled NYSE sessions: none
+position histogram (T+k for k<=5 after a month-end, else T-k): {'T+1': 185, 'T-0': 2, 'T-2': 1, 'T-3': 3, 'T-4': 2, 'T-5': 2, 'T-7': 2, 'T-8': 2, 'T-9': 1, 'T-10': 3}
+ex-dates inside S2's window (sessions T-2..T, i.e. returns close(T-3)->close(T)): 3 ['2003-12-31', '2004-12-31', '2006-12-27']
+ex-dates inside [T-3, T+3]: 191 (expected: the first-session-of-month ones)
+
+stooq-located TLT events 2016-10..2026-04-01: 113; on an official ex-date: 113; not on one: []
+official ex-dates in the same span: 114; not located as stooq events: ['2023-12-14']
+stooq step minus D/close(t-1): median |diff| 0.22 bp, worst 3.88 bp (2017-08-01)
+
+Distributions after stooq's last TLT adjustment (2026-04-01): the tail stooq/nasdaq carry unadjusted
+   2026-05-01 Fri  $0.315346  T+1  D/close(t-1) 36.83 bp
+   2026-06-01 Mon  $0.335777  T+1  D/close(t-1) 39.15 bp
+   2026-07-01 Wed  $0.318030  T+1  D/close(t-1) 36.80 bp
+   2026-08-03 Mon  $0.330454  T+1  D/close(t-1) 40.18 bp
+   2026-09-01 Tue  $0.314686  T+1  D/close(t-1) 38.13 bp
+   2026-10-01 Thu  $0.311581  T+1  D/close(t-1) 40.06 bp

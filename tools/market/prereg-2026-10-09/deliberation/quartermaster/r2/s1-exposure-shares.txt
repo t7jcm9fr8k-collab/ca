@@ -1,0 +1,4 @@
+S1-SPY: close 2005-03-24 -> close 2026-08-25: scored sessions 5387; in windows 1796 (p-hat sessions 0.3334); calendar days in windows 2648/7824 = 0.3384
+S1 tail bias vs (A) if not patched: p-hat x 139.5 bp = 46.5 bp
+S2-TLT: close 2005-03-28 -> close 2026-08-26: scored sessions 5387; in windows 769 (p-hat sessions 0.1428); calendar days in windows 1012/7821 = 0.1294
+G7-QQQ: close 1999-03-25 -> close 2005-02-22: scored sessions 1485; in windows 497 (p-hat sessions 0.3347); calendar days in windows 721/2161 = 0.3336

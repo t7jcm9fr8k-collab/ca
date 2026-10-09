@@ -1,0 +1,2 @@
+linear    R=2000 B=200: rejection at 0.05 = 0.088; p-value deciles [288, 219, 195, 175, 170, 153, 183, 165, 166, 286]
+circular  R=2000 B=200: rejection at 0.05 = 0.059; p-value deciles [218, 206, 220, 182, 204, 179, 214, 210, 193, 174]

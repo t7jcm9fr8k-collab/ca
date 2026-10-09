@@ -1,0 +1,4 @@
+coverage by session: [1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 5, 4, 3, 2, 1]
+Var(S_0 - centre) = 6.0356; mean over u of Var(S_u - centre) = 4.2311
+sd ratio = 1.1943; one-sided rejection at a nominal 5% = P(Z > 1.6449 / ratio) = 0.0842
+circular (u = 0..L-1, wrapping): every session covered 7 times, so the ratio is exactly 1

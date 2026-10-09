@@ -1,0 +1,10 @@
+2026-10-09T05:30:13+00:00  SHV-dividends  https://api.nasdaq.com/api/quote/SHV/dividends?assetclass=etf
+    OK  rows=0  message='Dividend History for Non-Nasdaq symbols is not available'  status={'rCode': 200, 'bCodeMessage': None, 'developerMessage': None}
+2026-10-09T05:30:19+00:00  TLT-dividends  https://api.nasdaq.com/api/quote/TLT/dividends?assetclass=etf
+    OK  rows=203  message=''  status={'rCode': 200, 'bCodeMessage': None, 'developerMessage': None}
+2026-10-09T05:30:25+00:00  BIL-dividends  https://api.nasdaq.com/api/quote/BIL/dividends?assetclass=etf
+    OK  rows=0  message='Dividend History for Non-Nasdaq symbols is not available'  status={'rCode': 200, 'bCodeMessage': None, 'developerMessage': None}
+2026-10-09T05:30:31+00:00  IRX-index-historical  https://api.nasdaq.com/api/quote/IRX/historical?assetclass=index&fromdate=2016-01-01&limit=9999&todate=2026-10-09
+    OK  rows=0  message=''  status={'rCode': 400, 'bCodeMessage': [{'code': 1001, 'errorMessage': 'Symbol not exists.'}], 'developerMessage': None}
+2026-10-09T05:36:58+00:00  QQQ-dividends  https://api.nasdaq.com/api/quote/QQQ/dividends?assetclass=etf
+    OK rows=58 message=None

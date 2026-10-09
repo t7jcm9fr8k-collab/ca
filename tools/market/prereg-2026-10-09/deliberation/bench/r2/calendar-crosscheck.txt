@@ -1,0 +1,4 @@
+rows 7052, scheduled sessions compared 7052
+mismatches by field: {'session': 0, 'ord_start': 0, 'ord_end': 0, 'n_month': 0, 'quarter_end': 0, 'year_end': 0, 'pre_holiday': 1, 'post_holiday': 2, 'opex': 0}
+examples: [('post_holiday', '2007-01-02', False, True), ('post_holiday', '2007-01-03', True, False), ('pre_holiday', '2026-12-31', False, True)]
+opex rows 336, mismatches 0 []

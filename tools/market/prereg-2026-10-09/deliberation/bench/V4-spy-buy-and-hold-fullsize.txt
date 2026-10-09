@@ -1,0 +1,780 @@
+====================================================================================================
+EDGELAB v1 · rule buy_and_hold on SPY · SPY-1d.csv
+====================================================================================================
+COST CONVENTION  1 bp PER SIDE on traded notional — a round trip (in and out) costs 2 bp.
+                 replay.py charges per fill (= per side, the same as here); nulltest.py charges ONCE per round trip (half this for the same number). Convert before comparing.
+CASH             3.00%/yr constant, accrued on calendar days, all of it on the overnight leg (end-of-day balance; weekends and holidays fall in the overnight leg); intraday legs earn nothing
+INSTRUMENT       SPY as traded (1x)
+INFORMATION      open auction of t sees bars through close[t-1]; close auction of t sees bars through close[t-1] plus open[t]; calendar = the SCHEDULED NYSE calendar (barqc), so an unscheduled closure is not known to the rule
+DATA             /home/user/ca/tools/market/bars/SPY-1d.csv · source stooq · adjusted yes (as stated, not measured) · barqc PASS
+DIVIDENDS        in the prices as stated (total-return): each ex-date's dividend is added back in that day's OVERNIGHT leg, which is where a holder of record earns it
+                 calendar: 5413 bars, 5419 scheduled sessions 2005-02-25 → 2026-09-02; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+                     missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+                     missing 2011-02-17  DATA HOLE
+                     missing 2012-10-29  unscheduled closure: Hurricane Sandy
+                     missing 2012-10-30  unscheduled closure: Hurricane Sandy
+                     missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+                     missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+                     overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+                     overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+                     overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+                     overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+                     overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+                     a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 41 from the end — this harness uses the scheduled ordinal:
+                         18  DATA HOLE
+                          2  file ends mid-month (a bar-counted 'last session' is not one)
+                          2  file starts mid-month
+                         80  unscheduled closure
+                       e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+                       e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+                       e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+                       e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+                       e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+                       e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+                     final bar 2026-09-02: volume 16% of the trailing 20-bar median  POSSIBLY A PARTIAL SESSION — consider --end on the previous session
+WINDOW           scored from the close auction of 2005-02-25 (warm-up 0 bar(s)) to the close of 2026-09-02: 5412 sessions, 10824 legs, 21.52 years.
+                 The benchmark buys at that same close auction and is scored over the identical legs.
+                 5 scored overnight leg(s) span a scheduled session with no bar: 2007-01-03, 2011-02-18, 2012-10-31, 2018-12-06, 2025-01-10
+LEAK CHECK       100 decisions re-run on truncated bars with a fresh rule (43 open, 57 close): 0 difference(s)
+----------------------------------------------------------------------------------------------------
+                                          strategy      buy & hold
+total return (ROI on capital)              +717.0%         +717.0%
+CAGR                                       +10.25%         +10.25%
+volatility (annualised)                      19.0%           19.0%
+Sharpe (excess of cash)                       0.45            0.45
+Sortino (excess of cash)                      0.64            0.64
+max drawdown                                -56.7%          -56.7%
+legs exposed                                100.0%          100.0%
+  overnight legs exposed                    100.0%          100.0%
+  intraday legs exposed                     100.0%          100.0%
+mean effective exposure                      1.000           1.000
+capital-weighted exposure                    1.000           1.000
+gross bp per leg per unit exposure           +2.28           +2.28
+net bp per leg per unit exposure             +2.28           +2.28
+trades (sides)                                   1               1
+round trips (entries)                            1               1
+turnover (x equity per year)                   0.0             0.0
+cost paid (x initial capital)               0.0001          0.0001
+max drawdown dates (strategy)     peak 2007-10-11 open → trough 2009-03-09 open → recovered 2013-01-29 close
+max drawdown dates (benchmark)    peak 2007-10-11 open → trough 2009-03-09 open → recovered 2013-01-29 close
+gross of cost (strategy)          final 8.1712 vs net 8.1703; CAGR +10.26% gross
+----------------------------------------------------------------------------------------------------
+PER YEAR (strategy, benchmark, difference; legs exposed; sides; cost as % of equity at the year's start)
+  2005  214 sess     +2.5%     +2.5%     +0.0%  100.0%     1  0.010%
+  2006  251 sess    +13.7%    +13.7%     +0.0%  100.0%     0  0.000%
+  2007  251 sess     +3.3%     +3.3%     +0.0%  100.0%     0  0.000%
+  2008  253 sess    -38.3%    -38.3%     +0.0%  100.0%     0  0.000%
+  2009  252 sess    +23.5%    +23.5%     +0.0%  100.0%     0  0.000%
+  2010  252 sess    +12.8%    +12.8%     +0.0%  100.0%     0  0.000%
+  2011  251 sess     +1.9%     +1.9%     +0.0%  100.0%     0  0.000%
+  2012  250 sess    +16.0%    +16.0%     +0.0%  100.0%     0  0.000%
+  2013  252 sess    +32.3%    +32.3%     +0.0%  100.0%     0  0.000%
+  2014  252 sess    +13.5%    +13.5%     +0.0%  100.0%     0  0.000%
+  2015  252 sess     +1.2%     +1.2%     +0.0%  100.0%     0  0.000%
+  2016  252 sess    +12.0%    +12.0%     +0.0%  100.0%     0  0.000%
+  2017  251 sess    +21.7%    +21.7%     +0.0%  100.0%     0  0.000%
+  2018  251 sess     -4.6%     -4.6%     +0.0%  100.0%     0  0.000%
+  2019  252 sess    +31.2%    +31.2%     +0.0%  100.0%     0  0.000%
+  2020  253 sess    +18.3%    +18.3%     +0.0%  100.0%     0  0.000%
+  2021  252 sess    +28.7%    +28.7%     +0.0%  100.0%     0  0.000%
+  2022  251 sess    -18.2%    -18.2%     +0.0%  100.0%     0  0.000%
+  2023  250 sess    +26.2%    +26.2%     +0.0%  100.0%     0  0.000%
+  2024  252 sess    +24.9%    +24.9%     +0.0%  100.0%     0  0.000%
+  2025  250 sess    +16.7%    +16.7%     +0.0%  100.0%     0  0.000%
+  2026  168 sess    +12.3%    +12.3%     +0.0%  100.0%     0  0.000%
+----------------------------------------------------------------------------------------------------
+HALVES (split at the date midpoint 2015-11-29)
+  first  2005-02-25 → 2015-11-27 (2707 sess)  strategy CAGR +6.15% Sharpe 0.25 DD -56.5%  |  buy&hold CAGR +6.15% Sharpe 0.25 DD -56.5%
+  second 2015-11-27 → 2026-09-02 (2705 sess)  strategy CAGR +14.51% Sharpe 0.69 DD -33.7%  |  buy&hold CAGR +14.51% Sharpe 0.69 DD -33.7%
+----------------------------------------------------------------------------------------------------
+PLACEBO shift   degenerate: every arrangement of this exposure is the same (1 unique in 1000 draws) — it has no timing to test
+PLACEBO blocks  degenerate: every arrangement of this exposure is the same (1 unique in 1000 draws) — it has no timing to test
+DEFLATED SHARPE  not computed: pass --trials N (every specification ever tried; ledger.prior_trials() says 39 before this run (37 from trials.json, out/ledger.json has 0; +2 recorded only in trials.json))
+BOOTSTRAP        stationary, mean block 20.0 sessions, 1000 draws, seed 0: CAGR difference 95% CI [+0.00%, +0.00%], P(diff <= 0) = 1.000; Sharpe difference 95% CI [+0.000, +0.000]
+----------------------------------------------------------------------------------------------------
+NOT MODELLED     slippage beyond the stated per-side cost; the auction price versus the bar's open/close (on Alpaca IEX files the open and close are IEX prints, not the primary-market auctions MOO/MOC orders receive); auction imbalance and partial fills; order cut-offs (MOC ~15:50 ET, 12:50 on half-days, which this calendar does not mark); taxes; borrow; dividends on files that are not total-return; settlement (T+1) and cash-account good-faith rules; the pattern-day-trader rule, which every same-session round trip (in at the open, out at the close) counts against
+RECORD           nothing is written to the ledger; a run that is a trial needs a row in trials.json citing its saved output
+
+{
+ "argv": [
+  "edgelab.py",
+  "--rule",
+  "buy_and_hold",
+  "--csv",
+  "bars/SPY-1d.csv",
+  "--source",
+  "stooq",
+  "--adjusted",
+  "yes",
+  "--cost-bps-per-side",
+  "1",
+  "--cash-yield",
+  "0.03",
+  "--seed",
+  "0",
+  "--placebo-draws",
+  "1000",
+  "--boot-draws",
+  "1000",
+  "--out",
+  "/tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/bench/V4-spy-buy-and-hold-fullsize.txt"
+ ],
+ "runs": [
+  {
+   "symbol": "SPY",
+   "status": "ok",
+   "result": {
+    "edgelab_version": 1,
+    "rule": "buy_and_hold",
+    "rule_doc": "Fully invested in every leg from the first auction. The benchmark, as a rule.",
+    "test_only_rule": false,
+    "warmup": 0,
+    "symbol": "SPY",
+    "path": "/home/user/ca/tools/market/bars/SPY-1d.csv",
+    "source": "stooq",
+    "adjusted": true,
+    "qc_verdict": "pass",
+    "qc_unrun": [],
+    "settings": {
+     "cost_bps_per_side": 1.0,
+     "round_trip_bps": 2.0,
+     "cash": "3.00%/yr constant",
+     "leverage": 1,
+     "expense_ratio": null,
+     "start": null,
+     "end": null,
+     "trials": null,
+     "seed": 0,
+     "placebo_draws": 1000,
+     "placebo_method": "both",
+     "boot_draws": 1000,
+     "block_len": 20.0
+    },
+    "conventions": {
+     "cost": "1 bp PER SIDE on traded notional; a round trip costs 2 bp. replay.py charges per fill (= per side, the same as here); nulltest.py charges ONCE per round trip (half this for the same number). Convert before comparing.",
+     "cash": "accrued on calendar days, all of it on the overnight leg (end-of-day balance; weekends and holidays fall in the overnight leg); intraday legs earn nothing",
+     "information": "open auction of t sees bars through close[t-1]; close auction of t sees bars through close[t-1] plus open[t]; calendar = the SCHEDULED NYSE calendar (barqc), so an unscheduled closure is not known to the rule",
+     "annualisation": "252 sessions/yr for volatility and Sharpe; calendar years (days/365.25) for CAGR",
+     "instrument": "SPY as traded (1x)",
+     "dividends": "in the prices as stated (total-return): each ex-date's dividend is added back in that day's OVERNIGHT leg, which is where a holder of record earns it"
+    },
+    "calendar": {
+     "first": "2005-02-25",
+     "last": "2026-09-02",
+     "bars": 5413,
+     "scheduled_sessions": 5419,
+     "missing": [
+      {
+       "date": "2007-01-02",
+       "class": "unscheduled closure: national day of mourning (Ford)"
+      },
+      {
+       "date": "2011-02-17",
+       "class": "DATA HOLE"
+      },
+      {
+       "date": "2012-10-29",
+       "class": "unscheduled closure: Hurricane Sandy"
+      },
+      {
+       "date": "2012-10-30",
+       "class": "unscheduled closure: Hurricane Sandy"
+      },
+      {
+       "date": "2018-12-05",
+       "class": "unscheduled closure: national day of mourning (G. H. W. Bush)"
+      },
+      {
+       "date": "2025-01-09",
+       "class": "unscheduled closure: national day of mourning (Carter)"
+      }
+     ],
+     "extra": [],
+     "gap_legs": [
+      {
+       "into": "2007-01-03",
+       "spans": [
+        "2007-01-02"
+       ],
+       "class": "closure"
+      },
+      {
+       "into": "2011-02-18",
+       "spans": [
+        "2011-02-17"
+       ],
+       "class": "DATA HOLE"
+      },
+      {
+       "into": "2012-10-31",
+       "spans": [
+        "2012-10-29",
+        "2012-10-30"
+       ],
+       "class": "closure"
+      },
+      {
+       "into": "2018-12-06",
+       "spans": [
+        "2018-12-05"
+       ],
+       "class": "closure"
+      },
+      {
+       "into": "2025-01-10",
+       "spans": [
+        "2025-01-09"
+       ],
+       "class": "closure"
+      }
+     ],
+     "ordinal_shifts": {
+      "from_start": 61,
+      "from_end": 41,
+      "by_cause": {
+       "file starts mid-month": 2,
+       "unscheduled closure": 80,
+       "DATA HOLE": 18,
+       "file ends mid-month (a bar-counted 'last session' is not one)": 2
+      },
+      "examples": [
+       {
+        "date": "2005-02-25",
+        "bar_counted": [
+         1,
+         -2
+        ],
+        "scheduled": [
+         18,
+         -2
+        ],
+        "cause": "file starts mid-month"
+       },
+       {
+        "date": "2005-02-28",
+        "bar_counted": [
+         2,
+         -1
+        ],
+        "scheduled": [
+         19,
+         -1
+        ],
+        "cause": "file starts mid-month"
+       },
+       {
+        "date": "2007-01-03",
+        "bar_counted": [
+         1,
+         -20
+        ],
+        "scheduled": [
+         2,
+         -20
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-04",
+        "bar_counted": [
+         2,
+         -19
+        ],
+        "scheduled": [
+         3,
+         -19
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-05",
+        "bar_counted": [
+         3,
+         -18
+        ],
+        "scheduled": [
+         4,
+         -18
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-08",
+        "bar_counted": [
+         4,
+         -17
+        ],
+        "scheduled": [
+         5,
+         -17
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-09",
+        "bar_counted": [
+         5,
+         -16
+        ],
+        "scheduled": [
+         6,
+         -16
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-10",
+        "bar_counted": [
+         6,
+         -15
+        ],
+        "scheduled": [
+         7,
+         -15
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-11",
+        "bar_counted": [
+         7,
+         -14
+        ],
+        "scheduled": [
+         8,
+         -14
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-12",
+        "bar_counted": [
+         8,
+         -13
+        ],
+        "scheduled": [
+         9,
+         -13
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-16",
+        "bar_counted": [
+         9,
+         -12
+        ],
+        "scheduled": [
+         10,
+         -12
+        ],
+        "cause": "unscheduled closure"
+       },
+       {
+        "date": "2007-01-17",
+        "bar_counted": [
+         10,
+         -11
+        ],
+        "scheduled": [
+         11,
+         -11
+        ],
+        "cause": "unscheduled closure"
+       }
+      ]
+     },
+     "final_bar": {
+      "date": "2026-09-02",
+      "suspect_partial": true,
+      "volume_ratio": 0.15951866595364705
+     },
+     "holes": [
+      "2011-02-17"
+     ],
+     "closures": [
+      "2007-01-02",
+      "2012-10-29",
+      "2012-10-30",
+      "2018-12-05",
+      "2025-01-09"
+     ]
+    },
+    "window": {
+     "start_close": "2005-02-25",
+     "first_session": "2005-02-28",
+     "last_session": "2026-09-02",
+     "sessions": 5412,
+     "legs": 10824,
+     "years": 21.516769336071185,
+     "warmup_bars": 0,
+     "gap_legs_in_window": [
+      "2007-01-03",
+      "2011-02-18",
+      "2012-10-31",
+      "2018-12-06",
+      "2025-01-10"
+     ],
+     "benchmark_first_leg": "2005-02-28",
+     "benchmark_entry": "close auction of 2005-02-25"
+    },
+    "strategy": {
+     "final_equity": 8.170340728621092,
+     "total_return": 7.170340728621092,
+     "cagr": 0.10254597249100383,
+     "years": 21.516769336071185,
+     "volatility": 0.18959978473083985,
+     "sharpe": 0.4544711258193952,
+     "sharpe_per_session": 0.02862898992803965,
+     "skew": -0.0037381723072679148,
+     "kurt": 18.305486276376122,
+     "sortino": 0.6374567985775492,
+     "max_drawdown": -0.5670330850167651,
+     "peak": "2007-10-11 open",
+     "trough": "2009-03-09 open",
+     "recovered": "2013-01-29 close",
+     "legs": 10824,
+     "legs_exposed": 10824,
+     "exposure_share": 1.0,
+     "exposure_share_overnight": 1.0,
+     "exposure_share_intraday": 1.0,
+     "mean_exposure": 1.0,
+     "capital_weighted_exposure": 1.0,
+     "gross_bp_per_unit_exposure": 2.2834461656030416,
+     "net_bp_per_unit_exposure": 2.2833537783155324,
+     "sides": 1,
+     "round_trips": 1,
+     "open_at_end": true,
+     "turnover_per_year": 0.017752965966745186,
+     "cost_paid": 0.0001,
+     "ruined_at": null,
+     "gross_final_equity": 8.171157844405572,
+     "gross_cagr": 0.10255109688327946
+    },
+    "benchmark": {
+     "final_equity": 8.170340728621092,
+     "total_return": 7.170340728621092,
+     "cagr": 0.10254597249100383,
+     "years": 21.516769336071185,
+     "volatility": 0.18959978473083985,
+     "sharpe": 0.4544711258193952,
+     "sharpe_per_session": 0.02862898992803965,
+     "skew": -0.0037381723072679148,
+     "kurt": 18.305486276376122,
+     "sortino": 0.6374567985775492,
+     "max_drawdown": -0.5670330850167651,
+     "peak": "2007-10-11 open",
+     "trough": "2009-03-09 open",
+     "recovered": "2013-01-29 close",
+     "legs": 10824,
+     "legs_exposed": 10824,
+     "exposure_share": 1.0,
+     "exposure_share_overnight": 1.0,
+     "exposure_share_intraday": 1.0,
+     "mean_exposure": 1.0,
+     "capital_weighted_exposure": 1.0,
+     "gross_bp_per_unit_exposure": 2.2834461656030416,
+     "net_bp_per_unit_exposure": 2.2833537783155324,
+     "sides": 1,
+     "round_trips": 1,
+     "open_at_end": true,
+     "turnover_per_year": 0.017752965966745186,
+     "cost_paid": 0.0001,
+     "ruined_at": null
+    },
+    "leveraged_buy_and_hold": null,
+    "instrument_wiped_out": [],
+    "per_year": [
+     {
+      "year": 2005,
+      "sessions": 214,
+      "strategy": 0.025289478284815203,
+      "benchmark": 0.025289478284815203,
+      "exposure_share": 1.0,
+      "sides": 1,
+      "cost_pct_of_start_equity": 0.0001
+     },
+     {
+      "year": 2006,
+      "sessions": 251,
+      "strategy": 0.1370830163030734,
+      "benchmark": 0.1370830163030734,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2007,
+      "sessions": 251,
+      "strategy": 0.03259675588590816,
+      "benchmark": 0.03259675588590816,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2008,
+      "sessions": 253,
+      "strategy": -0.382789769957006,
+      "benchmark": -0.382789769957006,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2009,
+      "sessions": 252,
+      "strategy": 0.23475534439075862,
+      "benchmark": 0.23475534439075862,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2010,
+      "sessions": 252,
+      "strategy": 0.12834262543169728,
+      "benchmark": 0.12834262543169728,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2011,
+      "sessions": 251,
+      "strategy": 0.019035572242394272,
+      "benchmark": 0.019035572242394272,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2012,
+      "sessions": 250,
+      "strategy": 0.16006114370288071,
+      "benchmark": 0.16006114370288071,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2013,
+      "sessions": 252,
+      "strategy": 0.32327266702130397,
+      "benchmark": 0.32327266702130397,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2014,
+      "sessions": 252,
+      "strategy": 0.134643899802954,
+      "benchmark": 0.134643899802954,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2015,
+      "sessions": 252,
+      "strategy": 0.012342308853935835,
+      "benchmark": 0.012342308853935835,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2016,
+      "sessions": 252,
+      "strategy": 0.11976683477053607,
+      "benchmark": 0.11976683477053607,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2017,
+      "sessions": 251,
+      "strategy": 0.21714692681327175,
+      "benchmark": 0.21714692681327175,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2018,
+      "sessions": 251,
+      "strategy": -0.04569085635626369,
+      "benchmark": -0.04569085635626369,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2019,
+      "sessions": 252,
+      "strategy": 0.31221575745812746,
+      "benchmark": 0.31221575745812746,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2020,
+      "sessions": 253,
+      "strategy": 0.18335809706936268,
+      "benchmark": 0.18335809706936268,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2021,
+      "sessions": 252,
+      "strategy": 0.28732781664834306,
+      "benchmark": 0.28732781664834306,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2022,
+      "sessions": 251,
+      "strategy": -0.18172028536815177,
+      "benchmark": -0.18172028536815177,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2023,
+      "sessions": 250,
+      "strategy": 0.26175843201130333,
+      "benchmark": 0.26175843201130333,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2024,
+      "sessions": 252,
+      "strategy": 0.2488629660343178,
+      "benchmark": 0.2488629660343178,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2025,
+      "sessions": 250,
+      "strategy": 0.16702577170503496,
+      "benchmark": 0.16702577170503496,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     },
+     {
+      "year": 2026,
+      "sessions": 168,
+      "strategy": 0.12270500938526774,
+      "benchmark": 0.12270500938526774,
+      "exposure_share": 1.0,
+      "sides": 0,
+      "cost_pct_of_start_equity": 0.0
+     }
+    ],
+    "halves": {
+     "split_date": "2015-11-29",
+     "first": {
+      "from": "2005-02-25",
+      "to": "2015-11-27",
+      "sessions": 2707,
+      "strategy": {
+       "return": 0.9005237355755136,
+       "cagr": 0.06154396648263827,
+       "sharpe": 0.2505201808221602,
+       "max_drawdown": -0.5647328750103535
+      },
+      "benchmark": {
+       "return": 0.9005237355755136,
+       "cagr": 0.06154396648263827,
+       "sharpe": 0.2505201808221602,
+       "max_drawdown": -0.5647328750103535
+      }
+     },
+     "second": {
+      "from": "2015-11-27",
+      "to": "2026-09-02",
+      "sessions": 2705,
+      "strategy": {
+       "return": 3.2989943117689933,
+       "cagr": 0.14507649196546102,
+       "sharpe": 0.6872463567098651,
+       "max_drawdown": -0.33715385820778543
+      },
+      "benchmark": {
+       "return": 3.2989943117689933,
+       "cagr": 0.14507649196546102,
+       "sharpe": 0.6872463567098651,
+       "max_drawdown": -0.33715385820778543
+      }
+     }
+    },
+    "not_modelled": "slippage beyond the stated per-side cost; the auction price versus the bar's open/close (on Alpaca IEX files the open and close are IEX prints, not the primary-market auctions MOO/MOC orders receive); auction imbalance and partial fills; order cut-offs (MOC ~15:50 ET, 12:50 on half-days, which this calendar does not mark); taxes; borrow; dividends on files that are not total-return; settlement (T+1) and cash-account good-faith rules; the pattern-day-trader rule, which every same-session round trip (in at the open, out at the close) counts against",
+    "leak_check": {
+     "checked": 100,
+     "open": 43,
+     "close": 57,
+     "differences": []
+    },
+    "placebo": {
+     "shift": {
+      "method": "shift",
+      "draws": 1000,
+      "seed": 0,
+      "unique_arrangements": 1,
+      "degenerate": true,
+      "observed_cagr": 0.10254597249100383,
+      "observed_sharpe": 0.4544711258193952,
+      "p_cagr": null,
+      "p_sharpe": null
+     },
+     "blocks": {
+      "method": "blocks",
+      "draws": 1000,
+      "seed": 0,
+      "unique_arrangements": 1,
+      "degenerate": true,
+      "observed_cagr": 0.10254597249100383,
+      "observed_sharpe": 0.4544711258193952,
+      "p_cagr": null,
+      "p_sharpe": null
+     }
+    },
+    "placebo_conservative": {
+     "p_cagr": null,
+     "p_sharpe": null
+    },
+    "deflated_sharpe": null,
+    "bootstrap": {
+     "draws": 1000,
+     "block_len": 20.0,
+     "seed": 0,
+     "cagr_diff_ci95": [
+      0.0,
+      0.0
+     ],
+     "cagr_diff_median": 0.0,
+     "p_cagr_diff_le_0": 1.0,
+     "sharpe_diff_ci95": [
+      0.0,
+      0.0
+     ],
+     "sharpe_diff_median": 0.0,
+     "p_sharpe_diff_le_0": 1.0
+    }
+   }
+  }
+ ]
+}

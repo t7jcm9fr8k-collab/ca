@@ -1,0 +1,2 @@
+observed offsets all zero: True | plan blocks 257 | change lists identical to the rule's: {'within_cycle': True, 'within_cycle_circular': True, 'shift': True, 'blocks': True}
+144 cells (cost x cash x spread x accrual x closes-only x add-backs): largest |identity - observed| over CAGR, both halves and ex-crises = 0.000e+00

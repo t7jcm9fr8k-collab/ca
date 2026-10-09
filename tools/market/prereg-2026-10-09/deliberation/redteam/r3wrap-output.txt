@@ -1,0 +1,5 @@
+L=19: sides/cycle S1 2.000; D7 (no wrap) 1.988; circular 2.354 (exact 2.360); circular extra +0.354 -> 8.5 bp/yr at 2 bp, 21.2 bp/yr at 5 bp
+L=21: sides/cycle S1 2.000; D7 (no wrap) 1.992; circular 2.357 (exact 2.349); circular extra +0.357 -> 8.6 bp/yr at 2 bp, 21.4 bp/yr at 5 bp
+L=23: sides/cycle S1 2.000; D7 (no wrap) 1.994; circular 2.336 (exact 2.336); circular extra +0.336 -> 8.1 bp/yr at 2 bp, 20.1 bp/yr at 5 bp
+placebo cost bias 8.4 bp/yr = 0.043 SD -> size at nominal 0.05: 0.0546
+placebo cost bias 14.0 bp/yr = 0.072 SD -> size at nominal 0.05: 0.0578

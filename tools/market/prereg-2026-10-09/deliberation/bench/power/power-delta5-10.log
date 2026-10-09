@@ -1,0 +1,2 @@
+delta 5 bp: shift_cagr 0.250, shift_sharpe 0.270, blocks_cagr 0.230, blocks_sharpe 0.240 (153s)
+delta 10 bp: shift_cagr 0.640, shift_sharpe 0.650, blocks_cagr 0.620, blocks_sharpe 0.590 (306s)

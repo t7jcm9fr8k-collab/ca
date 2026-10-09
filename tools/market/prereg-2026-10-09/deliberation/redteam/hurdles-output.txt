@@ -1,0 +1,212 @@
+==============================================================================
+1. Deflation hurdle: E[max Z] of N null trials (combine.py:53-63 formula)
+==============================================================================
+N=  39  E[maxZ]=2.179   z needed for DSR>=0.95: 3.824   one-sided p of that z: 6.55e-05   p of E[maxZ] alone: 0.015
+N=  40  E[maxZ]=2.189   z needed for DSR>=0.95: 3.834   one-sided p of that z: 6.29e-05   p of E[maxZ] alone: 0.014
+N=  41  E[maxZ]=2.199   z needed for DSR>=0.95: 3.844   one-sided p of that z: 6.05e-05   p of E[maxZ] alone: 0.014
+N=  42  E[maxZ]=2.209   z needed for DSR>=0.95: 3.854   one-sided p of that z: 5.82e-05   p of E[maxZ] alone: 0.014
+N=  44  E[maxZ]=2.227   z needed for DSR>=0.95: 3.872   one-sided p of that z: 5.40e-05   p of E[maxZ] alone: 0.013
+N=  50  E[maxZ]=2.276   z needed for DSR>=0.95: 3.921   one-sided p of that z: 4.40e-05   p of E[maxZ] alone: 0.011
+N=  60  E[maxZ]=2.345   z needed for DSR>=0.95: 3.990   one-sided p of that z: 3.30e-05   p of E[maxZ] alone: 0.010
+N= 100  E[maxZ]=2.531   z needed for DSR>=0.95: 4.176   one-sided p of that z: 1.49e-05   p of E[maxZ] alone: 0.006
+N= 200  E[maxZ]=2.766   z needed for DSR>=0.95: 4.411   one-sided p of that z: 5.16e-06   p of E[maxZ] alone: 0.003
+
+years in window = 21.48;  SE(annualised Sharpe) ~ 0.216 (SR~0) or 0.235 at SR=0.61
+
+==============================================================================
+2. Sharpe-difference hurdle vs SPY, by exposure f (random-timing corr ~ sqrt(f))
+   SE(dSR) ~ SE(SR)*sqrt(2-2*rho); DSR_bench = Phi(dSR/SE - E[maxZ_N])
+==============================================================================
+N=41 f=0.035 rho~0.19 SE(dSR)~0.300  dSR for DSR>0.5:  0.66   for DSR>=0.95:  1.15   => strategy Sharpe >= 1.27 / 1.76
+N=41 f=0.190 rho~0.44 SE(dSR)~0.250  dSR for DSR>0.5:  0.55   for DSR>=0.95:  0.96   => strategy Sharpe >= 1.16 / 1.57
+N=41 f=0.330 rho~0.57 SE(dSR)~0.217  dSR for DSR>0.5:  0.48   for DSR>=0.95:  0.83   => strategy Sharpe >= 1.09 / 1.44
+N=41 f=0.500 rho~0.71 SE(dSR)~0.180  dSR for DSR>0.5:  0.40   for DSR>=0.95:  0.69   => strategy Sharpe >= 1.01 / 1.30
+N=41 f=0.800 rho~0.89 SE(dSR)~0.108  dSR for DSR>0.5:  0.24   for DSR>=0.95:  0.42   => strategy Sharpe >= 0.85 / 1.03
+N=41 f=0.976 rho~0.99 SE(dSR)~0.037  dSR for DSR>0.5:  0.08   for DSR>=0.95:  0.14   => strategy Sharpe >= 0.69 / 0.75
+
+N=42 f=0.035 rho~0.19 SE(dSR)~0.300  dSR for DSR>0.5:  0.66   for DSR>=0.95:  1.15   => strategy Sharpe >= 1.27 / 1.76
+N=42 f=0.190 rho~0.44 SE(dSR)~0.250  dSR for DSR>0.5:  0.55   for DSR>=0.95:  0.96   => strategy Sharpe >= 1.16 / 1.57
+N=42 f=0.330 rho~0.57 SE(dSR)~0.217  dSR for DSR>0.5:  0.48   for DSR>=0.95:  0.84   => strategy Sharpe >= 1.09 / 1.45
+N=42 f=0.500 rho~0.71 SE(dSR)~0.180  dSR for DSR>0.5:  0.40   for DSR>=0.95:  0.69   => strategy Sharpe >= 1.01 / 1.30
+N=42 f=0.800 rho~0.89 SE(dSR)~0.108  dSR for DSR>0.5:  0.24   for DSR>=0.95:  0.42   => strategy Sharpe >= 0.85 / 1.03
+N=42 f=0.976 rho~0.99 SE(dSR)~0.037  dSR for DSR>0.5:  0.08   for DSR>=0.95:  0.14   => strategy Sharpe >= 0.69 / 0.75
+
+==============================================================================
+3. What share S of ALL the index's arithmetic return must the exposed days carry
+   for an unlevered part-time rule to match buy-and-hold CAGR?  (log-growth approx,
+   same daily variance on exposed days; cost = legs/yr * bp per leg)
+==============================================================================
+B&H: log growth 0.0989, sigma^2/2 0.0184, arithmetic mean mu ~ 0.1174
+pre-holiday standalone   f=0.036 cash=0.0% cost=1bp/leg (9 RT/yr): S >=  0.86  (=  24.2x the average day)
+pre-holiday standalone   f=0.036 cash=0.0% cost=2bp/leg (9 RT/yr): S >=  0.88  (=  24.6x the average day)
+pre-holiday standalone   f=0.036 cash=0.0% cost=5bp/leg (9 RT/yr): S >=  0.93  (=  25.9x the average day)
+pre-holiday standalone   f=0.036 cash=1.5% cost=1bp/leg (9 RT/yr): S >=  0.74  (=  20.7x the average day)
+pre-holiday standalone   f=0.036 cash=1.5% cost=2bp/leg (9 RT/yr): S >=  0.76  (=  21.2x the average day)
+pre-holiday standalone   f=0.036 cash=1.5% cost=5bp/leg (9 RT/yr): S >=  0.80  (=  22.5x the average day)
+pre-holiday standalone   f=0.036 cash=3.0% cost=1bp/leg (9 RT/yr): S >=  0.62  (=  17.3x the average day)
+pre-holiday standalone   f=0.036 cash=3.0% cost=2bp/leg (9 RT/yr): S >=  0.63  (=  17.7x the average day)
+pre-holiday standalone   f=0.036 cash=3.0% cost=5bp/leg (9 RT/yr): S >=  0.68  (=  19.0x the average day)
+
+pre-FOMC standalone      f=0.032 cash=0.0% cost=1bp/leg (8 RT/yr): S >=  0.86  (=  27.1x the average day)
+pre-FOMC standalone      f=0.032 cash=0.0% cost=2bp/leg (8 RT/yr): S >=  0.88  (=  27.6x the average day)
+pre-FOMC standalone      f=0.032 cash=0.0% cost=5bp/leg (8 RT/yr): S >=  0.92  (=  28.9x the average day)
+pre-FOMC standalone      f=0.032 cash=1.5% cost=1bp/leg (8 RT/yr): S >=  0.74  (=  23.2x the average day)
+pre-FOMC standalone      f=0.032 cash=1.5% cost=2bp/leg (8 RT/yr): S >=  0.75  (=  23.7x the average day)
+pre-FOMC standalone      f=0.032 cash=1.5% cost=5bp/leg (8 RT/yr): S >=  0.79  (=  25.0x the average day)
+pre-FOMC standalone      f=0.032 cash=3.0% cost=1bp/leg (8 RT/yr): S >=  0.61  (=  19.3x the average day)
+pre-FOMC standalone      f=0.032 cash=3.0% cost=2bp/leg (8 RT/yr): S >=  0.63  (=  19.8x the average day)
+pre-FOMC standalone      f=0.032 cash=3.0% cost=5bp/leg (8 RT/yr): S >=  0.67  (=  21.1x the average day)
+
+turn-of-month T-1..T+3   f=0.190 cash=0.0% cost=1bp/leg (12 RT/yr): S >=  0.89  (=   4.7x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=0.0% cost=2bp/leg (12 RT/yr): S >=  0.91  (=   4.8x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=0.0% cost=5bp/leg (12 RT/yr): S >=  0.98  (=   5.1x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=1.5% cost=1bp/leg (12 RT/yr): S >=  0.79  (=   4.1x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=1.5% cost=2bp/leg (12 RT/yr): S >=  0.81  (=   4.3x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=1.5% cost=5bp/leg (12 RT/yr): S >=  0.87  (=   4.6x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=3.0% cost=1bp/leg (12 RT/yr): S >=  0.69  (=   3.6x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=3.0% cost=2bp/leg (12 RT/yr): S >=  0.71  (=   3.7x the average day)
+turn-of-month T-1..T+3   f=0.190 cash=3.0% cost=5bp/leg (12 RT/yr): S >=  0.77  (=   4.0x the average day)
+
+TOM wide T-4..T+3        f=0.333 cash=0.0% cost=1bp/leg (12 RT/yr): S >=  0.92  (=   2.7x the average day)
+TOM wide T-4..T+3        f=0.333 cash=0.0% cost=2bp/leg (12 RT/yr): S >=  0.94  (=   2.8x the average day)
+TOM wide T-4..T+3        f=0.333 cash=0.0% cost=5bp/leg (12 RT/yr): S >=  1.00  (=   3.0x the average day)
+TOM wide T-4..T+3        f=0.333 cash=1.5% cost=1bp/leg (12 RT/yr): S >=  0.83  (=   2.5x the average day)
+TOM wide T-4..T+3        f=0.333 cash=1.5% cost=2bp/leg (12 RT/yr): S >=  0.85  (=   2.6x the average day)
+TOM wide T-4..T+3        f=0.333 cash=1.5% cost=5bp/leg (12 RT/yr): S >=  0.91  (=   2.7x the average day)
+TOM wide T-4..T+3        f=0.333 cash=3.0% cost=1bp/leg (12 RT/yr): S >=  0.75  (=   2.2x the average day)
+TOM wide T-4..T+3        f=0.333 cash=3.0% cost=2bp/leg (12 RT/yr): S >=  0.77  (=   2.3x the average day)
+TOM wide T-4..T+3        f=0.333 cash=3.0% cost=5bp/leg (12 RT/yr): S >=  0.83  (=   2.5x the average day)
+
+FOMC-cycle even weeks    f=0.500 cash=0.0% cost=1bp/leg (28 RT/yr): S >=  0.97  (=   1.9x the average day)
+FOMC-cycle even weeks    f=0.500 cash=0.0% cost=2bp/leg (28 RT/yr): S >=  1.02  (=   2.0x the average day)
+FOMC-cycle even weeks    f=0.500 cash=0.0% cost=5bp/leg (28 RT/yr): S >=  1.16  (=   2.3x the average day)
+FOMC-cycle even weeks    f=0.500 cash=1.5% cost=1bp/leg (28 RT/yr): S >=  0.91  (=   1.8x the average day)
+FOMC-cycle even weeks    f=0.500 cash=1.5% cost=2bp/leg (28 RT/yr): S >=  0.95  (=   1.9x the average day)
+FOMC-cycle even weeks    f=0.500 cash=1.5% cost=5bp/leg (28 RT/yr): S >=  1.10  (=   2.2x the average day)
+FOMC-cycle even weeks    f=0.500 cash=3.0% cost=1bp/leg (28 RT/yr): S >=  0.84  (=   1.7x the average day)
+FOMC-cycle even weeks    f=0.500 cash=3.0% cost=2bp/leg (28 RT/yr): S >=  0.89  (=   1.8x the average day)
+FOMC-cycle even weeks    f=0.500 cash=3.0% cost=5bp/leg (28 RT/yr): S >=  1.03  (=   2.1x the average day)
+
+==============================================================================
+4. Published magnitudes, taken at face value, as STANDALONE unlevered rules
+==============================================================================
+pre-FOMC: 8 events x 49 bp = 3.92%/yr gross (Lucca-Moench), vs mu 11.74% -> S = 0.33; needed ~0.76 (section 3)
+pre-holiday at 9x the average day (Ariel 1990 range), 9 days/yr: 3.77%/yr -> S = 0.32; needed ~0.76
+pre-holiday at 14x the average day (Ariel 1990 range), 9 days/yr: 5.87%/yr -> S = 0.50; needed ~0.76
+Both fall far short even before decay: sparse-event rules cannot beat
+buy-and-hold unlevered; they can only be overlays (= leverage on event days).
+exclusion overlay, out 6 days/yr, excluded days 17.0 bp below the average day (+4.7 bp), cash 1.5%: edge ~ +0.58%/yr at 2 bp/leg
+exclusion overlay, out 6 days/yr, excluded days  8.5 bp below the average day (+4.7 bp), cash 1.5%: edge ~ +0.07%/yr at 2 bp/leg
+exclusion overlay, out 6 days/yr, excluded days  0.0 bp below the average day (+4.7 bp), cash 1.5%: edge ~ -0.44%/yr at 2 bp/leg
+
+==============================================================================
+5. Null check: chance a RANDOM-timing unlevered rule beats B&H CAGR over the window
+   (expected shortfall = forgone premium net of drag/cash/cost; noise = sum of
+    returns on the (1-f) idle days relative to expectation)
+==============================================================================
+f=0.035: expected shortfall +8.46%/yr, timing-noise SD of the annual difference 3.53%; P(random beats B&H over 21.5y) ~ 0.0000
+f=0.190: expected shortfall +7.28%/yr, timing-noise SD of the annual difference 7.53%; P(random beats B&H over 21.5y) ~ 0.0000
+f=0.330: expected shortfall +6.10%/yr, timing-noise SD of the annual difference 9.03%; P(random beats B&H over 21.5y) ~ 0.0009
+f=0.500: expected shortfall +5.32%/yr, timing-noise SD of the annual difference 9.60%; P(random beats B&H over 21.5y) ~ 0.0051
+f=0.976: expected shortfall +0.44%/yr, timing-noise SD of the annual difference 2.94%; P(random beats B&H over 21.5y) ~ 0.2431
+
+==============================================================================
+6. Detectability of a timing effect (exposed-day mean minus other-day mean)
+   daily SD = 19.2%/sqrt(252); t = diff / (SD*sqrt(1/n1+1/n0))
+==============================================================================
+TOM 4 days x 12 x 21.5y    n1=  1031  SE(diff)= 4.19 bp/day   diff for t=2:   8.4 bp   for t=3 (HLZ):  12.6 bp   for DSR(N=42)>=0.95:  16.1 bp
+pre-FOMC 8/yr              n1=   172  SE(diff)= 9.38 bp/day   diff for t=2:  18.8 bp   for t=3 (HLZ):  28.1 bp   for DSR(N=42)>=0.95:  36.1 bp
+pre-holiday 9/yr           n1=   193  SE(diff)= 8.86 bp/day   diff for t=2:  17.7 bp   for t=3 (HLZ):  26.6 bp   for DSR(N=42)>=0.95:  34.1 bp
+even weeks (f=0.5)         n1=  2706  SE(diff)= 3.29 bp/day   diff for t=2:   6.6 bp   for t=3 (HLZ):   9.9 bp   for DSR(N=42)>=0.95:  12.7 bp
+
+==============================================================================
+7. Forward paper/live period: years needed for t=2 on an ACTIVE return vs B&H
+==============================================================================
+active edge 1%/yr, tracking error 3%/yr ->    36.0 years for t=2
+active edge 1%/yr, tracking error 8%/yr ->   256.0 years for t=2
+active edge 1%/yr, tracking error 17%/yr ->  1156.0 years for t=2
+active edge 2%/yr, tracking error 3%/yr ->     9.0 years for t=2
+active edge 2%/yr, tracking error 8%/yr ->    64.0 years for t=2
+active edge 2%/yr, tracking error 17%/yr ->   289.0 years for t=2
+active edge 3%/yr, tracking error 3%/yr ->     4.0 years for t=2
+active edge 3%/yr, tracking error 8%/yr ->    28.4 years for t=2
+active edge 3%/yr, tracking error 17%/yr ->   128.4 years for t=2
+
+==============================================================================
+8. Cash: FRED 3-month T-bill annual averages found (investment basis), 11 of 22 years
+==============================================================================
+mean of the 11 years found: 2.63%  -- biased UP: the missing years include
+2011-14, 2016-18 and 2020-21; the fed funds target was 0-0.25% from 2008-12-16 to
+2015-12 and again from 2020-03-15 (end 2022-03 per a search engine's own note).
+idle share 0.81: each 1 pt of cash-rate error moves the rule's CAGR by ~0.81 pt/yr
+idle share 0.50: each 1 pt of cash-rate error moves the rule's CAGR by ~0.50 pt/yr
+
+==============================================================================
+9. Tax illustration (assumptions stated; NOT advice; account type unknown)
+==============================================================================
+same 10.4% pre-tax: rule realised yearly at 24% ST rate -> 7.90%/yr; B&H deferred, 15% LTCG at the end -> 9.67%/yr
+same 10.4% pre-tax: rule realised yearly at 32% ST rate -> 7.07%/yr; B&H deferred, 15% LTCG at the end -> 9.67%/yr
+same 10.4% pre-tax: rule realised yearly at 37% ST rate -> 6.55%/yr; B&H deferred, 15% LTCG at the end -> 9.67%/yr
+
+==============================================================================
+10. Power sketch: what an INTACT (or partly decayed) published effect would score
+    under the proposed gates, 21.5 years, cash 1.5%, 2 bp/leg. Normal approximations;
+    exposed-day variance = average-day variance; independent halves.
+==============================================================================
+TOM T-1..T+3           S=1.00: active +2.23%/yr, TE 17.3%; P(full>B&H) 0.72, P(both halves) 0.44; Sharpe 1.31 vs 0.53, z=2.49; P(DSR>0.5) 0.61, P(DSR>=0.8) 0.29, P(DSR>=0.95) 0.09
+TOM T-1..T+3           S=0.90: active +1.05%/yr, TE 17.3%; P(full>B&H) 0.61, P(both halves) 0.34; Sharpe 1.17 vs 0.53, z=2.14; P(DSR>0.5) 0.47, P(DSR>=0.8) 0.18, P(DSR>=0.95) 0.04
+TOM T-1..T+3           S=0.75: active -0.71%/yr, TE 17.3%; P(full>B&H) 0.42, P(both halves) 0.20; Sharpe 0.96 vs 0.53, z=1.54; P(DSR>0.5) 0.25, P(DSR>=0.8) 0.07, P(DSR>=0.95) 0.01
+TOM T-1..T+3           S=0.50: active -3.64%/yr, TE 17.3%; P(full>B&H) 0.16, P(both halves) 0.06; Sharpe 0.61 vs 0.53, z=0.30; P(DSR>0.5) 0.03, P(DSR>=0.8) 0.00, P(DSR>=0.95) 0.00
+even weeks             S=1.00: active +0.55%/yr, TE 13.6%; P(full>B&H) 0.57, P(both halves) 0.31; Sharpe 0.73 vs 0.53, z=1.04; P(DSR>0.5) 0.12, P(DSR>=0.8) 0.02, P(DSR>=0.95) 0.00
+even weeks             S=0.90: active -0.62%/yr, TE 13.6%; P(full>B&H) 0.42, P(both halves) 0.19; Sharpe 0.64 vs 0.53, z=0.59; P(DSR>0.5) 0.05, P(DSR>=0.8) 0.01, P(DSR>=0.95) 0.00
+even weeks             S=0.75: active -2.38%/yr, TE 13.6%; P(full>B&H) 0.21, P(both halves) 0.08; Sharpe 0.51 vs 0.53, z=-0.13; P(DSR>0.5) 0.01, P(DSR>=0.8) 0.00, P(DSR>=0.95) 0.00
+
+==============================================================================
+11. What a DSR threshold means family-wise: P(best of N null trials clears it)
+==============================================================================
+N=42: DSR>=0.50 <=> z>=2.21; single-trial p=1.36e-02; P(max of 42 nulls clears) ~ 0.437
+N=42: DSR>=0.80 <=> z>=3.05; single-trial p=1.14e-03; P(max of 42 nulls clears) ~ 0.047
+N=42: DSR>=0.95 <=> z>=3.85; single-trial p=5.82e-05; P(max of 42 nulls clears) ~ 0.002
+N=42: Bonferroni one-sided 5% critical z = 3.04
+N=100: DSR>=0.50 <=> z>=2.53; single-trial p=5.69e-03; P(max of 100 nulls clears) ~ 0.435
+N=100: DSR>=0.80 <=> z>=3.37; single-trial p=3.73e-04; P(max of 100 nulls clears) ~ 0.037
+N=100: DSR>=0.95 <=> z>=4.18; single-trial p=1.49e-05; P(max of 100 nulls clears) ~ 0.001
+N=100: Bonferroni one-sided 5% critical z = 3.29
+
+==============================================================================
+12. Event-day OVERLAY = buy-and-hold plus 1x extra on event days (i.e. leverage).
+    Extra leg financed at cash + 1.5%/yr (assumed spread, unverified), 2 bp/leg.
+    Event-day mean = average day + effect. Normal approx; halves independent.
+==============================================================================
+pre-FOMC overlay, 8/yr         eff= 49.0 bp: active +3.70%/yr, TE 3.4%; P(full) 1.00, P(both halves) 1.00; dSR +0.169, z=4.18; P(DSR>=0.8) 0.87
+pre-FOMC overlay, 8/yr         eff= 24.5 bp: active +1.74%/yr, TE 3.4%; P(full) 0.99, P(both halves) 0.91; dSR +0.072, z=1.82; P(DSR>=0.8) 0.11
+pre-FOMC overlay, 8/yr         eff=  0.0 bp: active -0.22%/yr, TE 3.4%; P(full) 0.38, P(both halves) 0.17; dSR -0.026, z=-0.67; P(DSR>=0.8) 0.00
+pre-holiday overlay, 9/yr      eff= 30.0 bp: active +2.45%/yr, TE 3.6%; P(full) 1.00, P(both halves) 0.97; dSR +0.105, z=2.50; P(DSR>=0.8) 0.29
+pre-holiday overlay, 9/yr      eff= 15.0 bp: active +1.10%/yr, TE 3.6%; P(full) 0.92, P(both halves) 0.71; dSR +0.038, z=0.92; P(DSR>=0.8) 0.02
+pre-holiday overlay, 9/yr      eff=  0.0 bp: active -0.25%/yr, TE 3.6%; P(full) 0.38, P(both halves) 0.17; dSR -0.029, z=-0.71; P(DSR>=0.8) 0.00
+
+==============================================================================
+13. Sharpe on RAW returns (replay.py:166-176 has no risk-free subtraction) inflates a
+    part-time rule: raw - excess = c/(sigma*sqrt(f)); bias in (rule - B&H) Sharpe edge
+    = (c/sigma) * (1/sqrt(f) - 1). Same-variance-on-exposed-days approximation.
+==============================================================================
+cash 1.5%  exposure f=0.05: rule inflated by 0.35, B&H by 0.08; spurious Sharpe edge +0.27
+cash 1.5%  exposure f=0.19: rule inflated by 0.18, B&H by 0.08; spurious Sharpe edge +0.10
+cash 1.5%  exposure f=0.33: rule inflated by 0.14, B&H by 0.08; spurious Sharpe edge +0.06
+cash 1.5%  exposure f=0.50: rule inflated by 0.11, B&H by 0.08; spurious Sharpe edge +0.03
+cash 1.5%  exposure f=0.79: rule inflated by 0.09, B&H by 0.08; spurious Sharpe edge +0.01
+cash 3.0%  exposure f=0.05: rule inflated by 0.70, B&H by 0.16; spurious Sharpe edge +0.54
+cash 3.0%  exposure f=0.19: rule inflated by 0.36, B&H by 0.16; spurious Sharpe edge +0.20
+cash 3.0%  exposure f=0.33: rule inflated by 0.27, B&H by 0.16; spurious Sharpe edge +0.12
+cash 3.0%  exposure f=0.50: rule inflated by 0.22, B&H by 0.16; spurious Sharpe edge +0.06
+cash 3.0%  exposure f=0.79: rule inflated by 0.18, B&H by 0.16; spurious Sharpe edge +0.02
+
+==============================================================================
+14. Timing t-stat (exposed-day mean minus other-day mean) for a TOM window carrying
+    share S of all return: exposed-day mean = S*mu_d/f, other = (1-S)*mu_d/(1-f)
+==============================================================================
+S=1.00: diff  24.5 bp/day, SE 4.19 bp -> t = 5.84
+S=0.90: diff  21.4 bp/day, SE 4.19 bp -> t = 5.12
+S=0.75: diff  16.9 bp/day, SE 4.19 bp -> t = 4.04
+S=0.50: diff   9.3 bp/day, SE 4.19 bp -> t = 2.23
+S=0.19: diff  -0.0 bp/day, SE 4.19 bp -> t = -0.00

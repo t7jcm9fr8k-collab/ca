@@ -1,0 +1,3 @@
+h=0.00: mean gap -2.96 pts; tol 0.5 pts: P(pass) 0.34, tol 2 pts: P(pass) 0.44, tol 5 pts: P(pass) 0.64, tol 10 pts: P(pass) 0.89
+h=0.38: mean gap -1.10 pts; tol 0.5 pts: P(pass) 0.44, tol 2 pts: P(pass) 0.55, tol 5 pts: P(pass) 0.76, tol 10 pts: P(pass) 0.95
+h=1.00: mean gap +1.84 pts; tol 0.5 pts: P(pass) 0.67, tol 2 pts: P(pass) 0.74, tol 5 pts: P(pass) 0.88, tol 10 pts: P(pass) 0.99

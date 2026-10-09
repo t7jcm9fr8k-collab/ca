@@ -1,0 +1,2797 @@
+stooq vs nasdaq official — price ratios only (no returns, no rule). Steps = persistent >4 bp moves in ln(stooq_close/nasdaq_close).
+sym   common  span                    steps post pre  first step  last step    |gap| after last (med/max bp)  open basis med bp
+TLT     2489  2016-10-10→2026-09-04     117  115   2  2016-11-01  2026-04-01            0.00 /     0.00              0.132
+SPY     2487  2016-10-10→2026-09-02      34   34   0  2016-12-16  2025-03-21            0.00 /     5.68              0.052
+QQQ     2489  2016-10-10→2026-09-04      35   34   1  2016-12-16  2025-03-24            0.00 /     1.50              0.059
+DIA     2489  2016-10-10→2026-09-04      47   47   0  2016-10-21  2022-10-21            0.00 /     1.43              0.030
+EFA     2489  2016-10-10→2026-09-04      12   12   0  2016-12-21  2022-06-09            0.00 /     0.00              0.019
+IWM     2489  2016-10-10→2026-09-04      24   24   0  2016-12-22  2022-09-26            0.00 /     7.50              0.081
+XLF     2489  2016-10-10→2026-09-04      26   25   1  2016-12-16  2022-09-19            0.00 /    12.87              0.096
+XLE     2489  2016-10-10→2026-09-04      40   39   1  2016-12-16  2025-12-22            0.00 /     0.00              0.079
+EEM     2489  2016-10-10→2026-09-04      18   18   0  2016-12-21  2024-12-17            0.00 /     0.00              0.030
+GLD     2489  2016-10-10→2026-09-04       0    0   0  None        None                  0.00 /     0.00              0.000
+
+median close gap by year, bp (stooq/nasdaq − 1; negative = stooq back-adjusted below the official price):
+  TLT  2016:-2586.5  2017:-2419.5  2018:-2164.3  2019:-1897.8  2020:-1709.2  2021:-1565.3  2022:-1394.6  2023:-1104.2  2024:-751.7  2025:-332.6  2026:+0.0
+  SPY  2016:-1414.3  2017:-1264.3  2018:-1078.9  2019:-883.0  2020:-685.1  2021:-536.9  2022:-395.3  2023:-233.2  2024:-94.2  2025:+0.0  2026:+0.0
+  QQQ  2016:-618.4  2017:-541.9  2018:-460.4  2019:-373.8  2020:-291.9  2021:-234.9  2022:-179.7  2023:-108.6  2024:-45.0  2025:+0.0  2026:+0.0
+  DIA  2016:-753.7  2017:-604.0  2018:-396.1  2019:-174.5  2020:-50.1  2021:-30.8  2022:-10.2  2023:+0.0  2024:+0.0  2025:+0.0  2026:+0.0
+  EFA  2016:-1609.9  2017:-1346.6  2018:-1045.4  2019:-724.0  2020:-471.1  2021:-239.4  2022:+0.0  2023:+0.0  2024:+0.0  2025:+0.0  2026:+0.0
+  IWM  2016:-761.3  2017:-690.2  2018:-561.7  2019:-405.9  2020:-261.9  2021:-158.2  2022:-51.5  2023:+0.0  2024:+0.0  2025:+0.0  2026:+0.0
+  XLF  2016:-1163.4  2017:-1044.9  2018:-879.3  2019:-674.1  2020:-424.5  2021:-232.8  2022:-51.6  2023:+0.0  2024:+0.0  2025:+0.0  2026:+0.0
+  XLE  2016:-3867.8  2017:-3686.9  2018:-3351.4  2019:-3021.2  2020:-2186.9  2021:-1683.6  2022:-1226.9  2023:-824.0  2024:-494.5  2025:-169.8  2026:+0.0
+  EEM  2016:-1840.2  2017:-1680.7  2018:-1464.5  2019:-1240.7  2020:-1032.3  2021:-885.7  2022:-653.1  2023:-423.6  2024:-167.5  2025:+0.0  2026:+0.0
+  GLD  2016:+0.0  2017:+0.0  2018:+0.0  2019:+0.0  2020:+0.0  2021:+0.0  2022:+0.0  2023:+0.0  2024:+0.0  2025:+0.0  2026:+0.0
+
+[
+ {
+  "symbol": "TLT",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 117,
+  "post": 115,
+  "pre": 2,
+  "first_step": "2016-11-01",
+  "last_step": "2026-04-01",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 0.0,
+  "median_close_gap_bp_by_year": {
+   "2016": -2586.54,
+   "2017": -2419.53,
+   "2018": -2164.34,
+   "2019": -1897.78,
+   "2020": -1709.21,
+   "2021": -1565.31,
+   "2022": -1394.64,
+   "2023": -1104.21,
+   "2024": -751.66,
+   "2025": -332.65,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.13249711664886643,
+  "share_open_basis_over_5bp": 0.002008838891120932,
+  "steps_detail": [
+   {
+    "date": "2016-11-01",
+    "step_bp": 19.09341239675566,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2739361177883648,
+    "open_minus_oldclose_bp": 18.819476278967294
+   },
+   {
+    "date": "2016-12-01",
+    "step_bp": 21.92709887582245,
+    "open": "post",
+    "open_minus_newclose_bp": 1.267936879326692,
+    "open_minus_oldclose_bp": 23.195035755149142
+   },
+   {
+    "date": "2016-12-22",
+    "step_bp": 26.05274413545522,
+    "open": "post",
+    "open_minus_newclose_bp": -2.1960377521390573,
+    "open_minus_oldclose_bp": 23.856706383316162
+   },
+   {
+    "date": "2017-02-01",
+    "step_bp": 23.071741259372835,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 23.071741259372835
+   },
+   {
+    "date": "2017-03-01",
+    "step_bp": 18.067495364437193,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5445935176523475,
+    "open_minus_oldclose_bp": 18.612088882089537
+   },
+   {
+    "date": "2017-04-03",
+    "step_bp": 21.603731759126944,
+    "open": "post",
+    "open_minus_newclose_bp": -0.9240966502893633,
+    "open_minus_oldclose_bp": 20.67963510883758
+   },
+   {
+    "date": "2017-04-27",
+    "step_bp": 4.199086361405813,
+    "open": "pre",
+    "open_minus_newclose_bp": -4.038488427848542,
+    "open_minus_oldclose_bp": 0.1605979335572716
+   },
+   {
+    "date": "2017-04-28",
+    "step_bp": -6.716546238279831,
+    "open": "post",
+    "open_minus_newclose_bp": 2.645782906331162,
+    "open_minus_oldclose_bp": -4.070763331948668
+   },
+   {
+    "date": "2017-05-01",
+    "step_bp": 22.825153084765905,
+    "open": "post",
+    "open_minus_newclose_bp": 0.058715206625592486,
+    "open_minus_oldclose_bp": 22.883868291391497
+   },
+   {
+    "date": "2017-06-01",
+    "step_bp": 21.02120787887296,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5309378108564466,
+    "open_minus_oldclose_bp": 20.490270068016514
+   },
+   {
+    "date": "2017-06-02",
+    "step_bp": 4.184151575928052,
+    "open": "post",
+    "open_minus_newclose_bp": 0.9473366887105539,
+    "open_minus_oldclose_bp": 5.131488264638606
+   },
+   {
+    "date": "2017-07-03",
+    "step_bp": 19.78447834647512,
+    "open": "post",
+    "open_minus_newclose_bp": 1.1201383866277226,
+    "open_minus_oldclose_bp": 20.90461673310284
+   },
+   {
+    "date": "2017-07-06",
+    "step_bp": -5.979008535376417,
+    "open": "pre",
+    "open_minus_newclose_bp": 3.422411135118042,
+    "open_minus_oldclose_bp": -2.556597400258376
+   },
+   {
+    "date": "2017-08-01",
+    "step_bp": 25.50520857969335,
+    "open": "post",
+    "open_minus_newclose_bp": -4.408042545658852,
+    "open_minus_oldclose_bp": 21.097166034034498
+   },
+   {
+    "date": "2017-09-01",
+    "step_bp": 22.00425624867941,
+    "open": "post",
+    "open_minus_newclose_bp": -1.4465424284229589,
+    "open_minus_oldclose_bp": 20.557713820256453
+   },
+   {
+    "date": "2017-10-02",
+    "step_bp": 19.469783365571313,
+    "open": "post",
+    "open_minus_newclose_bp": 0.6444554918721979,
+    "open_minus_oldclose_bp": 20.11423885744351
+   },
+   {
+    "date": "2017-11-01",
+    "step_bp": 22.301797722566185,
+    "open": "post",
+    "open_minus_newclose_bp": -0.904243701549956,
+    "open_minus_oldclose_bp": 21.39755402101623
+   },
+   {
+    "date": "2017-12-01",
+    "step_bp": 19.460502536039204,
+    "open": "post",
+    "open_minus_newclose_bp": -0.41950231630449863,
+    "open_minus_oldclose_bp": 19.041000219734705
+   },
+   {
+    "date": "2017-12-21",
+    "step_bp": 19.289351444857218,
+    "open": "post",
+    "open_minus_newclose_bp": 1.2696388925603763,
+    "open_minus_oldclose_bp": 20.558990337417594
+   },
+   {
+    "date": "2018-02-01",
+    "step_bp": 18.52352426649967,
+    "open": "post",
+    "open_minus_newclose_bp": 1.8671683333851274,
+    "open_minus_oldclose_bp": 20.390692599884797
+   },
+   {
+    "date": "2018-03-01",
+    "step_bp": 18.482866745101468,
+    "open": "post",
+    "open_minus_newclose_bp": 1.2180501098041363,
+    "open_minus_oldclose_bp": 19.700916854905604
+   },
+   {
+    "date": "2018-04-02",
+    "step_bp": 21.726108207738847,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05936704973952267,
+    "open_minus_oldclose_bp": 21.666741157999326
+   },
+   {
+    "date": "2018-05-01",
+    "step_bp": 22.266619948181354,
+    "open": "post",
+    "open_minus_newclose_bp": -0.9969193878164861,
+    "open_minus_oldclose_bp": 21.269700560364868
+   },
+   {
+    "date": "2018-06-01",
+    "step_bp": 20.536892686532916,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5462179691206881,
+    "open_minus_oldclose_bp": 21.083110655653602
+   },
+   {
+    "date": "2018-07-02",
+    "step_bp": 22.388109893005936,
+    "open": "post",
+    "open_minus_newclose_bp": 0.21983281735415972,
+    "open_minus_oldclose_bp": 22.607942710360096
+   },
+   {
+    "date": "2018-08-01",
+    "step_bp": 22.48157181535204,
+    "open": "post",
+    "open_minus_newclose_bp": -1.092491473080326,
+    "open_minus_oldclose_bp": 21.389080342271715
+   },
+   {
+    "date": "2018-09-04",
+    "step_bp": 21.54426505096868,
+    "open": "post",
+    "open_minus_newclose_bp": -0.561704533534324,
+    "open_minus_oldclose_bp": 20.982560517434358
+   },
+   {
+    "date": "2018-10-01",
+    "step_bp": 23.216652833143726,
+    "open": "post",
+    "open_minus_newclose_bp": -0.09796630147856922,
+    "open_minus_oldclose_bp": 23.118686531665155
+   },
+   {
+    "date": "2018-11-01",
+    "step_bp": 24.289613753527007,
+    "open": "post",
+    "open_minus_newclose_bp": 0.6354901928340428,
+    "open_minus_oldclose_bp": 24.925103946361048
+   },
+   {
+    "date": "2018-12-03",
+    "step_bp": 24.79640206626943,
+    "open": "post",
+    "open_minus_newclose_bp": -2.637483111196104,
+    "open_minus_oldclose_bp": 22.158918955073325
+   },
+   {
+    "date": "2018-12-18",
+    "step_bp": 25.210551097316902,
+    "open": "post",
+    "open_minus_newclose_bp": -1.2368592873313045,
+    "open_minus_oldclose_bp": 23.9736918099856
+   },
+   {
+    "date": "2019-02-01",
+    "step_bp": 23.22226626800844,
+    "open": "post",
+    "open_minus_newclose_bp": -0.9329157691334578,
+    "open_minus_oldclose_bp": 22.28935049887498
+   },
+   {
+    "date": "2019-03-01",
+    "step_bp": 20.018628922333082,
+    "open": "post",
+    "open_minus_newclose_bp": 1.2716152126210356,
+    "open_minus_oldclose_bp": 21.29024413495412
+   },
+   {
+    "date": "2019-04-01",
+    "step_bp": 21.631516176479902,
+    "open": "post",
+    "open_minus_newclose_bp": 1.5280559859981446,
+    "open_minus_oldclose_bp": 23.15957216247805
+   },
+   {
+    "date": "2019-05-01",
+    "step_bp": 21.133554000780652,
+    "open": "post",
+    "open_minus_newclose_bp": -0.19627855853604492,
+    "open_minus_oldclose_bp": 20.93727544224461
+   },
+   {
+    "date": "2019-06-03",
+    "step_bp": 20.644476880372352,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5989273224479841,
+    "open_minus_oldclose_bp": 21.243404202820336
+   },
+   {
+    "date": "2019-07-01",
+    "step_bp": 18.995941976812368,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5504558308588869,
+    "open_minus_oldclose_bp": 19.546397807671255
+   },
+   {
+    "date": "2019-08-01",
+    "step_bp": 19.07489852241373,
+    "open": "post",
+    "open_minus_newclose_bp": -0.29377487372889144,
+    "open_minus_oldclose_bp": 18.78112364868484
+   },
+   {
+    "date": "2019-09-03",
+    "step_bp": 18.344499752968314,
+    "open": "post",
+    "open_minus_newclose_bp": -0.19366793686886874,
+    "open_minus_oldclose_bp": 18.150831816099444
+   },
+   {
+    "date": "2019-10-01",
+    "step_bp": 15.67067706424563,
+    "open": "post",
+    "open_minus_newclose_bp": 1.378940281713814,
+    "open_minus_oldclose_bp": 17.049617345959444
+   },
+   {
+    "date": "2019-11-01",
+    "step_bp": 19.105738040542665,
+    "open": "post",
+    "open_minus_newclose_bp": 0.19920517137533844,
+    "open_minus_oldclose_bp": 19.304943211918
+   },
+   {
+    "date": "2019-12-02",
+    "step_bp": 15.367271068638388,
+    "open": "post",
+    "open_minus_newclose_bp": 1.0302062398234724,
+    "open_minus_oldclose_bp": 16.39747730846186
+   },
+   {
+    "date": "2019-12-19",
+    "step_bp": 16.14290326171136,
+    "open": "post",
+    "open_minus_newclose_bp": -0.18748970402937548,
+    "open_minus_oldclose_bp": 15.955413557681986
+   },
+   {
+    "date": "2020-02-03",
+    "step_bp": 17.15849880896403,
+    "open": "post",
+    "open_minus_newclose_bp": -0.723825787809218,
+    "open_minus_oldclose_bp": 16.43467302115481
+   },
+   {
+    "date": "2020-03-02",
+    "step_bp": 16.36054619675642,
+    "open": "post",
+    "open_minus_newclose_bp": -1.0389628304177667,
+    "open_minus_oldclose_bp": 15.321583366338654
+   },
+   {
+    "date": "2020-04-01",
+    "step_bp": 14.639652764405486,
+    "open": "post",
+    "open_minus_newclose_bp": -0.16085634066798082,
+    "open_minus_oldclose_bp": 14.478796423737506
+   },
+   {
+    "date": "2020-05-01",
+    "step_bp": 12.742161201637071,
+    "open": "post",
+    "open_minus_newclose_bp": -0.39803900890811317,
+    "open_minus_oldclose_bp": 12.344122192728957
+   },
+   {
+    "date": "2020-06-01",
+    "step_bp": 12.565644960508271,
+    "open": "post",
+    "open_minus_newclose_bp": 0.33355639222049094,
+    "open_minus_oldclose_bp": 12.899201352728761
+   },
+   {
+    "date": "2020-07-01",
+    "step_bp": 12.086223927204598,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5672620362415226,
+    "open_minus_oldclose_bp": 11.518961890963075
+   },
+   {
+    "date": "2020-08-03",
+    "step_bp": 10.68405796516264,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5482635246098488,
+    "open_minus_oldclose_bp": 10.135794440552793
+   },
+   {
+    "date": "2020-09-01",
+    "step_bp": 11.252487583654492,
+    "open": "post",
+    "open_minus_newclose_bp": -0.1329229729751802,
+    "open_minus_oldclose_bp": 11.119564610679312
+   },
+   {
+    "date": "2020-10-01",
+    "step_bp": 10.103389953284857,
+    "open": "post",
+    "open_minus_newclose_bp": -0.010351100075411956,
+    "open_minus_oldclose_bp": 10.093038853209446
+   },
+   {
+    "date": "2020-11-02",
+    "step_bp": 11.393603515910955,
+    "open": "post",
+    "open_minus_newclose_bp": -0.11872367476517542,
+    "open_minus_oldclose_bp": 11.27487984114578
+   },
+   {
+    "date": "2020-12-01",
+    "step_bp": 9.778349454089563,
+    "open": "post",
+    "open_minus_newclose_bp": 0.6097822521061724,
+    "open_minus_oldclose_bp": 10.388131706195736
+   },
+   {
+    "date": "2020-12-17",
+    "step_bp": 10.193203960976172,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5781941284449532,
+    "open_minus_oldclose_bp": 10.771398089421124
+   },
+   {
+    "date": "2021-02-01",
+    "step_bp": 11.935302783193935,
+    "open": "post",
+    "open_minus_newclose_bp": -0.17158282776041922,
+    "open_minus_oldclose_bp": 11.763719955433515
+   },
+   {
+    "date": "2021-03-01",
+    "step_bp": 11.39564774585905,
+    "open": "post",
+    "open_minus_newclose_bp": 1.4310007007001246,
+    "open_minus_oldclose_bp": 12.826648446559174
+   },
+   {
+    "date": "2021-04-01",
+    "step_bp": 14.21706823618807,
+    "open": "post",
+    "open_minus_newclose_bp": -0.304231599294047,
+    "open_minus_oldclose_bp": 13.91283663689402
+   },
+   {
+    "date": "2021-05-03",
+    "step_bp": 14.756148659597345,
+    "open": "post",
+    "open_minus_newclose_bp": 0.2111120335604455,
+    "open_minus_oldclose_bp": 14.96726069315779
+   },
+   {
+    "date": "2021-06-01",
+    "step_bp": 14.424961628129173,
+    "open": "post",
+    "open_minus_newclose_bp": 0.3451001649251717,
+    "open_minus_oldclose_bp": 14.770061793054346
+   },
+   {
+    "date": "2021-07-01",
+    "step_bp": 13.207473865533004,
+    "open": "post",
+    "open_minus_newclose_bp": -0.12303204387359434,
+    "open_minus_oldclose_bp": 13.084441821659409
+   },
+   {
+    "date": "2021-08-02",
+    "step_bp": 12.614258194609263,
+    "open": "post",
+    "open_minus_newclose_bp": 0.08798363192091818,
+    "open_minus_oldclose_bp": 12.70224182653018
+   },
+   {
+    "date": "2021-09-01",
+    "step_bp": 12.750131226636208,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0976851786330113,
+    "open_minus_oldclose_bp": 12.847816405269219
+   },
+   {
+    "date": "2021-10-01",
+    "step_bp": 12.190272629701848,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5764762908247456,
+    "open_minus_oldclose_bp": 12.766748920526593
+   },
+   {
+    "date": "2021-11-01",
+    "step_bp": 13.110573280704084,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0035313440313600175,
+    "open_minus_oldclose_bp": 13.114104624735445
+   },
+   {
+    "date": "2021-12-01",
+    "step_bp": 12.318342450488851,
+    "open": "post",
+    "open_minus_newclose_bp": -0.8258496671986748,
+    "open_minus_oldclose_bp": 11.492492783290176
+   },
+   {
+    "date": "2021-12-16",
+    "step_bp": 11.421074887729421,
+    "open": "post",
+    "open_minus_newclose_bp": -0.15829020835578245,
+    "open_minus_oldclose_bp": 11.262784679373638
+   },
+   {
+    "date": "2022-02-01",
+    "step_bp": 14.092189119028763,
+    "open": "post",
+    "open_minus_newclose_bp": 0.07455227427038968,
+    "open_minus_oldclose_bp": 14.166741393299153
+   },
+   {
+    "date": "2022-03-01",
+    "step_bp": 12.406279474051484,
+    "open": "post",
+    "open_minus_newclose_bp": -0.08640403341864111,
+    "open_minus_oldclose_bp": 12.319875440632844
+   },
+   {
+    "date": "2022-04-01",
+    "step_bp": 15.27889470703203,
+    "open": "post",
+    "open_minus_newclose_bp": -0.49828689309722174,
+    "open_minus_oldclose_bp": 14.78060781393481
+   },
+   {
+    "date": "2022-05-02",
+    "step_bp": 16.64015723879392,
+    "open": "post",
+    "open_minus_newclose_bp": 0.26791139048992774,
+    "open_minus_oldclose_bp": 16.908068629283846
+   },
+   {
+    "date": "2022-06-01",
+    "step_bp": 17.820429482585944,
+    "open": "post",
+    "open_minus_newclose_bp": 0.2777770300479987,
+    "open_minus_oldclose_bp": 18.09820651263394
+   },
+   {
+    "date": "2022-07-01",
+    "step_bp": 19.81981131092131,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05832263410804339,
+    "open_minus_oldclose_bp": 19.761488676813265
+   },
+   {
+    "date": "2022-08-01",
+    "step_bp": 17.864603165988203,
+    "open": "post",
+    "open_minus_newclose_bp": 0.27251766666569477,
+    "open_minus_oldclose_bp": 18.137120832653896
+   },
+   {
+    "date": "2022-09-01",
+    "step_bp": 21.1384169147219,
+    "open": "post",
+    "open_minus_newclose_bp": -0.01839776745282684,
+    "open_minus_oldclose_bp": 21.120019147269076
+   },
+   {
+    "date": "2022-10-03",
+    "step_bp": 23.79550179540474,
+    "open": "post",
+    "open_minus_newclose_bp": -0.03373634719611163,
+    "open_minus_oldclose_bp": 23.761765448208628
+   },
+   {
+    "date": "2022-11-01",
+    "step_bp": 24.981885686598538,
+    "open": "post",
+    "open_minus_newclose_bp": 0.02439368257556307,
+    "open_minus_oldclose_bp": 25.006279369174102
+   },
+   {
+    "date": "2022-12-01",
+    "step_bp": 23.68133977482256,
+    "open": "post",
+    "open_minus_newclose_bp": -0.14131699353797655,
+    "open_minus_oldclose_bp": 23.540022781284588
+   },
+   {
+    "date": "2022-12-15",
+    "step_bp": 24.2104065548332,
+    "open": "post",
+    "open_minus_newclose_bp": -0.054746898856261605,
+    "open_minus_oldclose_bp": 24.155659655976937
+   },
+   {
+    "date": "2023-02-01",
+    "step_bp": 25.40271054519913,
+    "open": "post",
+    "open_minus_newclose_bp": 0.45460256940008104,
+    "open_minus_oldclose_bp": 25.85731311459921
+   },
+   {
+    "date": "2023-03-01",
+    "step_bp": 24.61543666383015,
+    "open": "post",
+    "open_minus_newclose_bp": 0.046287399228378545,
+    "open_minus_oldclose_bp": 24.661724063058525
+   },
+   {
+    "date": "2023-04-03",
+    "step_bp": 25.211735647643064,
+    "open": "post",
+    "open_minus_newclose_bp": 0.00808963640797078,
+    "open_minus_oldclose_bp": 25.219825284051034
+   },
+   {
+    "date": "2023-05-01",
+    "step_bp": 25.50342222504942,
+    "open": "post",
+    "open_minus_newclose_bp": -0.14867647263411277,
+    "open_minus_oldclose_bp": 25.354745752415308
+   },
+   {
+    "date": "2023-06-01",
+    "step_bp": 26.629719807625406,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0313061631856959,
+    "open_minus_oldclose_bp": 26.59841364443971
+   },
+   {
+    "date": "2023-07-03",
+    "step_bp": 27.09292976166802,
+    "open": "post",
+    "open_minus_newclose_bp": -0.006148576353615098,
+    "open_minus_oldclose_bp": 27.086781185314408
+   },
+   {
+    "date": "2023-08-01",
+    "step_bp": 27.5383926332394,
+    "open": "post",
+    "open_minus_newclose_bp": 0.016185726125633737,
+    "open_minus_oldclose_bp": 27.554578359365035
+   },
+   {
+    "date": "2023-09-01",
+    "step_bp": 29.896778678513147,
+    "open": "post",
+    "open_minus_newclose_bp": -0.011119715585122814,
+    "open_minus_oldclose_bp": 29.885658962928023
+   },
+   {
+    "date": "2023-10-02",
+    "step_bp": 31.626854481710403,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0003740572977750656,
+    "open_minus_oldclose_bp": 31.62722853900818
+   },
+   {
+    "date": "2023-11-01",
+    "step_bp": 34.278619076575225,
+    "open": "post",
+    "open_minus_newclose_bp": 0.01037676770121454,
+    "open_minus_oldclose_bp": 34.28899584427644
+   },
+   {
+    "date": "2023-12-01",
+    "step_bp": 31.60756419005997,
+    "open": "post",
+    "open_minus_newclose_bp": -0.013965113896535764,
+    "open_minus_oldclose_bp": 31.593599076163436
+   },
+   {
+    "date": "2024-02-01",
+    "step_bp": 32.11156928841039,
+    "open": "post",
+    "open_minus_newclose_bp": 0.03954655819107811,
+    "open_minus_oldclose_bp": 32.15111584660146
+   },
+   {
+    "date": "2024-03-01",
+    "step_bp": 31.34653017174152,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0006634361522650511,
+    "open_minus_oldclose_bp": 31.347193607893786
+   },
+   {
+    "date": "2024-04-01",
+    "step_bp": 33.03285864090621,
+    "open": "post",
+    "open_minus_newclose_bp": 0.008417806496574531,
+    "open_minus_oldclose_bp": 33.04127644740279
+   },
+   {
+    "date": "2024-05-01",
+    "step_bp": 34.945383932778185,
+    "open": "post",
+    "open_minus_newclose_bp": -0.019583859580535323,
+    "open_minus_oldclose_bp": 34.92580007319765
+   },
+   {
+    "date": "2024-06-03",
+    "step_bp": 34.1411864446188,
+    "open": "post",
+    "open_minus_newclose_bp": -0.02808382862318215,
+    "open_minus_oldclose_bp": 34.11310261599562
+   },
+   {
+    "date": "2024-07-01",
+    "step_bp": 31.776607571553093,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0205675334295774,
+    "open_minus_oldclose_bp": 31.75604003812352
+   },
+   {
+    "date": "2024-08-01",
+    "step_bp": 33.24488504488451,
+    "open": "post",
+    "open_minus_newclose_bp": 0.013093600003954986,
+    "open_minus_oldclose_bp": 33.25797864488847
+   },
+   {
+    "date": "2024-09-03",
+    "step_bp": 32.47740390432546,
+    "open": "post",
+    "open_minus_newclose_bp": 0.000526711151083159,
+    "open_minus_oldclose_bp": 32.477930615476545
+   },
+   {
+    "date": "2024-10-01",
+    "step_bp": 32.25009845470389,
+    "open": "post",
+    "open_minus_newclose_bp": -0.009141987016431097,
+    "open_minus_oldclose_bp": 32.24095646768746
+   },
+   {
+    "date": "2024-11-01",
+    "step_bp": 33.65096710914714,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0035952560881180595,
+    "open_minus_oldclose_bp": 33.64737185305902
+   },
+   {
+    "date": "2024-12-02",
+    "step_bp": 34.65597121067067,
+    "open": "post",
+    "open_minus_newclose_bp": 0.009729386133416895,
+    "open_minus_oldclose_bp": 34.665700596804086
+   },
+   {
+    "date": "2024-12-18",
+    "step_bp": 38.770111793015666,
+    "open": "post",
+    "open_minus_newclose_bp": 0.021779998775617315,
+    "open_minus_oldclose_bp": 38.79189179179128
+   },
+   {
+    "date": "2025-02-03",
+    "step_bp": 35.64666015719219,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0034556093529702903,
+    "open_minus_oldclose_bp": 35.64320454783922
+   },
+   {
+    "date": "2025-03-03",
+    "step_bp": 31.405395676085412,
+    "open": "post",
+    "open_minus_newclose_bp": 0.02156430631013173,
+    "open_minus_oldclose_bp": 31.426959982395545
+   },
+   {
+    "date": "2025-04-01",
+    "step_bp": 35.83191300633046,
+    "open": "post",
+    "open_minus_newclose_bp": -0.01326923903824384,
+    "open_minus_oldclose_bp": 35.818643767292215
+   },
+   {
+    "date": "2025-05-01",
+    "step_bp": 36.68954989118241,
+    "open": "post",
+    "open_minus_newclose_bp": -0.019542832890226403,
+    "open_minus_oldclose_bp": 36.67000705829218
+   },
+   {
+    "date": "2025-06-02",
+    "step_bp": 37.10303042570993,
+    "open": "post",
+    "open_minus_newclose_bp": -0.009633498866956636,
+    "open_minus_oldclose_bp": 37.09339692684298
+   },
+   {
+    "date": "2025-07-01",
+    "step_bp": 37.28716131447769,
+    "open": "post",
+    "open_minus_newclose_bp": -0.003184868445499367,
+    "open_minus_oldclose_bp": 37.28397644603219
+   },
+   {
+    "date": "2025-08-01",
+    "step_bp": 38.12075354464293,
+    "open": "post",
+    "open_minus_newclose_bp": -0.017065865391928392,
+    "open_minus_oldclose_bp": 38.103687679251
+   },
+   {
+    "date": "2025-09-02",
+    "step_bp": 37.95174002342402,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 37.95174002342402
+   },
+   {
+    "date": "2025-10-01",
+    "step_bp": 34.79850669057715,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0009997646086001843,
+    "open_minus_oldclose_bp": 34.79950645518575
+   },
+   {
+    "date": "2025-11-03",
+    "step_bp": 36.07830125467296,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0008461529569028792,
+    "open_minus_oldclose_bp": 36.077455101716055
+   },
+   {
+    "date": "2025-12-01",
+    "step_bp": 35.60563763490997,
+    "open": "post",
+    "open_minus_newclose_bp": 0.001953843835507396,
+    "open_minus_oldclose_bp": 35.607591478745476
+   },
+   {
+    "date": "2025-12-19",
+    "step_bp": 38.88507253967834,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0009288037659468951,
+    "open_minus_oldclose_bp": 38.886001343444285
+   },
+   {
+    "date": "2026-02-02",
+    "step_bp": 38.16468736682542,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0021961284392586766,
+    "open_minus_oldclose_bp": 38.16688349526468
+   },
+   {
+    "date": "2026-03-02",
+    "step_bp": 33.15145880869129,
+    "open": "post",
+    "open_minus_newclose_bp": 0.005767941246240943,
+    "open_minus_oldclose_bp": 33.15722674993753
+   },
+   {
+    "date": "2026-04-01",
+    "step_bp": 39.853215572937245,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 39.853215572937245
+   }
+  ]
+ },
+ {
+  "symbol": "SPY",
+  "common_dates": 2487,
+  "first": "2016-10-10",
+  "last": "2026-09-02",
+  "steps": 34,
+  "post": 34,
+  "pre": 0,
+  "first_step": "2016-12-16",
+  "last_step": "2025-03-21",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 5.68347007469458,
+  "median_close_gap_bp_by_year": {
+   "2016": -1414.34,
+   "2017": -1264.27,
+   "2018": -1078.92,
+   "2019": -883.02,
+   "2020": -685.06,
+   "2021": -536.92,
+   "2022": -395.27,
+   "2023": -233.17,
+   "2024": -94.25,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.05181682398422427,
+  "share_open_basis_over_5bp": 0.0012062726176115801,
+  "steps_detail": [
+   {
+    "date": "2016-12-16",
+    "step_bp": 58.517728871562426,
+    "open": "post",
+    "open_minus_newclose_bp": 0.6080351851564525,
+    "open_minus_oldclose_bp": 59.12576405671888
+   },
+   {
+    "date": "2017-03-17",
+    "step_bp": 42.581261912029156,
+    "open": "post",
+    "open_minus_newclose_bp": -0.45514840240568066,
+    "open_minus_oldclose_bp": 42.12611350962347
+   },
+   {
+    "date": "2017-06-16",
+    "step_bp": 48.75457525014198,
+    "open": "post",
+    "open_minus_newclose_bp": 0.019959378088074686,
+    "open_minus_oldclose_bp": 48.77453462823006
+   },
+   {
+    "date": "2017-09-15",
+    "step_bp": 49.06455337810478,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5372135780354337,
+    "open_minus_oldclose_bp": 49.60176695614022
+   },
+   {
+    "date": "2017-12-15",
+    "step_bp": 51.90213554406645,
+    "open": "post",
+    "open_minus_newclose_bp": -0.9459541310474773,
+    "open_minus_oldclose_bp": 50.95618141301897
+   },
+   {
+    "date": "2018-03-16",
+    "step_bp": 40.810875163189706,
+    "open": "post",
+    "open_minus_newclose_bp": -0.04544508962034399,
+    "open_minus_oldclose_bp": 40.76543007356936
+   },
+   {
+    "date": "2018-06-15",
+    "step_bp": 44.91533952374394,
+    "open": "post",
+    "open_minus_newclose_bp": 0.636306140436721,
+    "open_minus_oldclose_bp": 45.551645664180654
+   },
+   {
+    "date": "2018-09-21",
+    "step_bp": 45.120250350461355,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5301241883649832,
+    "open_minus_oldclose_bp": 44.590126162096375
+   },
+   {
+    "date": "2018-12-21",
+    "step_bp": 58.287123893506624,
+    "open": "post",
+    "open_minus_newclose_bp": -0.6259704344560579,
+    "open_minus_oldclose_bp": 57.66115345905057
+   },
+   {
+    "date": "2019-03-15",
+    "step_bp": 44.02679301233378,
+    "open": "post",
+    "open_minus_newclose_bp": -0.291543000138228,
+    "open_minus_oldclose_bp": 43.73525001219555
+   },
+   {
+    "date": "2019-06-21",
+    "step_bp": 48.14158733859153,
+    "open": "post",
+    "open_minus_newclose_bp": -0.14908875805061395,
+    "open_minus_oldclose_bp": 47.99249858054092
+   },
+   {
+    "date": "2019-09-20",
+    "step_bp": 46.45006180516234,
+    "open": "post",
+    "open_minus_newclose_bp": -0.36512903187554957,
+    "open_minus_oldclose_bp": 46.08493277328679
+   },
+   {
+    "date": "2019-12-20",
+    "step_bp": 48.67392664388598,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3866655461862156,
+    "open_minus_oldclose_bp": 48.28726109769976
+   },
+   {
+    "date": "2020-03-20",
+    "step_bp": 58.1001416793453,
+    "open": "post",
+    "open_minus_newclose_bp": 1.0546593641591606,
+    "open_minus_oldclose_bp": 59.154801043504456
+   },
+   {
+    "date": "2020-06-19",
+    "step_bp": 43.92935232953574,
+    "open": "post",
+    "open_minus_newclose_bp": -0.13583671374717277,
+    "open_minus_oldclose_bp": 43.793515615788564
+   },
+   {
+    "date": "2020-09-18",
+    "step_bp": 39.99603895087952,
+    "open": "post",
+    "open_minus_newclose_bp": 0.535383915871851,
+    "open_minus_oldclose_bp": 40.53142286675138
+   },
+   {
+    "date": "2020-12-18",
+    "step_bp": 42.69333290045467,
+    "open": "post",
+    "open_minus_newclose_bp": -0.03915348819889808,
+    "open_minus_oldclose_bp": 42.65417941225577
+   },
+   {
+    "date": "2021-03-19",
+    "step_bp": 32.781034146759296,
+    "open": "post",
+    "open_minus_newclose_bp": -0.13189564632545836,
+    "open_minus_oldclose_bp": 32.64913850043384
+   },
+   {
+    "date": "2021-06-18",
+    "step_bp": 32.79850800481439,
+    "open": "post",
+    "open_minus_newclose_bp": 0.11185049762316157,
+    "open_minus_oldclose_bp": 32.91035850243755
+   },
+   {
+    "date": "2021-09-17",
+    "step_bp": 32.038224704427634,
+    "open": "post",
+    "open_minus_newclose_bp": 0.07774194786931699,
+    "open_minus_oldclose_bp": 32.11596665229695
+   },
+   {
+    "date": "2021-12-17",
+    "step_bp": 35.094243638875284,
+    "open": "post",
+    "open_minus_newclose_bp": 0.13787430074491125,
+    "open_minus_oldclose_bp": 35.232117939620196
+   },
+   {
+    "date": "2022-03-18",
+    "step_bp": 31.103401439902395,
+    "open": "post",
+    "open_minus_newclose_bp": -0.016221278688610674,
+    "open_minus_oldclose_bp": 31.087180161213784
+   },
+   {
+    "date": "2022-06-17",
+    "step_bp": 43.146565012873104,
+    "open": "post",
+    "open_minus_newclose_bp": 0.04086175399264924,
+    "open_minus_oldclose_bp": 43.187426766865755
+   },
+   {
+    "date": "2022-09-16",
+    "step_bp": 41.124318274904994,
+    "open": "post",
+    "open_minus_newclose_bp": 0.01599794122279785,
+    "open_minus_oldclose_bp": 41.14031621612779
+   },
+   {
+    "date": "2022-12-16",
+    "step_bp": 45.84094714344837,
+    "open": "post",
+    "open_minus_newclose_bp": -0.027117109062009537,
+    "open_minus_oldclose_bp": 45.81383003438636
+   },
+   {
+    "date": "2023-03-17",
+    "step_bp": 38.06565722506136,
+    "open": "post",
+    "open_minus_newclose_bp": 0.02923623912593626,
+    "open_minus_oldclose_bp": 38.0948934641873
+   },
+   {
+    "date": "2023-06-16",
+    "step_bp": 37.063022038945974,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0453474170489937,
+    "open_minus_oldclose_bp": 37.01767462189698
+   },
+   {
+    "date": "2023-09-15",
+    "step_bp": 35.212387906733944,
+    "open": "post",
+    "open_minus_newclose_bp": -0.025479127326588635,
+    "open_minus_oldclose_bp": 35.186908779407354
+   },
+   {
+    "date": "2023-12-15",
+    "step_bp": 40.46023393042841,
+    "open": "post",
+    "open_minus_newclose_bp": 0.010816812302492929,
+    "open_minus_oldclose_bp": 40.4710507427309
+   },
+   {
+    "date": "2024-03-15",
+    "step_bp": 31.016198158338693,
+    "open": "post",
+    "open_minus_newclose_bp": -0.004472226964313819,
+    "open_minus_oldclose_bp": 31.01172593137438
+   },
+   {
+    "date": "2024-06-21",
+    "step_bp": 32.21170078318085,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0005877725916571264,
+    "open_minus_oldclose_bp": 32.211113010589195
+   },
+   {
+    "date": "2024-09-20",
+    "step_bp": 30.621596536242556,
+    "open": "post",
+    "open_minus_newclose_bp": 0.007083271127226315,
+    "open_minus_oldclose_bp": 30.62867980736978
+   },
+   {
+    "date": "2024-12-20",
+    "step_bp": 33.600677898732265,
+    "open": "post",
+    "open_minus_newclose_bp": -0.002017018054215232,
+    "open_minus_oldclose_bp": 33.598660880678054
+   },
+   {
+    "date": "2025-03-21",
+    "step_bp": 30.036753821332493,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 30.036753821332493
+   }
+  ]
+ },
+ {
+  "symbol": "QQQ",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 35,
+  "post": 34,
+  "pre": 1,
+  "first_step": "2016-12-16",
+  "last_step": "2025-03-24",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 1.4959484756745074,
+  "median_close_gap_bp_by_year": {
+   "2016": -618.44,
+   "2017": -541.89,
+   "2018": -460.38,
+   "2019": -373.82,
+   "2020": -291.92,
+   "2021": -234.94,
+   "2022": -179.68,
+   "2023": -108.57,
+   "2024": -45.05,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.05941309974381859,
+  "share_open_basis_over_5bp": 0.002008838891120932,
+  "steps_detail": [
+   {
+    "date": "2016-12-16",
+    "step_bp": 30.380476740201473,
+    "open": "post",
+    "open_minus_newclose_bp": -2.1384027946626945,
+    "open_minus_oldclose_bp": 28.242073945538777
+   },
+   {
+    "date": "2017-03-17",
+    "step_bp": 20.49323163227923,
+    "open": "post",
+    "open_minus_newclose_bp": 0.351861793442404,
+    "open_minus_oldclose_bp": 20.845093425721632
+   },
+   {
+    "date": "2017-06-16",
+    "step_bp": 29.057407250490247,
+    "open": "post",
+    "open_minus_newclose_bp": -1.675697625836553,
+    "open_minus_oldclose_bp": 27.381709624653695
+   },
+   {
+    "date": "2017-09-18",
+    "step_bp": 22.104242761911213,
+    "open": "post",
+    "open_minus_newclose_bp": 0.19664611845202074,
+    "open_minus_oldclose_bp": 22.30088888036323
+   },
+   {
+    "date": "2017-12-15",
+    "step_bp": -6.789971899671815,
+    "open": "pre",
+    "open_minus_newclose_bp": 5.431014934852152,
+    "open_minus_oldclose_bp": -1.358956964819663
+   },
+   {
+    "date": "2017-12-18",
+    "step_bp": 24.12890665180675,
+    "open": "post",
+    "open_minus_newclose_bp": 2.5833763815230615,
+    "open_minus_oldclose_bp": 26.712283033329815
+   },
+   {
+    "date": "2018-03-19",
+    "step_bp": 15.193990628163261,
+    "open": "post",
+    "open_minus_newclose_bp": 1.6125930105256177,
+    "open_minus_oldclose_bp": 16.80658363868888
+   },
+   {
+    "date": "2018-06-18",
+    "step_bp": 21.405787092560814,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3342515524394629,
+    "open_minus_oldclose_bp": 21.071535540121353
+   },
+   {
+    "date": "2018-09-24",
+    "step_bp": 17.52652339748327,
+    "open": "post",
+    "open_minus_newclose_bp": -0.26281568775703146,
+    "open_minus_oldclose_bp": 17.26370770972624
+   },
+   {
+    "date": "2018-12-24",
+    "step_bp": 27.943384977867428,
+    "open": "post",
+    "open_minus_newclose_bp": -0.4306645062898684,
+    "open_minus_oldclose_bp": 27.51272047157756
+   },
+   {
+    "date": "2019-03-18",
+    "step_bp": 17.742204647436672,
+    "open": "post",
+    "open_minus_newclose_bp": 0.09319251367330417,
+    "open_minus_oldclose_bp": 17.835397161109974
+   },
+   {
+    "date": "2019-06-24",
+    "step_bp": 22.31793876761347,
+    "open": "post",
+    "open_minus_newclose_bp": -0.8159049768886178,
+    "open_minus_oldclose_bp": 21.50203379072485
+   },
+   {
+    "date": "2019-09-23",
+    "step_bp": 19.488836771556286,
+    "open": "post",
+    "open_minus_newclose_bp": 0.33379994927001944,
+    "open_minus_oldclose_bp": 19.822636720826306
+   },
+   {
+    "date": "2019-12-23",
+    "step_bp": 21.570841902686656,
+    "open": "post",
+    "open_minus_newclose_bp": 0.2044256008325307,
+    "open_minus_oldclose_bp": 21.775267503519185
+   },
+   {
+    "date": "2020-03-23",
+    "step_bp": 22.424018155492163,
+    "open": "post",
+    "open_minus_newclose_bp": 0.24467151048639113,
+    "open_minus_oldclose_bp": 22.668689665978555
+   },
+   {
+    "date": "2020-06-22",
+    "step_bp": 17.461874030005145,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3116325480402929,
+    "open_minus_oldclose_bp": 17.150241481964855
+   },
+   {
+    "date": "2020-09-21",
+    "step_bp": 14.475260215371794,
+    "open": "post",
+    "open_minus_newclose_bp": -0.32436485837606527,
+    "open_minus_oldclose_bp": 14.150895356995727
+   },
+   {
+    "date": "2020-12-21",
+    "step_bp": 18.282107292634727,
+    "open": "post",
+    "open_minus_newclose_bp": -0.09636279597702996,
+    "open_minus_oldclose_bp": 18.185744496657698
+   },
+   {
+    "date": "2021-03-22",
+    "step_bp": 12.711200746424941,
+    "open": "post",
+    "open_minus_newclose_bp": -0.1539651983511331,
+    "open_minus_oldclose_bp": 12.557235548073809
+   },
+   {
+    "date": "2021-06-21",
+    "step_bp": 11.904152400738013,
+    "open": "post",
+    "open_minus_newclose_bp": -0.20356520252992616,
+    "open_minus_oldclose_bp": 11.700587198208087
+   },
+   {
+    "date": "2021-09-20",
+    "step_bp": 10.9720386615577,
+    "open": "post",
+    "open_minus_newclose_bp": 0.1669039885080978,
+    "open_minus_oldclose_bp": 11.138942650065799
+   },
+   {
+    "date": "2021-12-20",
+    "step_bp": 12.686734169310537,
+    "open": "post",
+    "open_minus_newclose_bp": 0.040138907170562954,
+    "open_minus_oldclose_bp": 12.726873076481098
+   },
+   {
+    "date": "2022-03-21",
+    "step_bp": 12.203302380626203,
+    "open": "post",
+    "open_minus_newclose_bp": 0.06884455269154377,
+    "open_minus_oldclose_bp": 12.272146933317748
+   },
+   {
+    "date": "2022-06-21",
+    "step_bp": 19.17364445773024,
+    "open": "post",
+    "open_minus_newclose_bp": 0.018371609032084846,
+    "open_minus_oldclose_bp": 19.192016066762324
+   },
+   {
+    "date": "2022-09-19",
+    "step_bp": 17.992124466519183,
+    "open": "post",
+    "open_minus_newclose_bp": -0.013266755951070464,
+    "open_minus_oldclose_bp": 17.97885771056811
+   },
+   {
+    "date": "2022-12-19",
+    "step_bp": 23.889759826181134,
+    "open": "post",
+    "open_minus_newclose_bp": -0.060755666949612736,
+    "open_minus_oldclose_bp": 23.82900415923152
+   },
+   {
+    "date": "2023-03-20",
+    "step_bp": 15.507120805581462,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05900619420092998,
+    "open_minus_oldclose_bp": 15.448114611380532
+   },
+   {
+    "date": "2023-06-20",
+    "step_bp": 13.744004203145119,
+    "open": "post",
+    "open_minus_newclose_bp": -0.03469804097239182,
+    "open_minus_oldclose_bp": 13.709306162172728
+   },
+   {
+    "date": "2023-09-18",
+    "step_bp": 14.454793761143094,
+    "open": "post",
+    "open_minus_newclose_bp": -0.014985605072855013,
+    "open_minus_oldclose_bp": 14.439808156070239
+   },
+   {
+    "date": "2023-12-18",
+    "step_bp": 19.99898238885069,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0030790535059978252,
+    "open_minus_oldclose_bp": 20.002061442356684
+   },
+   {
+    "date": "2024-03-18",
+    "step_bp": 13.1930637949184,
+    "open": "post",
+    "open_minus_newclose_bp": -0.009361544376805184,
+    "open_minus_oldclose_bp": 13.183702250541595
+   },
+   {
+    "date": "2024-06-24",
+    "step_bp": 15.870579700635817,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0007375243770476464,
+    "open_minus_oldclose_bp": 15.86984217625877
+   },
+   {
+    "date": "2024-09-23",
+    "step_bp": 14.04169498021206,
+    "open": "post",
+    "open_minus_newclose_bp": -0.005785551709207304,
+    "open_minus_oldclose_bp": 14.035909428502855
+   },
+   {
+    "date": "2024-12-23",
+    "step_bp": 16.12195082702205,
+    "open": "post",
+    "open_minus_newclose_bp": 0.001157222592226663,
+    "open_minus_oldclose_bp": 16.123108049614277
+   },
+   {
+    "date": "2025-03-24",
+    "step_bp": 14.901705630933446,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 14.901705630933446
+   }
+  ]
+ },
+ {
+  "symbol": "DIA",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 47,
+  "post": 47,
+  "pre": 0,
+  "first_step": "2016-10-21",
+  "last_step": "2022-10-21",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 1.4272461310177744,
+  "median_close_gap_bp_by_year": {
+   "2016": -753.74,
+   "2017": -603.97,
+   "2018": -396.12,
+   "2019": -174.46,
+   "2020": -50.06,
+   "2021": -30.78,
+   "2022": -10.17,
+   "2023": 0.0,
+   "2024": 0.0,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.02971356641187986,
+  "share_open_basis_over_5bp": 0.0,
+  "steps_detail": [
+   {
+    "date": "2016-10-21",
+    "step_bp": 9.304672894056843,
+    "open": "post",
+    "open_minus_newclose_bp": -0.8836575557964743,
+    "open_minus_oldclose_bp": 8.421015338260368
+   },
+   {
+    "date": "2016-11-18",
+    "step_bp": 26.776362665689724,
+    "open": "post",
+    "open_minus_newclose_bp": 1.1612960580199838,
+    "open_minus_oldclose_bp": 27.937658723709706
+   },
+   {
+    "date": "2016-12-16",
+    "step_bp": 21.518779307498626,
+    "open": "post",
+    "open_minus_newclose_bp": -1.9343125779178183,
+    "open_minus_oldclose_bp": 19.584466729580807
+   },
+   {
+    "date": "2017-01-20",
+    "step_bp": 10.088739824549997,
+    "open": "post",
+    "open_minus_newclose_bp": -0.45202053398973874,
+    "open_minus_oldclose_bp": 9.636719290560258
+   },
+   {
+    "date": "2017-02-17",
+    "step_bp": 27.021306993973425,
+    "open": "post",
+    "open_minus_newclose_bp": -0.7793074600560834,
+    "open_minus_oldclose_bp": 26.241999533917344
+   },
+   {
+    "date": "2017-03-17",
+    "step_bp": 20.062442242005513,
+    "open": "post",
+    "open_minus_newclose_bp": 0.14224095695444805,
+    "open_minus_oldclose_bp": 20.204683198959962
+   },
+   {
+    "date": "2017-04-21",
+    "step_bp": 7.8686026126022215,
+    "open": "post",
+    "open_minus_newclose_bp": 0.8530701263807783,
+    "open_minus_oldclose_bp": 8.721672738982999
+   },
+   {
+    "date": "2017-05-19",
+    "step_bp": 30.74006547989755,
+    "open": "post",
+    "open_minus_newclose_bp": -1.0582288725120153,
+    "open_minus_oldclose_bp": 29.681836607385534
+   },
+   {
+    "date": "2017-06-16",
+    "step_bp": 18.030722253455437,
+    "open": "post",
+    "open_minus_newclose_bp": 0.32426076260798353,
+    "open_minus_oldclose_bp": 18.35498301606342
+   },
+   {
+    "date": "2017-07-21",
+    "step_bp": 12.376402997071462,
+    "open": "post",
+    "open_minus_newclose_bp": -0.4226921586924365,
+    "open_minus_oldclose_bp": 11.953710838379026
+   },
+   {
+    "date": "2017-08-18",
+    "step_bp": 24.340678228875966,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2719583911165585,
+    "open_minus_oldclose_bp": 24.068719837759406
+   },
+   {
+    "date": "2017-09-15",
+    "step_bp": 21.25830647941175,
+    "open": "post",
+    "open_minus_newclose_bp": -0.336060602537519,
+    "open_minus_oldclose_bp": 20.922245876874232
+   },
+   {
+    "date": "2017-10-20",
+    "step_bp": 7.09811204546551,
+    "open": "post",
+    "open_minus_newclose_bp": -0.21184612013974702,
+    "open_minus_oldclose_bp": 6.8862659253257625
+   },
+   {
+    "date": "2017-11-17",
+    "step_bp": 24.89034384903513,
+    "open": "post",
+    "open_minus_newclose_bp": -0.4913086606005146,
+    "open_minus_oldclose_bp": 24.399035188434613
+   },
+   {
+    "date": "2017-12-15",
+    "step_bp": 24.01203993085389,
+    "open": "post",
+    "open_minus_newclose_bp": 0.3446667018790206,
+    "open_minus_oldclose_bp": 24.356706632732912
+   },
+   {
+    "date": "2018-01-19",
+    "step_bp": 5.978490674084513,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5380079891333794,
+    "open_minus_oldclose_bp": 5.440482684951134
+   },
+   {
+    "date": "2018-02-16",
+    "step_bp": 25.566611654714368,
+    "open": "post",
+    "open_minus_newclose_bp": 0.25207256375739395,
+    "open_minus_oldclose_bp": 25.818684218471763
+   },
+   {
+    "date": "2018-03-16",
+    "step_bp": 18.252442427494007,
+    "open": "post",
+    "open_minus_newclose_bp": -0.12724641943087645,
+    "open_minus_oldclose_bp": 18.12519600806313
+   },
+   {
+    "date": "2018-04-20",
+    "step_bp": 6.881431156770604,
+    "open": "post",
+    "open_minus_newclose_bp": -1.7355333157764026,
+    "open_minus_oldclose_bp": 5.145897840994201
+   },
+   {
+    "date": "2018-05-18",
+    "step_bp": 28.227516547470604,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05094449974429871,
+    "open_minus_oldclose_bp": 28.176572047726307
+   },
+   {
+    "date": "2018-06-15",
+    "step_bp": 15.432754241132344,
+    "open": "post",
+    "open_minus_newclose_bp": 0.07361688038796943,
+    "open_minus_oldclose_bp": 15.506371121520313
+   },
+   {
+    "date": "2018-07-20",
+    "step_bp": 12.721091711199866,
+    "open": "post",
+    "open_minus_newclose_bp": -0.13656076525599137,
+    "open_minus_oldclose_bp": 12.584530945943875
+   },
+   {
+    "date": "2018-08-17",
+    "step_bp": 20.24710064523344,
+    "open": "post",
+    "open_minus_newclose_bp": 0.6288838073421205,
+    "open_minus_oldclose_bp": 20.875984452575562
+   },
+   {
+    "date": "2018-09-21",
+    "step_bp": 20.234537950657092,
+    "open": "post",
+    "open_minus_newclose_bp": 0.13258508528554702,
+    "open_minus_oldclose_bp": 20.36712303594264
+   },
+   {
+    "date": "2018-10-19",
+    "step_bp": 6.975182513624597,
+    "open": "post",
+    "open_minus_newclose_bp": -0.12047500670679667,
+    "open_minus_oldclose_bp": 6.854707506917801
+   },
+   {
+    "date": "2018-11-16",
+    "step_bp": 24.202394064779877,
+    "open": "post",
+    "open_minus_newclose_bp": -0.29210921442705123,
+    "open_minus_oldclose_bp": 23.910284850352827
+   },
+   {
+    "date": "2018-12-21",
+    "step_bp": 27.898892985529603,
+    "open": "post",
+    "open_minus_newclose_bp": -0.33758554773458127,
+    "open_minus_oldclose_bp": 27.561307437795023
+   },
+   {
+    "date": "2019-01-18",
+    "step_bp": 7.418967163911535,
+    "open": "post",
+    "open_minus_newclose_bp": 0.9927090196885924,
+    "open_minus_oldclose_bp": 8.411676183600129
+   },
+   {
+    "date": "2019-02-15",
+    "step_bp": 27.403138915579156,
+    "open": "post",
+    "open_minus_newclose_bp": -0.32596544466051425,
+    "open_minus_oldclose_bp": 27.07717347091864
+   },
+   {
+    "date": "2019-03-15",
+    "step_bp": 21.361005481165783,
+    "open": "post",
+    "open_minus_newclose_bp": -0.24632072676958328,
+    "open_minus_oldclose_bp": 21.1146847543962
+   },
+   {
+    "date": "2019-04-18",
+    "step_bp": 6.287868251016425,
+    "open": "post",
+    "open_minus_newclose_bp": 0.28006270301545594,
+    "open_minus_oldclose_bp": 6.567930954031881
+   },
+   {
+    "date": "2019-05-17",
+    "step_bp": 24.758344022454242,
+    "open": "post",
+    "open_minus_newclose_bp": -0.404765466801571,
+    "open_minus_oldclose_bp": 24.35357855565267
+   },
+   {
+    "date": "2019-06-21",
+    "step_bp": 24.095982823432344,
+    "open": "post",
+    "open_minus_newclose_bp": 0.08751170715741441,
+    "open_minus_oldclose_bp": 24.18349453058976
+   },
+   {
+    "date": "2019-07-19",
+    "step_bp": 8.499719609959163,
+    "open": "post",
+    "open_minus_newclose_bp": 0.2395722682416515,
+    "open_minus_oldclose_bp": 8.739291878200813
+   },
+   {
+    "date": "2019-08-16",
+    "step_bp": 26.21839757640151,
+    "open": "post",
+    "open_minus_newclose_bp": 0.013297998462235422,
+    "open_minus_oldclose_bp": 26.231695574863746
+   },
+   {
+    "date": "2019-09-20",
+    "step_bp": 24.144748401689775,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0986618769338414,
+    "open_minus_oldclose_bp": 24.243410278623617
+   },
+   {
+    "date": "2019-10-18",
+    "step_bp": 5.760891369519759,
+    "open": "post",
+    "open_minus_newclose_bp": 0.7334665790170031,
+    "open_minus_oldclose_bp": 6.494357948536762
+   },
+   {
+    "date": "2019-11-15",
+    "step_bp": 18.24402327154546,
+    "open": "post",
+    "open_minus_newclose_bp": 0.08250857450523355,
+    "open_minus_oldclose_bp": 18.326531846050692
+   },
+   {
+    "date": "2019-12-20",
+    "step_bp": 30.782061623351357,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0640138155594272,
+    "open_minus_oldclose_bp": 30.846075438910784
+   },
+   {
+    "date": "2020-01-17",
+    "step_bp": 4.871899526944206,
+    "open": "post",
+    "open_minus_newclose_bp": 0.04751571558310984,
+    "open_minus_oldclose_bp": 4.919415242527315
+   },
+   {
+    "date": "2020-04-17",
+    "step_bp": 5.917920640260403,
+    "open": "post",
+    "open_minus_newclose_bp": 0.24294654580593947,
+    "open_minus_oldclose_bp": 6.160867186066343
+   },
+   {
+    "date": "2020-07-17",
+    "step_bp": 7.771582587668994,
+    "open": "post",
+    "open_minus_newclose_bp": 0.1922858169172391,
+    "open_minus_oldclose_bp": 7.963868404586234
+   },
+   {
+    "date": "2021-01-15",
+    "step_bp": 4.383298830386273,
+    "open": "post",
+    "open_minus_newclose_bp": -0.012235150434088127,
+    "open_minus_oldclose_bp": 4.371063679952186
+   },
+   {
+    "date": "2021-07-16",
+    "step_bp": 5.875754977517261,
+    "open": "post",
+    "open_minus_newclose_bp": 0.13989773650482928,
+    "open_minus_oldclose_bp": 6.01565271402209
+   },
+   {
+    "date": "2022-01-21",
+    "step_bp": 7.442597385623673,
+    "open": "post",
+    "open_minus_newclose_bp": 0.046685240296183,
+    "open_minus_oldclose_bp": 7.489282625919856
+   },
+   {
+    "date": "2022-07-15",
+    "step_bp": 4.2372312436536,
+    "open": "post",
+    "open_minus_newclose_bp": 0.028955875785426164,
+    "open_minus_oldclose_bp": 4.266187119439026
+   },
+   {
+    "date": "2022-10-21",
+    "step_bp": 5.936284060613727,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 5.936284060613727
+   }
+  ]
+ },
+ {
+  "symbol": "EFA",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 12,
+  "post": 12,
+  "pre": 0,
+  "first_step": "2016-12-21",
+  "last_step": "2022-06-09",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 0.0,
+  "median_close_gap_bp_by_year": {
+   "2016": -1609.88,
+   "2017": -1346.64,
+   "2018": -1045.41,
+   "2019": -724.01,
+   "2020": -471.08,
+   "2021": -239.41,
+   "2022": 0.0,
+   "2023": 0.0,
+   "2024": 0.0,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.019161417112445456,
+  "share_open_basis_over_5bp": 0.0036159100040176776,
+  "steps_detail": [
+   {
+    "date": "2016-12-21",
+    "step_bp": 102.64827451970298,
+    "open": "post",
+    "open_minus_newclose_bp": 0.1615381559366691,
+    "open_minus_oldclose_bp": 102.80981267563966
+   },
+   {
+    "date": "2017-06-20",
+    "step_bp": 160.7171635559715,
+    "open": "post",
+    "open_minus_newclose_bp": 0.22649213072045704,
+    "open_minus_oldclose_bp": 160.94365568669195
+   },
+   {
+    "date": "2017-12-19",
+    "step_bp": 104.86723291846148,
+    "open": "post",
+    "open_minus_newclose_bp": -0.06284075617701834,
+    "open_minus_oldclose_bp": 104.80439216228446
+   },
+   {
+    "date": "2018-06-19",
+    "step_bp": 196.1529236707432,
+    "open": "post",
+    "open_minus_newclose_bp": -0.08676435653012793,
+    "open_minus_oldclose_bp": 196.06615931421308
+   },
+   {
+    "date": "2018-12-18",
+    "step_bp": 107.36373599667198,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0016967354081465214,
+    "open_minus_oldclose_bp": 107.36203926126383
+   },
+   {
+    "date": "2019-06-17",
+    "step_bp": 213.8069593198673,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2519079976737171,
+    "open_minus_oldclose_bp": 213.55505132219358
+   },
+   {
+    "date": "2019-12-16",
+    "step_bp": 111.9138643322598,
+    "open": "post",
+    "open_minus_newclose_bp": 0.04777179056961178,
+    "open_minus_oldclose_bp": 111.96163612282942
+   },
+   {
+    "date": "2020-06-15",
+    "step_bp": 140.99212742096196,
+    "open": "post",
+    "open_minus_newclose_bp": -0.02064620470615397,
+    "open_minus_oldclose_bp": 140.97148121625582
+   },
+   {
+    "date": "2020-12-14",
+    "step_bp": 96.13726247049453,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05425117417280634,
+    "open_minus_oldclose_bp": 96.08301129632173
+   },
+   {
+    "date": "2021-06-10",
+    "step_bp": 135.6213588882066,
+    "open": "post",
+    "open_minus_newclose_bp": -0.026733044894942937,
+    "open_minus_oldclose_bp": 135.59462584331163
+   },
+   {
+    "date": "2021-12-30",
+    "step_bp": 20.236259426294755,
+    "open": "post",
+    "open_minus_newclose_bp": -0.004058322339746401,
+    "open_minus_oldclose_bp": 20.23220110395501
+   },
+   {
+    "date": "2022-06-09",
+    "step_bp": 219.11481356218013,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 219.11481356218013
+   }
+  ]
+ },
+ {
+  "symbol": "IWM",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 24,
+  "post": 24,
+  "pre": 0,
+  "first_step": "2016-12-22",
+  "last_step": "2022-09-26",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 7.502679880341464,
+  "median_close_gap_bp_by_year": {
+   "2016": -761.26,
+   "2017": -690.16,
+   "2018": -561.67,
+   "2019": -405.89,
+   "2020": -261.86,
+   "2021": -158.23,
+   "2022": -51.55,
+   "2023": 0.0,
+   "2024": 0.0,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.08110212993052424,
+  "share_open_basis_over_5bp": 0.0012053033346725592,
+  "steps_detail": [
+   {
+    "date": "2016-12-22",
+    "step_bp": 39.83369395946859,
+    "open": "post",
+    "open_minus_newclose_bp": 1.3572421221046127,
+    "open_minus_oldclose_bp": 41.190936081573206
+   },
+   {
+    "date": "2017-03-24",
+    "step_bp": 28.713499820839093,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2587227587330654,
+    "open_minus_oldclose_bp": 28.45477706210603
+   },
+   {
+    "date": "2017-07-06",
+    "step_bp": 44.51664682721248,
+    "open": "post",
+    "open_minus_newclose_bp": -0.49612491810263615,
+    "open_minus_oldclose_bp": 44.02052190910985
+   },
+   {
+    "date": "2017-09-26",
+    "step_bp": 24.609883567936613,
+    "open": "post",
+    "open_minus_newclose_bp": 0.2668832768348839,
+    "open_minus_oldclose_bp": 24.8767668447715
+   },
+   {
+    "date": "2017-12-21",
+    "step_bp": 38.17406419654626,
+    "open": "post",
+    "open_minus_newclose_bp": -0.8369945190107864,
+    "open_minus_oldclose_bp": 37.337069677535474
+   },
+   {
+    "date": "2018-03-22",
+    "step_bp": 22.702775664810783,
+    "open": "post",
+    "open_minus_newclose_bp": -0.39012927464998626,
+    "open_minus_oldclose_bp": 22.312646390160797
+   },
+   {
+    "date": "2018-07-03",
+    "step_bp": 36.3755908736501,
+    "open": "post",
+    "open_minus_newclose_bp": -0.6242345675857436,
+    "open_minus_oldclose_bp": 35.75135630606435
+   },
+   {
+    "date": "2018-09-26",
+    "step_bp": 26.20983127064727,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5437776431540392,
+    "open_minus_oldclose_bp": 26.753608913801312
+   },
+   {
+    "date": "2018-12-17",
+    "step_bp": 34.23986457535458,
+    "open": "post",
+    "open_minus_newclose_bp": -1.3885121199491008,
+    "open_minus_oldclose_bp": 32.851352455405475
+   },
+   {
+    "date": "2019-03-20",
+    "step_bp": 26.116350022986484,
+    "open": "post",
+    "open_minus_newclose_bp": 0.3480468134156589,
+    "open_minus_oldclose_bp": 26.464396836402145
+   },
+   {
+    "date": "2019-06-17",
+    "step_bp": 35.904478416337454,
+    "open": "post",
+    "open_minus_newclose_bp": -0.1835534480652823,
+    "open_minus_oldclose_bp": 35.72092496827217
+   },
+   {
+    "date": "2019-09-24",
+    "step_bp": 35.62615428345787,
+    "open": "post",
+    "open_minus_newclose_bp": -0.7393685236237874,
+    "open_minus_oldclose_bp": 34.88678575983409
+   },
+   {
+    "date": "2019-12-16",
+    "step_bp": 38.05142382126134,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3848651772240391,
+    "open_minus_oldclose_bp": 37.6665586440373
+   },
+   {
+    "date": "2020-03-25",
+    "step_bp": 37.48486710111167,
+    "open": "post",
+    "open_minus_newclose_bp": 0.06850949215850971,
+    "open_minus_oldclose_bp": 37.55337659327017
+   },
+   {
+    "date": "2020-06-15",
+    "step_bp": 35.40169998124933,
+    "open": "post",
+    "open_minus_newclose_bp": -0.7362945013349511,
+    "open_minus_oldclose_bp": 34.66540547991438
+   },
+   {
+    "date": "2020-09-23",
+    "step_bp": 38.76059024564782,
+    "open": "post",
+    "open_minus_newclose_bp": -0.5005868603502952,
+    "open_minus_oldclose_bp": 38.26000338529752
+   },
+   {
+    "date": "2020-12-14",
+    "step_bp": 31.16925014737166,
+    "open": "post",
+    "open_minus_newclose_bp": 0.19203844711653678,
+    "open_minus_oldclose_bp": 31.361288594488197
+   },
+   {
+    "date": "2021-03-25",
+    "step_bp": 18.842231360058427,
+    "open": "post",
+    "open_minus_newclose_bp": -0.031536443515327306,
+    "open_minus_oldclose_bp": 18.810694916543103
+   },
+   {
+    "date": "2021-06-10",
+    "step_bp": 14.971733059866606,
+    "open": "post",
+    "open_minus_newclose_bp": 0.4241522681748197,
+    "open_minus_oldclose_bp": 15.395885328041425
+   },
+   {
+    "date": "2021-09-24",
+    "step_bp": 29.989167101621486,
+    "open": "post",
+    "open_minus_newclose_bp": -0.017329825988607328,
+    "open_minus_oldclose_bp": 29.97183727563288
+   },
+   {
+    "date": "2021-12-13",
+    "step_bp": 30.701762021486008,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2449821782083035,
+    "open_minus_oldclose_bp": 30.456779843277705
+   },
+   {
+    "date": "2022-03-24",
+    "step_bp": 19.641577275427252,
+    "open": "post",
+    "open_minus_newclose_bp": -0.014392426791768817,
+    "open_minus_oldclose_bp": 19.627184848635483
+   },
+   {
+    "date": "2022-06-09",
+    "step_bp": 26.104584923893892,
+    "open": "post",
+    "open_minus_newclose_bp": 0.01748514990599845,
+    "open_minus_oldclose_bp": 26.12207007379989
+   },
+   {
+    "date": "2022-09-26",
+    "step_bp": 51.53415048538176,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 51.53415048538176
+   }
+  ]
+ },
+ {
+  "symbol": "XLF",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 26,
+  "post": 25,
+  "pre": 1,
+  "first_step": "2016-12-16",
+  "last_step": "2022-09-19",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 12.87277586041996,
+  "median_close_gap_bp_by_year": {
+   "2016": -1163.36,
+   "2017": -1044.9,
+   "2018": -879.3,
+   "2019": -674.14,
+   "2020": -424.54,
+   "2021": -232.83,
+   "2022": -51.56,
+   "2023": 0.0,
+   "2024": 0.0,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.09575718012921203,
+  "share_open_basis_over_5bp": 0.026516673362796304,
+  "steps_detail": [
+   {
+    "date": "2016-12-16",
+    "step_bp": 45.031644489897246,
+    "open": "post",
+    "open_minus_newclose_bp": -0.4903985718608672,
+    "open_minus_oldclose_bp": 44.541245918036374
+   },
+   {
+    "date": "2017-03-17",
+    "step_bp": 35.741139675691116,
+    "open": "post",
+    "open_minus_newclose_bp": 0.8938172709782588,
+    "open_minus_oldclose_bp": 36.63495694666938
+   },
+   {
+    "date": "2017-03-20",
+    "step_bp": -8.023535934206933,
+    "open": "pre",
+    "open_minus_newclose_bp": 9.105458813399443,
+    "open_minus_oldclose_bp": 1.0819228791925095
+   },
+   {
+    "date": "2017-03-21",
+    "step_bp": 6.650724189182361,
+    "open": "post",
+    "open_minus_newclose_bp": 2.134173081350804,
+    "open_minus_oldclose_bp": 8.784897270533165
+   },
+   {
+    "date": "2017-06-16",
+    "step_bp": 37.54386771672072,
+    "open": "post",
+    "open_minus_newclose_bp": 0.31146099691473084,
+    "open_minus_oldclose_bp": 37.85532871363545
+   },
+   {
+    "date": "2017-09-15",
+    "step_bp": 40.44247748941146,
+    "open": "post",
+    "open_minus_newclose_bp": -0.2269398065130046,
+    "open_minus_oldclose_bp": 40.21553768289846
+   },
+   {
+    "date": "2017-12-15",
+    "step_bp": 45.671248792976684,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5540506991988381,
+    "open_minus_oldclose_bp": 46.22529949217552
+   },
+   {
+    "date": "2018-03-16",
+    "step_bp": 33.71406676943134,
+    "open": "post",
+    "open_minus_newclose_bp": 0.7691840544921114,
+    "open_minus_oldclose_bp": 34.48325082392345
+   },
+   {
+    "date": "2018-06-15",
+    "step_bp": 43.58888122012281,
+    "open": "post",
+    "open_minus_newclose_bp": 0.11729370323593225,
+    "open_minus_oldclose_bp": 43.70617492335874
+   },
+   {
+    "date": "2018-09-21",
+    "step_bp": 45.4112782362702,
+    "open": "post",
+    "open_minus_newclose_bp": -0.07454414053476022,
+    "open_minus_oldclose_bp": 45.33673409573544
+   },
+   {
+    "date": "2018-12-21",
+    "step_bp": 60.76276604319877,
+    "open": "post",
+    "open_minus_newclose_bp": -0.7236183125323981,
+    "open_minus_oldclose_bp": 60.03914773066638
+   },
+   {
+    "date": "2019-03-15",
+    "step_bp": 48.171477466941866,
+    "open": "post",
+    "open_minus_newclose_bp": 0.8574723409668361,
+    "open_minus_oldclose_bp": 49.0289498079087
+   },
+   {
+    "date": "2019-06-21",
+    "step_bp": 50.71398734218274,
+    "open": "post",
+    "open_minus_newclose_bp": 0.5145536867662281,
+    "open_minus_oldclose_bp": 51.22854102894897
+   },
+   {
+    "date": "2019-09-20",
+    "step_bp": 49.93069388236862,
+    "open": "post",
+    "open_minus_newclose_bp": -0.11110515566924162,
+    "open_minus_oldclose_bp": 49.81958872669938
+   },
+   {
+    "date": "2019-12-20",
+    "step_bp": 52.678924305303646,
+    "open": "post",
+    "open_minus_newclose_bp": -0.14809165392773438,
+    "open_minus_oldclose_bp": 52.53083265137591
+   },
+   {
+    "date": "2020-03-23",
+    "step_bp": 85.02299024860382,
+    "open": "post",
+    "open_minus_newclose_bp": 0.139483359506698,
+    "open_minus_oldclose_bp": 85.16247360811052
+   },
+   {
+    "date": "2020-06-22",
+    "step_bp": 63.67387720788584,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3730643915687837,
+    "open_minus_oldclose_bp": 63.300812816317055
+   },
+   {
+    "date": "2020-09-21",
+    "step_bp": 54.426554190775825,
+    "open": "post",
+    "open_minus_newclose_bp": -0.1613193698497828,
+    "open_minus_oldclose_bp": 54.26523482092605
+   },
+   {
+    "date": "2020-12-21",
+    "step_bp": 52.767508216183046,
+    "open": "post",
+    "open_minus_newclose_bp": 0.33913744755004194,
+    "open_minus_oldclose_bp": 53.10664566373309
+   },
+   {
+    "date": "2021-03-22",
+    "step_bp": 43.252965412528546,
+    "open": "post",
+    "open_minus_newclose_bp": 0.9465680862728518,
+    "open_minus_oldclose_bp": 44.199533498801394
+   },
+   {
+    "date": "2021-06-21",
+    "step_bp": 39.66297881835751,
+    "open": "post",
+    "open_minus_newclose_bp": -0.004286750431674313,
+    "open_minus_oldclose_bp": 39.658692067925834
+   },
+   {
+    "date": "2021-09-20",
+    "step_bp": 42.81191442166481,
+    "open": "post",
+    "open_minus_newclose_bp": -0.1803545141092558,
+    "open_minus_oldclose_bp": 42.63155990755555
+   },
+   {
+    "date": "2021-12-20",
+    "step_bp": 46.78754097613499,
+    "open": "post",
+    "open_minus_newclose_bp": 0.14329517035612666,
+    "open_minus_oldclose_bp": 46.93083614649112
+   },
+   {
+    "date": "2022-03-21",
+    "step_bp": 38.531350176161126,
+    "open": "post",
+    "open_minus_newclose_bp": -0.003196337519384418,
+    "open_minus_oldclose_bp": 38.528153838641735
+   },
+   {
+    "date": "2022-06-21",
+    "step_bp": 53.15031987436419,
+    "open": "post",
+    "open_minus_newclose_bp": 0.020092618850525712,
+    "open_minus_oldclose_bp": 53.17041249321472
+   },
+   {
+    "date": "2022-09-19",
+    "step_bp": 51.55432191912526,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 51.55432191912526
+   }
+  ]
+ },
+ {
+  "symbol": "XLE",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 40,
+  "post": 39,
+  "pre": 1,
+  "first_step": "2016-12-16",
+  "last_step": "2025-12-22",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 0.0,
+  "median_close_gap_bp_by_year": {
+   "2016": -3867.82,
+   "2017": -3686.94,
+   "2018": -3351.39,
+   "2019": -3021.18,
+   "2020": -2186.92,
+   "2021": -1683.64,
+   "2022": -1226.93,
+   "2023": -824.0,
+   "2024": -494.46,
+   "2025": -169.84,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.0788292485087716,
+  "share_open_basis_over_5bp": 0.05182804339092005,
+  "steps_detail": [
+   {
+    "date": "2016-12-16",
+    "step_bp": 52.90096269421729,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3824326897267083,
+    "open_minus_oldclose_bp": 52.518530004490586
+   },
+   {
+    "date": "2017-03-17",
+    "step_bp": 59.64573165860965,
+    "open": "post",
+    "open_minus_newclose_bp": -0.07300675944621471,
+    "open_minus_oldclose_bp": 59.57272489916343
+   },
+   {
+    "date": "2017-03-20",
+    "step_bp": -6.28598101426181,
+    "open": "pre",
+    "open_minus_newclose_bp": 6.032966330165035,
+    "open_minus_oldclose_bp": -0.2530146840967751
+   },
+   {
+    "date": "2017-03-21",
+    "step_bp": 6.3871498008111205,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0670275465891601,
+    "open_minus_oldclose_bp": 6.454177347400281
+   },
+   {
+    "date": "2017-06-16",
+    "step_bp": 68.89366742943659,
+    "open": "post",
+    "open_minus_newclose_bp": 0.05486067970406072,
+    "open_minus_oldclose_bp": 68.94852810914065
+   },
+   {
+    "date": "2017-09-15",
+    "step_bp": 131.17197258349145,
+    "open": "post",
+    "open_minus_newclose_bp": 0.3936867256104648,
+    "open_minus_oldclose_bp": 131.5656593091019
+   },
+   {
+    "date": "2017-12-15",
+    "step_bp": 66.60165441631949,
+    "open": "post",
+    "open_minus_newclose_bp": -0.33291188150708084,
+    "open_minus_oldclose_bp": 66.2687425348124
+   },
+   {
+    "date": "2018-03-16",
+    "step_bp": 70.53778480405337,
+    "open": "post",
+    "open_minus_newclose_bp": 0.14100762912916398,
+    "open_minus_oldclose_bp": 70.67879243318254
+   },
+   {
+    "date": "2018-06-15",
+    "step_bp": 66.83857849650421,
+    "open": "post",
+    "open_minus_newclose_bp": -0.02173245265191248,
+    "open_minus_oldclose_bp": 66.8168460438523
+   },
+   {
+    "date": "2018-09-21",
+    "step_bp": 67.88643289256325,
+    "open": "post",
+    "open_minus_newclose_bp": 0.002396005878146923,
+    "open_minus_oldclose_bp": 67.88882889844139
+   },
+   {
+    "date": "2018-12-21",
+    "step_bp": 93.20068814565208,
+    "open": "post",
+    "open_minus_newclose_bp": -0.014666810783103834,
+    "open_minus_oldclose_bp": 93.18602133486897
+   },
+   {
+    "date": "2019-03-15",
+    "step_bp": 77.38386054226997,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0783450487623627,
+    "open_minus_oldclose_bp": 77.46220559103234
+   },
+   {
+    "date": "2019-06-21",
+    "step_bp": 91.48364886162774,
+    "open": "post",
+    "open_minus_newclose_bp": -0.056006676975584035,
+    "open_minus_oldclose_bp": 91.42764218465216
+   },
+   {
+    "date": "2019-09-20",
+    "step_bp": 91.3707359842575,
+    "open": "post",
+    "open_minus_newclose_bp": -0.24932831594659532,
+    "open_minus_oldclose_bp": 91.1214076683109
+   },
+   {
+    "date": "2019-12-20",
+    "step_bp": 99.95854611861587,
+    "open": "post",
+    "open_minus_newclose_bp": 0.3056887631719407,
+    "open_minus_oldclose_bp": 100.26423488178781
+   },
+   {
+    "date": "2019-12-30",
+    "step_bp": 294.59896327739597,
+    "open": "post",
+    "open_minus_newclose_bp": 0.054584320014483545,
+    "open_minus_oldclose_bp": 294.65354759741047
+   },
+   {
+    "date": "2020-03-23",
+    "step_bp": 221.1155465972403,
+    "open": "post",
+    "open_minus_newclose_bp": 0.4580802080481061,
+    "open_minus_oldclose_bp": 221.57362680528843
+   },
+   {
+    "date": "2020-06-22",
+    "step_bp": 127.33971965610297,
+    "open": "post",
+    "open_minus_newclose_bp": -0.15069662450628574,
+    "open_minus_oldclose_bp": 127.18902303159668
+   },
+   {
+    "date": "2020-09-21",
+    "step_bp": 162.87793131955607,
+    "open": "post",
+    "open_minus_newclose_bp": 0.127566382375488,
+    "open_minus_oldclose_bp": 163.00549770193157
+   },
+   {
+    "date": "2020-12-21",
+    "step_bp": 132.92007340560102,
+    "open": "post",
+    "open_minus_newclose_bp": -0.07536159303989098,
+    "open_minus_oldclose_bp": 132.84471181256114
+   },
+   {
+    "date": "2021-03-22",
+    "step_bp": 105.33597860601846,
+    "open": "post",
+    "open_minus_newclose_bp": -0.034388934516127456,
+    "open_minus_oldclose_bp": 105.30158967150233
+   },
+   {
+    "date": "2021-06-21",
+    "step_bp": 101.4208201759148,
+    "open": "post",
+    "open_minus_newclose_bp": 0.17368894959124415,
+    "open_minus_oldclose_bp": 101.59450912550605
+   },
+   {
+    "date": "2021-09-20",
+    "step_bp": 120.34316584579096,
+    "open": "post",
+    "open_minus_newclose_bp": -0.03423906359739659,
+    "open_minus_oldclose_bp": 120.30892678219357
+   },
+   {
+    "date": "2021-12-20",
+    "step_bp": 129.7233578387391,
+    "open": "post",
+    "open_minus_newclose_bp": 0.005177320040461453,
+    "open_minus_oldclose_bp": 129.72853515877958
+   },
+   {
+    "date": "2022-03-21",
+    "step_bp": 95.19156882046687,
+    "open": "post",
+    "open_minus_newclose_bp": -0.05310312874345913,
+    "open_minus_oldclose_bp": 95.13846569172341
+   },
+   {
+    "date": "2022-06-21",
+    "step_bp": 111.50783116003134,
+    "open": "post",
+    "open_minus_newclose_bp": 0.04511289823663778,
+    "open_minus_oldclose_bp": 111.55294405826798
+   },
+   {
+    "date": "2022-09-19",
+    "step_bp": 108.93843419736413,
+    "open": "post",
+    "open_minus_newclose_bp": 0.03190666885630189,
+    "open_minus_oldclose_bp": 108.97034086622043
+   },
+   {
+    "date": "2022-12-19",
+    "step_bp": 102.44527898115932,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0075134391423758995,
+    "open_minus_oldclose_bp": 102.43776554201695
+   },
+   {
+    "date": "2023-03-20",
+    "step_bp": 103.86396373872883,
+    "open": "post",
+    "open_minus_newclose_bp": 0.027048231599352546,
+    "open_minus_oldclose_bp": 103.89101197032818
+   },
+   {
+    "date": "2023-06-20",
+    "step_bp": 87.62718674238238,
+    "open": "post",
+    "open_minus_newclose_bp": 0.035672833199468235,
+    "open_minus_oldclose_bp": 87.66285957558185
+   },
+   {
+    "date": "2023-09-18",
+    "step_bp": 73.47106278005916,
+    "open": "post",
+    "open_minus_newclose_bp": 0.010726247034881231,
+    "open_minus_oldclose_bp": 73.48178902709404
+   },
+   {
+    "date": "2023-12-18",
+    "step_bp": 95.59597545986176,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0110206612394248,
+    "open_minus_oldclose_bp": 95.58495479862233
+   },
+   {
+    "date": "2024-03-18",
+    "step_bp": 80.4806783473841,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0010347748133354706,
+    "open_minus_oldclose_bp": 80.47964357257075
+   },
+   {
+    "date": "2024-06-24",
+    "step_bp": 79.94995479177875,
+    "open": "post",
+    "open_minus_newclose_bp": -0.0029159005831419504,
+    "open_minus_oldclose_bp": 79.94703889119562
+   },
+   {
+    "date": "2024-09-23",
+    "step_bp": 82.30152065809675,
+    "open": "post",
+    "open_minus_newclose_bp": -0.017351189806613654,
+    "open_minus_oldclose_bp": 82.28416946829013
+   },
+   {
+    "date": "2024-12-23",
+    "step_bp": 83.54765350243169,
+    "open": "post",
+    "open_minus_newclose_bp": -3.6032091978559224,
+    "open_minus_oldclose_bp": 79.94444430457575
+   },
+   {
+    "date": "2025-03-24",
+    "step_bp": 77.72487381452336,
+    "open": "post",
+    "open_minus_newclose_bp": -7.587062886105916,
+    "open_minus_oldclose_bp": 70.13781092841745
+   },
+   {
+    "date": "2025-06-23",
+    "step_bp": 81.06765668627975,
+    "open": "post",
+    "open_minus_newclose_bp": -0.018213970363646637,
+    "open_minus_oldclose_bp": 81.0494427159161
+   },
+   {
+    "date": "2025-09-22",
+    "step_bp": 84.96748571981564,
+    "open": "post",
+    "open_minus_newclose_bp": -2.303629362917382,
+    "open_minus_oldclose_bp": 82.66385635689826
+   },
+   {
+    "date": "2025-12-22",
+    "step_bp": 84.88223276467312,
+    "open": "post",
+    "open_minus_newclose_bp": 6.794247798448501,
+    "open_minus_oldclose_bp": 91.67648056312161
+   }
+  ]
+ },
+ {
+  "symbol": "EEM",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 18,
+  "post": 18,
+  "pre": 0,
+  "first_step": "2016-12-21",
+  "last_step": "2024-12-17",
+  "median_abs_close_gap_after_last_step_bp": 0.0,
+  "max_abs_close_gap_after_last_step_bp": 0.0,
+  "median_close_gap_bp_by_year": {
+   "2016": -1840.22,
+   "2017": -1680.72,
+   "2018": -1464.52,
+   "2019": -1240.65,
+   "2020": -1032.32,
+   "2021": -885.69,
+   "2022": -653.08,
+   "2023": -423.65,
+   "2024": -167.51,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.029763146108530147,
+  "share_open_basis_over_5bp": 0.005222981116914423,
+  "steps_detail": [
+   {
+    "date": "2016-12-21",
+    "step_bp": 113.4368543244882,
+    "open": "post",
+    "open_minus_newclose_bp": -0.19933431963214954,
+    "open_minus_oldclose_bp": 113.23752000485604
+   },
+   {
+    "date": "2017-06-20",
+    "step_bp": 46.675420950220705,
+    "open": "post",
+    "open_minus_newclose_bp": -0.20574130106587596,
+    "open_minus_oldclose_bp": 46.46967964915483
+   },
+   {
+    "date": "2017-12-19",
+    "step_bp": 151.48164494722977,
+    "open": "post",
+    "open_minus_newclose_bp": 0.020903495290824914,
+    "open_minus_oldclose_bp": 151.50254844252058
+   },
+   {
+    "date": "2018-06-19",
+    "step_bp": 65.3689656599743,
+    "open": "post",
+    "open_minus_newclose_bp": 0.09441808912130645,
+    "open_minus_oldclose_bp": 65.4633837490956
+   },
+   {
+    "date": "2018-12-18",
+    "step_bp": 148.09307959216338,
+    "open": "post",
+    "open_minus_newclose_bp": 0.1162884540453768,
+    "open_minus_oldclose_bp": 148.20936804620877
+   },
+   {
+    "date": "2019-06-17",
+    "step_bp": 76.11753978944938,
+    "open": "post",
+    "open_minus_newclose_bp": -0.15618367118969134,
+    "open_minus_oldclose_bp": 75.96135611825969
+   },
+   {
+    "date": "2019-12-16",
+    "step_bp": 150.41709782586412,
+    "open": "post",
+    "open_minus_newclose_bp": -0.3307810616497153,
+    "open_minus_oldclose_bp": 150.08631676421442
+   },
+   {
+    "date": "2020-06-15",
+    "step_bp": 57.51611652233618,
+    "open": "post",
+    "open_minus_newclose_bp": 0.018725283186665775,
+    "open_minus_oldclose_bp": 57.534841805522845
+   },
+   {
+    "date": "2020-12-14",
+    "step_bp": 102.9934874040822,
+    "open": "post",
+    "open_minus_newclose_bp": 0.17879412023177887,
+    "open_minus_oldclose_bp": 103.17228152431399
+   },
+   {
+    "date": "2021-06-10",
+    "step_bp": 43.54752801385822,
+    "open": "post",
+    "open_minus_newclose_bp": -0.027665097527967975,
+    "open_minus_oldclose_bp": 43.519862916330254
+   },
+   {
+    "date": "2021-12-13",
+    "step_bp": 142.26826328913296,
+    "open": "post",
+    "open_minus_newclose_bp": 0.030899269649192762,
+    "open_minus_oldclose_bp": 142.29916255878217
+   },
+   {
+    "date": "2021-12-30",
+    "step_bp": 6.201771650118232,
+    "open": "post",
+    "open_minus_newclose_bp": -0.00687719523218,
+    "open_minus_oldclose_bp": 6.194894454886052
+   },
+   {
+    "date": "2022-06-09",
+    "step_bp": 84.16406764398116,
+    "open": "post",
+    "open_minus_newclose_bp": -0.01812854932739527,
+    "open_minus_oldclose_bp": 84.14593909465376
+   },
+   {
+    "date": "2022-12-13",
+    "step_bp": 151.35124540883461,
+    "open": "post",
+    "open_minus_newclose_bp": -0.01483207751812321,
+    "open_minus_oldclose_bp": 151.3364133313165
+   },
+   {
+    "date": "2023-06-07",
+    "step_bp": 78.10251580696641,
+    "open": "post",
+    "open_minus_newclose_bp": -0.016786993601858313,
+    "open_minus_oldclose_bp": 78.08572881336455
+   },
+   {
+    "date": "2023-12-20",
+    "step_bp": 187.3715015853477,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0019122490485176669,
+    "open_minus_oldclose_bp": 187.37341383439622
+   },
+   {
+    "date": "2024-06-11",
+    "step_bp": 68.77996623324927,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0008252529576716072,
+    "open_minus_oldclose_bp": 68.78079148620694
+   },
+   {
+    "date": "2024-12-17",
+    "step_bp": 167.50609836030037,
+    "open": "post",
+    "open_minus_newclose_bp": 0.0,
+    "open_minus_oldclose_bp": 167.50609836030037
+   }
+  ]
+ },
+ {
+  "symbol": "GLD",
+  "common_dates": 2489,
+  "first": "2016-10-10",
+  "last": "2026-09-04",
+  "steps": 0,
+  "post": 0,
+  "pre": 0,
+  "first_step": null,
+  "last_step": null,
+  "median_abs_close_gap_after_last_step_bp": null,
+  "max_abs_close_gap_after_last_step_bp": null,
+  "median_close_gap_bp_by_year": {
+   "2016": 0.0,
+   "2017": 0.0,
+   "2018": 0.0,
+   "2019": 0.0,
+   "2020": 0.0,
+   "2021": 0.0,
+   "2022": 0.0,
+   "2023": 0.0,
+   "2024": 0.0,
+   "2025": 0.0,
+   "2026": 0.0
+  },
+  "median_abs_open_basis_bp": 0.0,
+  "share_open_basis_over_5bp": 0.0012053033346725592,
+  "steps_detail": []
+ }
+]

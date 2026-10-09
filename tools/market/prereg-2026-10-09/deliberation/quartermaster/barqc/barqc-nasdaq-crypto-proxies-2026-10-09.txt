@@ -1,0 +1,76 @@
+### IBIT-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — IBIT 1d: 688 bars, 2024-01-11 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       688 bars, 689 sessions, 1 missing       <= 6 missing    
+       └─ missing 2025-01-09; up to 6 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:33:38+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           688 bars                                >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/IBIT-1d-nasdaq.csv --symbol IBIT
+exit=0
+### BITO-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — BITO 1d: 1248 bars, 2021-10-19 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       1248 bars, 1249 sessions, 1 missing     <= 12 missing   
+       └─ missing 2025-01-09; up to 12 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:33:44+00:00
+ok    volume         0 zero/negative                         0                 (reported, not blocking)
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           1248 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/BITO-1d-nasdaq.csv --symbol BITO
+exit=0
+### GBTC-1d-nasdaq.csv
+
+========================================================================
+BAR INSPECTION — GBTC 1d: 1942 bars, 2019-01-17 → 2026-10-08, source nasdaq
+========================================================================
+
+check           value                                   want            
+------------------------------------------------------------------------
+ok    ohlc sanity    0 bad row(s)                            0               
+ok    order          0 duplicate, 0 backwards                0, 0            
+ok    sessions       1942 bars, 1943 sessions, 1 missing     <= 19 missing   
+       └─ missing 2025-01-09; up to 19 tolerated for special closures
+ok    calendar       0 off-calendar bar(s)                   0               
+ok    provenance     0 missing                               0               
+       └─ nasdaq @ 2026-10-09T04:33:51+00:00
+ok    volume         1 zero/negative                         0                 (reported, not blocking)
+       └─ halts and thin names produce real zero-volume bars; look, do not assume
+ok    adjustment     0 split-sized gap(s)                    0                 (reported, not blocking)
+       └─ unadjusted
+ok    staleness      last bar 1.2 period(s) old              <= 3 for live     (reported, not blocking)
+ok    span           1942 bars                               >= 60             (reported, not blocking)
+------------------------------------------------------------------------
+VERDICT: PASS
+
+next:  python3 run.py --mode backtest --strategy sma_cross:10,30 --csv /tmp/claude-0/-home-user-ca/2758dbcb-e96c-587b-81c2-e59b0c402304/scratchpad/edge/data/nasdaq/GBTC-1d-nasdaq.csv --symbol GBTC
+exit=0

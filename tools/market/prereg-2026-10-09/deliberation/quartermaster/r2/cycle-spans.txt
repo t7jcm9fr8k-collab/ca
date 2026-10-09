@@ -1,0 +1,3 @@
+S1-SPY: entry-to-entry span close 2005-03-24 -> close 2026-08-25: 257 complete cycles, 5387 scored sessions
+G7-QQQ: entry-to-entry span close 1999-03-25 -> close 2005-02-22: 71 complete cycles, 1485 scored sessions
+S2-TLT: next entry beyond the data; span close 2005-03-28 -> close 2026-08-31 (last window's exit): 258 windows, 5390 scored sessions

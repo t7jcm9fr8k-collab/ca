@@ -1,0 +1,4 @@
+h=0.00: P(timing book > 0) 0.511 | (A) top-5 <= 50% of total: 0.028 | (B) total minus top-5 >= 0: 0.167
+h=0.38: P(timing book > 0) 0.875 | (A) top-5 <= 50% of total: 0.234 | (B) total minus top-5 >= 0: 0.595
+h=0.69: P(timing book > 0) 0.986 | (A) top-5 <= 50% of total: 0.583 | (B) total minus top-5 >= 0: 0.883
+h=1.00: P(timing book > 0) 0.999 | (A) top-5 <= 50% of total: 0.878 | (B) total minus top-5 >= 0: 0.987

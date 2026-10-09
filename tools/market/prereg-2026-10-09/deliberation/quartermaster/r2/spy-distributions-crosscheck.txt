@@ -1,0 +1,12 @@
+SPY distributions after the stooq cutoff: sourced amount as a share of the previous official close (D/P),
+against the SSO witness (x_t/2) and the size of the steps the stooq file carried before the cutoff.
+ex_date       amount close(t-1)  D/P bp witness bp wit-D/P stooq step bp
+2025-03-21    1.6955     565.49   29.98        n/a                 30.08
+2025-06-20    1.7611     597.44   29.48      25.48   -3.99             -
+2025-09-19    1.8311     662.26   27.65      22.99   -4.66             -
+2025-12-19    1.9934     676.47   29.47      27.85   -1.62             -
+2026-03-20    1.7970     659.80   27.24      24.19   -3.05             -
+2026-06-18    1.9035     740.96   25.69      16.95   -8.74             -
+2026-09-18    1.8888     762.60   24.77      19.15   -5.62             -
+stooq steps located 2024-2025 (for scale): 2024-03-15 31.06, 2024-06-21 32.26, 2024-09-20 30.67, 2024-12-20 33.66, 2025-03-21 30.08
+sum of D/P over the five ex-dates inside S1's tail (2025-03-22..2026-09-01): 139.5 bp

@@ -1,0 +1,2 @@
+iid   : overlay DD minus constant DD (pts, negative = overlay deeper): mean -3.49, 5th pct -13.55, 10th -11.53, median -3.11; P(overlay worse by > 2 pts) 0.56, > 5 pts 0.38; median DDs overlay -57.7% constant -53.3% 1x -42.0%
+markov: overlay DD minus constant DD (pts, negative = overlay deeper): mean -2.94, 5th pct -12.07, 10th -9.76, median -2.77; P(overlay worse by > 2 pts) 0.55, > 5 pts 0.30; median DDs overlay -55.5% constant -52.5% 1x -40.9%

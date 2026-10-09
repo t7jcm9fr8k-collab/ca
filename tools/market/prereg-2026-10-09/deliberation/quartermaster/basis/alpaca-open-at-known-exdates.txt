@@ -1,0 +1,167 @@
+Alpaca total-return files at ex-dates located exactly by stooq-vs-nasdaq (stooq's open verdict 'post' at every one).
+For each date t: Alpaca close ratio jump r_c(t)/r_c(t-1) and where Alpaca's OPEN sits: post = same basis as close(t),
+pre = basis of close(t-1). |diff| < 2 bp between the two distances = ambiguous.
+
+## DIA: 5 known ex-date(s) inside the Alpaca window; post 2, pre 1, ambiguous 2
+   2021-01-15  alpaca close-ratio jump   -1.31 bp  open dist post   3.22 / pre   4.53 bp -> ambiguous
+   2021-07-16  alpaca close-ratio jump   +8.12 bp  open dist post   2.93 / pre   5.19 bp -> post
+   2022-01-21  alpaca close-ratio jump  +17.97 bp  open dist post  13.53 / pre   4.42 bp -> pre
+   2022-07-15  alpaca close-ratio jump   +8.86 bp  open dist post   5.35 / pre   3.51 bp -> ambiguous
+   2022-10-21  alpaca close-ratio jump   +3.15 bp  open dist post   4.09 / pre   7.24 bp -> post
+
+## EEM: 10 known ex-date(s) inside the Alpaca window; post 10, pre 0, ambiguous 0
+   2020-12-14  alpaca close-ratio jump  +96.78 bp  open dist post   5.33 / pre 102.17 bp -> post
+   2021-06-10  alpaca close-ratio jump  +39.28 bp  open dist post   4.75 / pre  44.05 bp -> post
+   2021-12-13  alpaca close-ratio jump +135.41 bp  open dist post   6.44 / pre 141.94 bp -> post
+   2021-12-30  alpaca close-ratio jump   +4.98 bp  open dist post   5.10 / pre  10.08 bp -> post
+   2022-06-09  alpaca close-ratio jump  +81.50 bp  open dist post   9.67 / pre  91.24 bp -> post
+   2022-12-13  alpaca close-ratio jump +151.52 bp  open dist post   2.87 / pre 148.60 bp -> post
+   2023-06-07  alpaca close-ratio jump  +86.09 bp  open dist post   0.27 / pre  86.37 bp -> post
+   2023-12-20  alpaca close-ratio jump +187.90 bp  open dist post   1.86 / pre 186.00 bp -> post
+   2024-06-11  alpaca close-ratio jump  +67.48 bp  open dist post   0.67 / pre  66.80 bp -> post
+   2024-12-17  alpaca close-ratio jump +161.53 bp  open dist post   5.55 / pre 167.17 bp -> post
+
+## EFA: 4 known ex-date(s) inside the Alpaca window; post 4, pre 0, ambiguous 0
+   2020-12-14  alpaca close-ratio jump +102.60 bp  open dist post   2.05 / pre 100.53 bp -> post
+   2021-06-10  alpaca close-ratio jump +136.80 bp  open dist post   4.29 / pre 141.15 bp -> post
+   2021-12-30  alpaca close-ratio jump  +14.85 bp  open dist post   3.81 / pre  18.67 bp -> post
+   2022-06-09  alpaca close-ratio jump +215.33 bp  open dist post   4.49 / pre 219.91 bp -> post
+
+## IWM: 9 known ex-date(s) inside the Alpaca window; post 9, pre 0, ambiguous 0
+   2020-09-23  alpaca close-ratio jump  +30.08 bp  open dist post   8.63 / pre  38.73 bp -> post
+   2020-12-14  alpaca close-ratio jump  +31.33 bp  open dist post   2.18 / pre  33.52 bp -> post
+   2021-03-25  alpaca close-ratio jump   +8.00 bp  open dist post   4.19 / pre  12.19 bp -> post
+   2021-06-10  alpaca close-ratio jump  +17.33 bp  open dist post   0.72 / pre  16.61 bp -> post
+   2021-09-24  alpaca close-ratio jump  +29.77 bp  open dist post   3.89 / pre  25.87 bp -> post
+   2021-12-13  alpaca close-ratio jump  +28.36 bp  open dist post   5.27 / pre  33.65 bp -> post
+   2022-03-24  alpaca close-ratio jump  +18.32 bp  open dist post   0.91 / pre  17.41 bp -> post
+   2022-06-09  alpaca close-ratio jump  +27.05 bp  open dist post  11.37 / pre  15.65 bp -> post
+   2022-09-26  alpaca close-ratio jump  +52.05 bp  open dist post   3.12 / pre  55.18 bp -> post
+
+## QQQ: 19 known ex-date(s) inside the Alpaca window; post 17, pre 1, ambiguous 1
+   2020-09-21  alpaca close-ratio jump  +24.22 bp  open dist post   1.36 / pre  22.86 bp -> post
+   2020-12-21  alpaca close-ratio jump  +20.79 bp  open dist post   3.12 / pre  17.66 bp -> post
+   2021-03-22  alpaca close-ratio jump   -3.76 bp  open dist post   0.02 / pre   3.74 bp -> post
+   2021-06-21  alpaca close-ratio jump  +16.72 bp  open dist post   1.20 / pre  17.92 bp -> post
+   2021-09-20  alpaca close-ratio jump  +12.33 bp  open dist post   6.94 / pre   5.38 bp -> ambiguous
+   2021-12-20  alpaca close-ratio jump  +12.26 bp  open dist post   4.01 / pre   8.25 bp -> post
+   2022-03-21  alpaca close-ratio jump  +14.68 bp  open dist post   0.78 / pre  13.90 bp -> post
+   2022-06-21  alpaca close-ratio jump  +17.06 bp  open dist post   0.02 / pre  17.05 bp -> post
+   2022-09-19  alpaca close-ratio jump  +40.42 bp  open dist post   1.40 / pre  41.83 bp -> post
+   2022-12-19  alpaca close-ratio jump  +32.18 bp  open dist post   5.96 / pre  26.20 bp -> post
+   2023-03-20  alpaca close-ratio jump   +9.08 bp  open dist post   8.95 / pre  18.04 bp -> post
+   2023-06-20  alpaca close-ratio jump  +19.18 bp  open dist post   0.94 / pre  20.13 bp -> post
+   2023-09-18  alpaca close-ratio jump  +21.08 bp  open dist post   0.03 / pre  21.05 bp -> post
+   2023-12-18  alpaca close-ratio jump  +31.71 bp  open dist post   1.48 / pre  30.22 bp -> post
+   2024-03-18  alpaca close-ratio jump  +11.28 bp  open dist post   4.04 / pre  15.32 bp -> post
+   2024-06-24  alpaca close-ratio jump  +17.84 bp  open dist post   1.41 / pre  16.43 bp -> post
+   2024-09-23  alpaca close-ratio jump  +15.41 bp  open dist post   0.61 / pre  16.02 bp -> post
+   2024-12-23  alpaca close-ratio jump  -79.55 bp  open dist post  98.36 / pre  18.03 bp -> pre
+   2025-03-24  alpaca close-ratio jump   +4.43 bp  open dist post   0.38 / pre   4.05 bp -> post
+
+## TLT: 68 known ex-date(s) inside the Alpaca window; post 60, pre 3, ambiguous 5
+   2020-08-03  alpaca close-ratio jump   +6.14 bp  open dist post   1.72 / pre   4.42 bp -> post
+   2020-09-01  alpaca close-ratio jump  +15.72 bp  open dist post   1.12 / pre  16.84 bp -> post
+   2020-10-01  alpaca close-ratio jump   +7.21 bp  open dist post   0.52 / pre   6.69 bp -> post
+   2020-11-02  alpaca close-ratio jump   +8.74 bp  open dist post   0.71 / pre   8.03 bp -> post
+   2020-12-01  alpaca close-ratio jump  +10.50 bp  open dist post   5.36 / pre   5.13 bp -> ambiguous
+   2020-12-17  alpaca close-ratio jump   +6.98 bp  open dist post   1.30 / pre   8.28 bp -> post
+   2021-02-01  alpaca close-ratio jump   +6.34 bp  open dist post   5.37 / pre   0.97 bp -> pre
+   2021-03-01  alpaca close-ratio jump   +3.60 bp  open dist post   2.79 / pre   6.39 bp -> post
+   2021-04-01  alpaca close-ratio jump   -3.10 bp  open dist post   1.69 / pre   1.41 bp -> ambiguous
+   2021-05-03  alpaca close-ratio jump   +6.06 bp  open dist post   7.78 / pre  13.85 bp -> post
+   2021-06-01  alpaca close-ratio jump  +16.64 bp  open dist post   2.97 / pre  13.66 bp -> post
+   2021-07-01  alpaca close-ratio jump   +8.33 bp  open dist post   3.23 / pre  11.56 bp -> post
+   2021-08-02  alpaca close-ratio jump  +13.38 bp  open dist post   1.43 / pre  14.82 bp -> post
+   2021-09-01  alpaca close-ratio jump   +3.99 bp  open dist post   2.52 / pre   6.51 bp -> post
+   2021-10-01  alpaca close-ratio jump   +8.72 bp  open dist post   3.32 / pre   5.40 bp -> post
+   2021-11-01  alpaca close-ratio jump  +30.83 bp  open dist post  16.41 / pre  14.36 bp -> pre
+   2021-12-01  alpaca close-ratio jump   +5.42 bp  open dist post   4.77 / pre  10.20 bp -> post
+   2021-12-16  alpaca close-ratio jump   +5.78 bp  open dist post   8.66 / pre  14.44 bp -> post
+   2022-02-01  alpaca close-ratio jump  +12.94 bp  open dist post   2.71 / pre  10.23 bp -> post
+   2022-03-01  alpaca close-ratio jump  +25.48 bp  open dist post  13.06 / pre  12.39 bp -> ambiguous
+   2022-04-01  alpaca close-ratio jump   -0.33 bp  open dist post   6.72 / pre   6.39 bp -> ambiguous
+   2022-05-02  alpaca close-ratio jump  +18.28 bp  open dist post  11.67 / pre   6.59 bp -> pre
+   2022-06-01  alpaca close-ratio jump   +1.89 bp  open dist post  17.89 / pre  16.01 bp -> ambiguous
+   2022-07-01  alpaca close-ratio jump  +22.75 bp  open dist post   1.21 / pre  23.96 bp -> post
+   2022-08-01  alpaca close-ratio jump  +15.65 bp  open dist post   9.43 / pre  25.10 bp -> post
+   2022-09-01  alpaca close-ratio jump  +22.80 bp  open dist post   3.26 / pre  19.53 bp -> post
+   2022-10-03  alpaca close-ratio jump  +18.16 bp  open dist post   2.57 / pre  20.74 bp -> post
+   2022-11-01  alpaca close-ratio jump  +32.08 bp  open dist post   1.99 / pre  34.08 bp -> post
+   2022-12-01  alpaca close-ratio jump  +38.98 bp  open dist post   1.75 / pre  40.73 bp -> post
+   2022-12-15  alpaca close-ratio jump  +21.69 bp  open dist post   3.25 / pre  18.43 bp -> post
+   2023-02-01  alpaca close-ratio jump  +16.96 bp  open dist post   7.03 / pre   9.92 bp -> post
+   2023-03-01  alpaca close-ratio jump  +28.62 bp  open dist post   4.59 / pre  24.02 bp -> post
+   2023-04-03  alpaca close-ratio jump  +29.32 bp  open dist post   2.77 / pre  32.10 bp -> post
+   2023-05-01  alpaca close-ratio jump  +34.87 bp  open dist post   7.11 / pre  27.74 bp -> post
+   2023-06-01  alpaca close-ratio jump  +21.90 bp  open dist post   2.25 / pre  24.15 bp -> post
+   2023-07-03  alpaca close-ratio jump  +25.92 bp  open dist post   1.72 / pre  24.20 bp -> post
+   2023-08-01  alpaca close-ratio jump  +22.48 bp  open dist post   0.62 / pre  23.10 bp -> post
+   2023-09-01  alpaca close-ratio jump  +27.87 bp  open dist post   1.98 / pre  25.88 bp -> post
+   2023-10-02  alpaca close-ratio jump  +30.14 bp  open dist post   6.00 / pre  24.11 bp -> post
+   2023-11-01  alpaca close-ratio jump  +32.87 bp  open dist post   6.65 / pre  39.54 bp -> post
+   2023-12-01  alpaca close-ratio jump  +19.60 bp  open dist post   7.77 / pre  27.38 bp -> post
+   2024-02-01  alpaca close-ratio jump  +29.74 bp  open dist post   5.00 / pre  34.76 bp -> post
+   2024-03-01  alpaca close-ratio jump  +30.80 bp  open dist post   1.83 / pre  28.97 bp -> post
+   2024-04-01  alpaca close-ratio jump  +37.06 bp  open dist post   0.40 / pre  37.46 bp -> post
+   2024-05-01  alpaca close-ratio jump  +30.51 bp  open dist post   3.27 / pre  27.23 bp -> post
+   2024-06-03  alpaca close-ratio jump  +21.62 bp  open dist post   1.13 / pre  20.49 bp -> post
+   2024-07-01  alpaca close-ratio jump  +33.91 bp  open dist post   2.95 / pre  30.95 bp -> post
+   2024-08-01  alpaca close-ratio jump  +35.14 bp  open dist post   6.30 / pre  28.82 bp -> post
+   2024-09-03  alpaca close-ratio jump  +21.02 bp  open dist post   2.90 / pre  18.11 bp -> post
+   2024-10-01  alpaca close-ratio jump  +33.57 bp  open dist post   2.74 / pre  30.82 bp -> post
+   2024-11-01  alpaca close-ratio jump  +29.96 bp  open dist post   2.29 / pre  27.67 bp -> post
+   2024-12-02  alpaca close-ratio jump  +39.56 bp  open dist post   2.90 / pre  42.47 bp -> post
+   2024-12-18  alpaca close-ratio jump  +39.95 bp  open dist post   3.90 / pre  36.04 bp -> post
+   2025-02-03  alpaca close-ratio jump  +35.23 bp  open dist post   1.60 / pre  36.84 bp -> post
+   2025-03-03  alpaca close-ratio jump  +35.88 bp  open dist post   1.78 / pre  34.10 bp -> post
+   2025-04-01  alpaca close-ratio jump  +38.60 bp  open dist post   0.60 / pre  39.21 bp -> post
+   2025-05-01  alpaca close-ratio jump  +37.48 bp  open dist post   2.01 / pre  35.47 bp -> post
+   2025-06-02  alpaca close-ratio jump  +38.00 bp  open dist post   0.36 / pre  37.64 bp -> post
+   2025-07-01  alpaca close-ratio jump  +28.07 bp  open dist post   2.33 / pre  30.41 bp -> post
+   2025-08-01  alpaca close-ratio jump  +37.92 bp  open dist post   0.92 / pre  38.84 bp -> post
+   2025-09-02  alpaca close-ratio jump  +39.72 bp  open dist post   1.22 / pre  38.49 bp -> post
+   2025-10-01  alpaca close-ratio jump  +33.56 bp  open dist post   1.92 / pre  35.49 bp -> post
+   2025-11-03  alpaca close-ratio jump  +33.42 bp  open dist post   4.12 / pre  37.55 bp -> post
+   2025-12-01  alpaca close-ratio jump  +38.19 bp  open dist post   0.29 / pre  37.90 bp -> post
+   2025-12-19  alpaca close-ratio jump  +32.78 bp  open dist post   9.03 / pre  41.84 bp -> post
+   2026-02-02  alpaca close-ratio jump  +38.44 bp  open dist post   3.29 / pre  35.14 bp -> post
+   2026-03-02  alpaca close-ratio jump  +38.73 bp  open dist post   0.76 / pre  37.97 bp -> post
+   2026-04-01  alpaca close-ratio jump  +42.73 bp  open dist post   1.14 / pre  41.59 bp -> post
+
+## XLE: 22 known ex-date(s) inside the Alpaca window; post 21, pre 1, ambiguous 0
+   2020-09-21  alpaca close-ratio jump +158.08 bp  open dist post  43.73 / pre 113.66 bp -> post
+   2020-12-21  alpaca close-ratio jump +150.65 bp  open dist post  29.97 / pre 120.23 bp -> post
+   2021-03-22  alpaca close-ratio jump  +98.03 bp  open dist post  38.91 / pre  58.74 bp -> post
+   2021-06-21  alpaca close-ratio jump +101.79 bp  open dist post  23.73 / pre 125.76 bp -> post
+   2021-09-20  alpaca close-ratio jump +120.39 bp  open dist post  45.26 / pre  74.59 bp -> post
+   2021-12-20  alpaca close-ratio jump +131.31 bp  open dist post  14.91 / pre 146.42 bp -> post
+   2022-03-21  alpaca close-ratio jump  +94.72 bp  open dist post   1.34 / pre  96.07 bp -> post
+   2022-06-21  alpaca close-ratio jump +108.27 bp  open dist post   3.63 / pre 104.60 bp -> post
+   2022-09-19  alpaca close-ratio jump +108.95 bp  open dist post   8.68 / pre 100.17 bp -> post
+   2022-12-19  alpaca close-ratio jump +109.64 bp  open dist post  23.07 / pre  86.32 bp -> post
+   2023-03-20  alpaca close-ratio jump +111.22 bp  open dist post  23.49 / pre 134.98 bp -> post
+   2023-06-20  alpaca close-ratio jump  +86.64 bp  open dist post   4.90 / pre  91.59 bp -> post
+   2023-09-18  alpaca close-ratio jump  +58.38 bp  open dist post   4.21 / pre  54.15 bp -> post
+   2023-12-18  alpaca close-ratio jump +102.58 bp  open dist post  22.82 / pre  79.52 bp -> post
+   2024-03-18  alpaca close-ratio jump  +84.09 bp  open dist post  11.00 / pre  95.18 bp -> post
+   2024-06-24  alpaca close-ratio jump  +89.02 bp  open dist post   9.16 / pre  79.78 bp -> post
+   2024-09-23  alpaca close-ratio jump  +81.53 bp  open dist post   8.31 / pre  73.15 bp -> post
+   2024-12-23  alpaca close-ratio jump  -30.34 bp  open dist post 110.02 / pre  79.35 bp -> pre
+   2025-03-24  alpaca close-ratio jump  +79.59 bp  open dist post   0.67 / pre  80.26 bp -> post
+   2025-06-23  alpaca close-ratio jump  +81.85 bp  open dist post   7.08 / pre  88.99 bp -> post
+   2025-09-22  alpaca close-ratio jump  +85.19 bp  open dist post  18.08 / pre  66.96 bp -> post
+   2025-12-22  alpaca close-ratio jump  +85.95 bp  open dist post   2.51 / pre  83.42 bp -> post
+
+## XLF: 9 known ex-date(s) inside the Alpaca window; post 6, pre 3, ambiguous 0
+   2020-09-21  alpaca close-ratio jump  +62.43 bp  open dist post  32.42 / pre  29.82 bp -> pre
+   2020-12-21  alpaca close-ratio jump  +43.00 bp  open dist post  24.76 / pre  18.13 bp -> pre
+   2021-03-22  alpaca close-ratio jump  +47.84 bp  open dist post  11.82 / pre  59.71 bp -> post
+   2021-06-21  alpaca close-ratio jump  +42.41 bp  open dist post   0.31 / pre  42.72 bp -> post
+   2021-09-20  alpaca close-ratio jump  +54.91 bp  open dist post  28.73 / pre  26.03 bp -> pre
+   2021-12-20  alpaca close-ratio jump  +53.66 bp  open dist post  11.77 / pre  65.50 bp -> post
+   2022-03-21  alpaca close-ratio jump  +35.04 bp  open dist post   1.41 / pre  33.62 bp -> post
+   2022-06-21  alpaca close-ratio jump  +52.01 bp  open dist post   2.01 / pre  54.03 bp -> post
+   2022-09-19  alpaca close-ratio jump  +46.06 bp  open dist post  10.94 / pre  57.05 bp -> post
+
+TOTAL: post 129, pre 9, ambiguous 8

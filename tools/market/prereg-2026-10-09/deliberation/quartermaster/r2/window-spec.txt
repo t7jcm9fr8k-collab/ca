@@ -1,0 +1,59 @@
+sha256 bars/SPY-1d.csv = 52a006deec221ab41c869bd25b279203d3f8d9dedad0bb99ea481164a2cd45a0
+sha256 bars/QQQ-1d-long.csv = 4433bdbc019328196c84e610fe5f834aa72097de70a9d3bc2d499a6dfeae790e
+sha256 bars/TLT-1d-long.csv = e4483c7bad20ee09cf7a7ab1973a72bd31ab3ae844567906eeccbe7b343a1e27
+
+## S1-SPY (SPY-1d.csv, bars used 2005-02-25..2026-09-01): entry = close of T-4, exit = close of T+3
+   complete windows: 257, first 2005-03 (entry 2005-03-24, exit 2005-04-05), last 2026-07 (entry 2026-07-27, exit 2026-08-05)
+   incomplete windows (excluded): ['2005-02', '2026-08']
+   2006-12: closure(s) inside: 2007-01-02; sessions held with bars 6
+   2012-10: closure(s) inside: 2012-10-29;2012-10-30; sessions held with bars 5
+   2018-11: exit rolled 2018-12-05 -> 2018-12-06 (closure); closure(s) inside: 2018-12-05; sessions held with bars 7
+   boundary sessions that are rule-derived half-days: 21
+      2006-11-24 Fri  entry of 2006-11 window  day after Thanksgiving (rule only, unverified)
+      2007-12-24 Mon  entry of 2007-12 window  Christmas Eve (rule only, unverified)
+      2008-07-03 Thu  exit of 2008-06 window  July 3 (rule only, unverified)
+      2008-12-24 Wed  entry of 2008-12 window  Christmas Eve (rule only, unverified)
+      2009-12-24 Thu  entry of 2009-12 window  Christmas Eve (rule only, unverified)
+      2012-12-24 Mon  entry of 2012-12 window  Christmas Eve (rule only, unverified)
+      2013-07-03 Wed  exit of 2013-06 window  July 3 (rule only, unverified)
+      2013-12-24 Tue  entry of 2013-12 window  Christmas Eve (rule only, unverified)
+      2014-07-03 Thu  exit of 2014-06 window  July 3 (rule only, unverified)
+      2014-12-24 Wed  entry of 2014-12 window  Christmas Eve (rule only, unverified)
+      2015-12-24 Thu  entry of 2015-12 window  Christmas Eve (rule only, unverified)
+      2017-11-24 Fri  entry of 2017-11 window  day after Thanksgiving (rule only, unverified)
+      2018-12-24 Mon  entry of 2018-12 window  Christmas Eve (rule only, unverified)
+      2019-07-03 Wed  exit of 2019-06 window  July 3 (rule only, unverified)
+      2019-12-24 Tue  entry of 2019-12 window  Christmas Eve (rule only, unverified)
+      2020-12-24 Thu  entry of 2020-12 window  Christmas Eve (observed short in minute feed)
+      2023-11-24 Fri  entry of 2023-11 window  day after Thanksgiving (observed short in minute feed)
+      2024-07-03 Wed  exit of 2024-06 window  July 3 (observed short in minute feed)
+      2024-12-24 Tue  entry of 2024-12 window  Christmas Eve (observed short in minute feed)
+      2025-07-03 Thu  exit of 2025-06 window  July 3 (observed short in minute feed)
+      2025-12-24 Wed  entry of 2025-12 window  Christmas Eve (observed short in minute feed)
+
+## G7-QQQ (QQQ-1d-long.csv, bars used 1999-03-10..2005-02-24): entry = close of T-4, exit = close of T+3
+   complete windows: 71, first 1999-03 (entry 1999-03-25, exit 1999-04-06), last 2005-01 (entry 2005-01-25, exit 2005-02-03)
+   incomplete windows (excluded): ['1999-02', '2005-02']
+   boundary sessions that are rule-derived half-days: 6
+      2000-11-24 Fri  entry of 2000-11 window  day after Thanksgiving (rule only, unverified)
+      2001-12-24 Mon  entry of 2001-12 window  Christmas Eve (rule only, unverified)
+      2002-07-03 Wed  exit of 2002-06 window  July 3 (rule only, unverified)
+      2002-12-24 Tue  entry of 2002-12 window  Christmas Eve (rule only, unverified)
+      2003-07-03 Thu  exit of 2003-06 window  July 3 (rule only, unverified)
+      2003-12-24 Wed  entry of 2003-12 window  Christmas Eve (rule only, unverified)
+
+## S2-TLT (TLT-1d-long.csv, bars used 2005-02-25..2026-09-04): entry = close of T-3, exit = close of T+0
+   complete windows: 258, first 2005-03 (entry 2005-03-28, exit 2005-03-31), last 2026-08 (entry 2026-08-26, exit 2026-08-31)
+   incomplete windows (excluded): ['2005-02', '2026-09']
+   2012-10: closure(s) inside: 2012-10-29;2012-10-30; sessions held with bars 1
+   boundary sessions that are rule-derived half-days: 10
+      2005-11-25 Fri  entry of 2005-11 window  day after Thanksgiving (rule only, unverified)
+      2008-11-28 Fri  exit of 2008-11 window  day after Thanksgiving (rule only, unverified)
+      2011-11-25 Fri  entry of 2011-11 window  day after Thanksgiving (rule only, unverified)
+      2013-11-29 Fri  exit of 2013-11 window  day after Thanksgiving (rule only, unverified)
+      2014-11-28 Fri  exit of 2014-11 window  day after Thanksgiving (rule only, unverified)
+      2016-11-25 Fri  entry of 2016-11 window  day after Thanksgiving (rule only, unverified)
+      2019-11-29 Fri  exit of 2019-11 window  day after Thanksgiving (rule only, unverified)
+      2022-11-25 Fri  entry of 2022-11 window  day after Thanksgiving (observed short in minute feed)
+      2024-11-29 Fri  exit of 2024-11 window  day after Thanksgiving (observed short in minute feed)
+      2025-11-28 Fri  exit of 2025-11 window  day after Thanksgiving (observed short in minute feed)

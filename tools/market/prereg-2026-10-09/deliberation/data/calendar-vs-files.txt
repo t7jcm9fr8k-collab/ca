@@ -1,0 +1,103 @@
+calendar-vs-files — barqc rule calendar against every bar file's own dates
+generated 2026-10-09T04:36:58+00:00 by calendar_build.py
+rule calendar 1999-01-01..2026-12-31: 7052 scheduled sessions; 10 known unscheduled closures; 7042 actual sessions
+
+A. Scheduled sessions absent from EVERY file that spans them (closure candidates):
+   1999-11-16 Tue  absent from all 1 spanning file(s); vendors stooq  -> NOT in the known-closure list
+   2001-09-11 Tue  absent from all 1 spanning file(s); vendors stooq  -> September 11 attacks
+   2001-09-12 Wed  absent from all 1 spanning file(s); vendors stooq  -> September 11 attacks
+   2001-09-13 Thu  absent from all 1 spanning file(s); vendors stooq  -> September 11 attacks
+   2001-09-14 Fri  absent from all 1 spanning file(s); vendors stooq  -> September 11 attacks
+   2004-06-11 Fri  absent from all 1 spanning file(s); vendors stooq  -> National day of mourning, President Reagan
+   2007-01-02 Tue  absent from all 10 spanning file(s); vendors stooq  -> National day of mourning, President Ford
+   2012-10-29 Mon  absent from all 10 spanning file(s); vendors stooq  -> Hurricane Sandy
+   2012-10-30 Tue  absent from all 10 spanning file(s); vendors stooq  -> Hurricane Sandy
+   2018-12-05 Wed  absent from all 28 spanning file(s); vendors nasdaq,stooq  -> National day of mourning, President G.H.W. Bush
+   2025-01-09 Thu  absent from all 42 spanning file(s); vendors alpaca,nasdaq,stooq  -> National day of mourning, President Carter
+
+B. Known closures and how many vendors witness each:
+   2001-09-11  September 11 attacks: spanned by 1 file(s) [stooq], absent from 1
+   2001-09-12  September 11 attacks: spanned by 1 file(s) [stooq], absent from 1
+   2001-09-13  September 11 attacks: spanned by 1 file(s) [stooq], absent from 1
+   2001-09-14  September 11 attacks: spanned by 1 file(s) [stooq], absent from 1
+   2004-06-11  National day of mourning, President Reagan: spanned by 1 file(s) [stooq], absent from 1
+   2007-01-02  National day of mourning, President Ford: spanned by 10 file(s) [stooq], absent from 10
+   2012-10-29  Hurricane Sandy: spanned by 10 file(s) [stooq], absent from 10
+   2012-10-30  Hurricane Sandy: spanned by 10 file(s) [stooq], absent from 10
+   2018-12-05  National day of mourning, President G.H.W. Bush: spanned by 28 file(s) [nasdaq,stooq], absent from 28
+   2025-01-09  National day of mourning, President Carter: spanned by 42 file(s) [alpaca,nasdaq,stooq], absent from 42
+
+C. Per file: scheduled sessions inside the file's span that it lacks, and bars on non-sessions:
+   bars/DIA-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/DIA-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/EEM-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/EEM-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/EFA-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/EFA-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/GLD-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/GLD-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/IWM-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/IWM-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/QQQ-1d-long.csv: 6915 rows 1999-03-10..2026-09-04; scheduled 6926; missing 11 (known closures 10; OTHER 1: 1999-11-16); off-calendar 0; dup 0
+   bars/QQQ-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/SPY-1d-agg.csv: 1532 rows 2020-07-27..2026-09-01; scheduled 1534; missing 2 (known closures 1; OTHER 1: 2025-03-10); off-calendar 0; dup 0
+   bars/SPY-1d-raw.csv: 1553 rows 2020-07-01..2026-09-04; scheduled 1554; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/SPY-1d.csv: 5413 rows 2005-02-25..2026-09-02; scheduled 5419; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/TLT-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/TLT-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/XLE-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/XLE-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/XLF-1d-long.csv: 5415 rows 2005-02-25..2026-09-04; scheduled 5421; missing 6 (known closures 5; OTHER 1: 2011-02-17); off-calendar 0; dup 0
+   bars/XLF-1d.csv: 1536 rows 2020-07-27..2026-09-04; scheduled 1537; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   bars/SPY-sessions.csv (minute-derived complete sessions): 1518 rows 2020-07-27..2026-09-01; scheduled 1534; missing 16 (known closures 1; OTHER 15: 2020-11-27, 2020-12-24, 2021-04-13, 2021-11-26, 2022-11-25, 2023-07-03, 2023-11-24, 2024-07-03, 2024-11-29, 2024-12-23, 2024-12-24, 2025-03-10, 2025-07-03, 2025-11-28, 2025-12-24); off-calendar 0; dup 0
+   edge/data/nasdaq/BIL-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/BITO-1d-nasdaq.csv: 1248 rows 2021-10-19..2026-10-08; scheduled 1249; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/DIA-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/EEM-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/EFA-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/GBTC-1d-nasdaq.csv: 1942 rows 2019-01-17..2026-10-08; scheduled 1943; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/GLD-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/IBIT-1d-nasdaq.csv: 688 rows 2024-01-11..2026-10-08; scheduled 689; missing 1 (known closures 1; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/IEF-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/IWM-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/QLD-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/QQQ-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/SHV-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/SHY-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/SPY-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/SSO-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/TLT-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/TQQQ-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/UPRO-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/XLE-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+   edge/data/nasdaq/XLF-1d-nasdaq.csv: 2513 rows 2016-10-10..2026-10-08; scheduled 2515; missing 2 (known closures 2; OTHER 0: ); off-calendar 0; dup 0
+
+D. Short sessions observed in the Alpaca minute feed (dates in SPY-1d-agg.csv absent from
+   SPY-sessions.csv, i.e. sessions under 80% of 390 minute bars), against the early-close rule:
+   2020-11-27 Fri  rule says: day after Thanksgiving
+   2020-12-24 Thu  rule says: Christmas Eve
+   2021-04-13 Tue  rule says: (no early close by rule -> a feed hole?)
+   2021-11-26 Fri  rule says: day after Thanksgiving
+   2022-11-25 Fri  rule says: day after Thanksgiving
+   2023-07-03 Mon  rule says: July 3
+   2023-11-24 Fri  rule says: day after Thanksgiving
+   2024-07-03 Wed  rule says: July 3
+   2024-11-29 Fri  rule says: day after Thanksgiving
+   2024-12-23 Mon  rule says: (no early close by rule -> a feed hole?)
+   2024-12-24 Tue  rule says: Christmas Eve
+   2025-07-03 Thu  rule says: July 3
+   2025-11-28 Fri  rule says: day after Thanksgiving
+   2025-12-24 Wed  rule says: Christmas Eve
+   rule-derived early closes in the same window that the feed did NOT mark short: none
+
+E. Monthly expirations moved off the third Friday (holiday on the Friday):
+   2000-04-20 Thu  (third Friday 2000-04-21 is holiday: Good Friday)
+   2003-04-17 Thu  (third Friday 2003-04-18 is holiday: Good Friday)
+   2008-03-20 Thu  (third Friday 2008-03-21 is holiday: Good Friday)
+   2014-04-17 Thu  (third Friday 2014-04-18 is holiday: Good Friday)
+   2019-04-18 Thu  (third Friday 2019-04-19 is holiday: Good Friday)
+   2022-04-14 Thu  (third Friday 2022-04-15 is holiday: Good Friday)
+   2025-04-17 Thu  (third Friday 2025-04-18 is holiday: Good Friday)
+   2026-06-18 Thu  (third Friday 2026-06-19 is holiday: Juneteenth)
+
+F. Counts: monthly expirations 336; quarter ends 112; year ends 28; holidays 253; sessions before a holiday 253

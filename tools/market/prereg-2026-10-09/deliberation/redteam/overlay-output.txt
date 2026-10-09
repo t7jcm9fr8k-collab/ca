@@ -1,0 +1,150 @@
+====================================================================================================
+15. OVERLAY (1x always + 1x financed inside [T-3,T+3]) vs CONSTANT LEVERAGE 1+p, p=1/3.
+    delta = window-minus-outside mean, published ~10 bp/day; h = surviving share. 1 bp/side,
+    cash 1.5%, spread 1%, N = 39 + k = 40 (k = 1): G4 needs z > 1.645, G5 needs z >= E[maxZ]+0.84.
+====================================================================================================
+tracking error of the timing book = sqrt(p(1-p)) * sigma = 9.05%/yr (1x long/flat vs B&H: sqrt(1-p)*sigma = 15.68%/yr)
+extra variance drag of the overlay vs constant leverage = p(1-p) sigma^2/2 = 0.41%/yr
+corr(overlay, constant) = (1+p)/sqrt(1+3p) = 0.943
+h=1.00 delta=10.0bp: timing value +5.60% - drag 0.41% - cost 0.24% = +4.95%/yr; t=2.53; P(G1) 0.99 P(G2) 0.93 P(G4) 0.81; dSR +0.168 SE 0.073 z5=2.30 P(G5) 0.23; P(G7) 0.90; P(WORKS) 0.207
+h=0.88 delta= 8.8bp: timing value +4.93% - drag 0.41% - cost 0.24% = +4.28%/yr; t=2.19; P(G1) 0.99 P(G2) 0.88 P(G4) 0.71; dSR +0.143 SE 0.073 z5=1.96 P(G5) 0.14; P(G7) 0.86; P(WORKS) 0.122
+h=0.69 delta= 6.9bp: timing value +3.86% - drag 0.41% - cost 0.24% = +3.21%/yr; t=1.65; P(G1) 0.95 P(G2) 0.77 P(G4) 0.50; dSR +0.104 SE 0.073 z5=1.42 P(G5) 0.05; P(G7) 0.79; P(WORKS) 0.042
+h=0.38 delta= 3.8bp: timing value +2.13% - drag 0.41% - cost 0.24% = +1.48%/yr; t=0.76; P(G1) 0.78 P(G2) 0.50 P(G4) 0.19; dSR +0.040 SE 0.073 z5=0.54 P(G5) 0.01; P(G7) 0.63; P(WORKS) 0.004
+h=0.00 delta= 0.0bp: timing value +0.00% - drag 0.41% - cost 0.24% = -0.65%/yr; t=-0.33; P(G1) 0.37 P(G2) 0.17 P(G4) 0.02; dSR -0.039 SE 0.073 z5=-0.53 P(G5) 0.00; P(G7) 0.40; P(WORKS) 0.000
+prior-weighted P(WORKS) with r1's h-weights [0.1, 0.1, 0.15, 0.3, 0.35]: 0.040
+
+    Same, with r2-flow's G7' (veto only if the QQQ timing book is below zero by > 1 SE),
+    2 bp/side (the voted primary), and a 14 bp/day 'published' delta (window = all the return):
+  delta_pub 10.0 bp, h=1.00: net +4.71%/yr, z_timing 2.41, P(G1) 0.99, P(G2) 0.91, P(G4) 0.78, z5 2.17 (SE 0.073), P(G5) 0.20, P(G7') 0.99, P(WORKS) 0.193
+  delta_pub 10.0 bp, h=0.88: net +4.04%/yr, z_timing 2.07, P(G1) 0.98, P(G2) 0.86, P(G4) 0.66, z5 1.84 (SE 0.073), P(G5) 0.12, P(G7') 0.98, P(WORKS) 0.114
+  delta_pub 10.0 bp, h=0.69: net +2.97%/yr, z_timing 1.52, P(G1) 0.94, P(G2) 0.74, P(G4) 0.45, z5 1.30 (SE 0.073), P(G5) 0.04, P(G7') 0.96, P(WORKS) 0.041
+  delta_pub 10.0 bp, h=0.38: net +1.24%/yr, z_timing 0.63, P(G1) 0.74, P(G2) 0.45, P(G4) 0.16, z5 0.42 (SE 0.073), P(G5) 0.00, P(G7') 0.90, P(WORKS) 0.004
+  delta_pub 10.0 bp, h=0.00: net -0.89%/yr, z_timing -0.46, P(G1) 0.32, P(G2) 0.14, P(G4) 0.02, z5 -0.65 (SE 0.073), P(G5) 0.00, P(G7') 0.76, P(WORKS) 0.000
+  delta_pub 10.0 bp: prior-weighted P(WORKS) 0.038
+  delta_pub 14.0 bp, h=1.00: net +6.95%/yr, z_timing 3.56, P(G1) 1.00, P(G2) 0.99, P(G4) 0.97, z5 3.30 (SE 0.073), P(G5) 0.61, P(G7') 1.00, P(WORKS) 0.606
+  delta_pub 14.0 bp, h=0.88: net +6.01%/yr, z_timing 3.08, P(G1) 1.00, P(G2) 0.97, P(G4) 0.92, z5 2.83 (SE 0.073), P(G5) 0.42, P(G7') 0.99, P(WORKS) 0.417
+  delta_pub 14.0 bp, h=0.69: net +4.52%/yr, z_timing 2.31, P(G1) 0.99, P(G2) 0.90, P(G4) 0.75, z5 2.08 (SE 0.073), P(G5) 0.17, P(G7') 0.99, P(WORKS) 0.170
+  delta_pub 14.0 bp, h=0.38: net +2.09%/yr, z_timing 1.07, P(G1) 0.86, P(G2) 0.60, P(G4) 0.28, z5 0.85 (SE 0.073), P(G5) 0.01, P(G7') 0.94, P(WORKS) 0.014
+  delta_pub 14.0 bp, h=0.00: net -0.89%/yr, z_timing -0.46, P(G1) 0.32, P(G2) 0.14, P(G4) 0.02, z5 -0.65 (SE 0.073), P(G5) 0.00, P(G7') 0.76, P(WORKS) 0.000
+  delta_pub 14.0 bp: prior-weighted P(WORKS) 0.132
+
+    G5 computed with the SINGLE-Sharpe variance 1/(T-1) (edgelab deflated_sharpe_vs default)
+h=1.00: z5 paired 2.30  vs  z5 single-SE 0.78  (need 3.03)
+h=0.88: z5 paired 1.96  vs  z5 single-SE 0.66  (need 3.03)
+h=0.69: z5 paired 1.42  vs  z5 single-SE 0.48  (need 3.03)
+h=0.38: z5 paired 0.54  vs  z5 single-SE 0.18  (need 3.03)
+h=0.00: z5 paired -0.53  vs  z5 single-SE -0.18  (need 3.03)
+
+    The same overlay against UNLEVERED B&H (headline only)
+h=1.00: active vs B&H +6.60%/yr, TE 11.1%, t 2.76, P(beats B&H full window) 1.00
+h=0.88: active vs B&H +5.92%/yr, TE 11.1%, t 2.48, P(beats B&H full window) 0.99
+h=0.69: active vs B&H +4.86%/yr, TE 11.1%, t 2.03, P(beats B&H full window) 0.98
+h=0.38: active vs B&H +3.12%/yr, TE 11.1%, t 1.31, P(beats B&H full window) 0.90
+h=0.00: active vs B&H +1.00%/yr, TE 11.1%, t 0.42, P(beats B&H full window) 0.66
+
+    Bracket sensitivity: overlay-minus-constant (gates) vs overlay-minus-B&H (headline), h = 0.38
+cash 0.0% spread  1%: vs constant +1.478%/yr (z5 0.48); vs B&H +3.62%/yr
+cash 0.0% spread  4%: vs constant +1.478%/yr (z5 0.51); vs B&H +2.62%/yr
+cash 1.5% spread  1%: vs constant +1.478%/yr (z5 0.54); vs B&H +3.12%/yr
+cash 1.5% spread  4%: vs constant +1.478%/yr (z5 0.58); vs B&H +2.12%/yr
+cash 3.0% spread  1%: vs constant +1.478%/yr (z5 0.61); vs B&H +2.62%/yr
+cash 3.0% spread  4%: vs constant +1.478%/yr (z5 0.64); vs B&H +1.62%/yr
+
+    Cost sensitivity, h = 0.38 and h = 1
+1 bp/side: h=0.38 +1.48%/yr (t 0.76); h=1 +4.95%/yr (t 2.53)
+2 bp/side: h=0.38 +1.24%/yr (t 0.63); h=1 +4.71%/yr (t 2.41)
+5 bp/side: h=0.38 +0.52%/yr (t 0.27); h=1 +3.99%/yr (t 2.04)
+
+    k = 2 (Holm first slot p < 0.025) and N = 41, h = 1 and 0.69
+h=1.00: P(WORKS) 0.203 (k=1: 0.207)
+h=0.69: P(WORKS) 0.042 (k=1: 0.042)
+
+====================================================================================================
+16. SYNTHETIC check (i.i.d. normal sessions, NOT market data): tracking error of the timing book
+    and invariance of overlay-minus-constant to cash and spread.
+====================================================================================================
+realised window share p = 0.3323; mean session-level TE of the timing book over 300 paths: 9.05%/yr (formula 9.04%)
+cash 0% spread 1%: mean(overlay - constant) -0.508%/yr; max |change vs cash 0%/spread 1%| on the same path 0.000%/yr
+cash 0% spread 4%: mean(overlay - constant) -0.508%/yr; max |change vs cash 0%/spread 1%| on the same path 0.002%/yr
+cash 3% spread 1%: mean(overlay - constant) -0.508%/yr; max |change vs cash 0%/spread 1%| on the same path 0.002%/yr
+cash 3% spread 4%: mean(overlay - constant) -0.508%/yr; max |change vs cash 0%/spread 1%| on the same path 0.003%/yr
+SD across paths of the 21.5-year mean difference (no effect): 2.04%/yr (formula TE/sqrt(Y) = 1.95%/yr)
+
+====================================================================================================
+17. The Archivist's +1.0%/yr (r1-archivist §0.3, estimates.txt) re-scored against CONSTANT
+    leverage instead of 1x B&H, with the Archivist's own inputs: window excess 7.2 bp/day intact,
+    unconditional 2.4 bp/day, 84 window days of 252, sigma_d 1.2%, P = 0.15/0.35/0.50.
+    Financing and the SSO expense ratio cancel against an identically financed constant book;
+    only trading costs remain (24 unit-legs/yr at 1 bp/side).
+====================================================================================================
+h=1.0: window 7.20 bp, outside -0.00 bp, delta 7.20 bp/day -> timing value +4.03% - drag 0.40% - cost 0.24% = +3.39%/yr
+h=0.5: window 4.80 bp, outside 1.20 bp, delta 3.60 bp/day -> timing value +2.02% - drag 0.40% - cost 0.24% = +1.37%/yr
+h=0.0: window 2.40 bp, outside 2.40 bp, delta 0.00 bp/day -> timing value +0.00% - drag 0.40% - cost 0.24% = -0.64%/yr
+expected timing contribution vs constant leverage: +0.67%/yr (Archivist's vs B&H: +1.05%/yr)
+standard error of a 21.5-year mean of the timing book: 1.94%/yr -> the EV is 0.34 SE
+same EV with r1-redteam's h-weights and a 10 bp/day published delta: +1.62%/yr (0.84 SE)
+what the PROCESS is worth: P(WORKS) 0.040 x a shrunk forward edge of ~3%/yr = +0.12%/yr (with the 14 bp mapping, P(WORKS) ~0.13 -> ~+0.4%/yr)
+
+====================================================================================================
+18. Two corrections found while checking the bracket claim (formulas only, no market data):
+    (a) the Sharpe-difference G5 is NOT invariant to cash/spread: its concentration penalty
+        SR_A*(rho - 1) scales with the excess-Sharpe LEVEL, i.e. with the assumed cash rate;
+    (b) r1 §3.2/541: WORKS also needs no flip at N = 100, so WORKS needs z >= E[maxZ_100]+0.84.
+    2 bp/side, G7' (veto if QQQ timing z < -1), k = 1. R4 pairs: cash {0,1.5,3}% x spread {1.5,4}%.
+====================================================================================================
+G5 threshold: N=40 z >= 3.03;  N=100 z >= 3.37
+
+  (a) Sharpe-difference z5 across the six R4 pairs, delta_pub 10 bp (h = 1 and 0.69):
+   h=1.00: z5 primary(1.5%,1.5%) 2.18; min 2.12 at cash 0.0%/spread 1.5%; max 2.27 at cash 3.0%/spread 4.0%; timing z (log) 2.41 at every pair
+   h=0.69: z5 primary(1.5%,1.5%) 1.30; min 1.24 at cash 0.0%/spread 1.5%; max 1.39 at cash 3.0%/spread 4.0%; timing z (log) 1.52 at every pair
+   equal-volatility reading: the Sharpe difference benchmarks S1 against constant leverage scaled
+   to S1's volatility (x sqrt(1+3p)/(1+p) = 1.0607), i.e. an extra hurdle over (A) of:
+     cash 0.0% (spread 1.5%): (A) excess mean 15.15%/yr -> equal-vol hurdle +0.92%/yr (vs the log drag 0.41%/yr charged by the timing book)
+     cash 1.5% (spread 1.5%): (A) excess mean 13.15%/yr -> equal-vol hurdle +0.80%/yr (vs the log drag 0.41%/yr charged by the timing book)
+     cash 3.0% (spread 1.5%): (A) excess mean 11.15%/yr -> equal-vol hurdle +0.68%/yr (vs the log drag 0.41%/yr charged by the timing book)
+
+  (b) P(G5) and P(WORKS) by G5 statistic; WORKS needs the N=100 threshold (no flip).
+      'sharpe' = (SR_S1 - SR_A)/SE_paired at the binding pair (cash 0%, spread 1.5%);
+      'log'    = the log timing book's own z (r2-flow G5', log form), invariant to the bracket.
+   delta_pub 10 bp, sharpe:
+      h=1.00: z 2.12 P(G5@40) 0.18 P(WORKS@40) 0.179 P(WORKS@100) 0.105
+      h=0.88: z 1.78 P(G5@40) 0.11 P(WORKS@40) 0.104 P(WORKS@100) 0.054
+      h=0.69: z 1.24 P(G5@40) 0.04 P(WORKS@40) 0.035 P(WORKS@100) 0.016
+      h=0.38: z 0.37 P(G5@40) 0.00 P(WORKS@40) 0.004 P(WORKS@100) 0.001
+      h=0.00: z -0.71 P(G5@40) 0.00 P(WORKS@40) 0.000 P(WORKS@100) 0.000
+      prior-weighted P(WORKS): 0.035 if N=40 only; 0.019 with the N=100 no-flip rule
+   delta_pub 10 bp, log:
+      h=1.00: z 2.41 P(G5@40) 0.27 P(WORKS@40) 0.262 P(WORKS@100) 0.165
+      h=0.88: z 2.07 P(G5@40) 0.17 P(WORKS@40) 0.164 P(WORKS@100) 0.095
+      h=0.69: z 1.52 P(G5@40) 0.07 P(WORKS@40) 0.063 P(WORKS@100) 0.031
+      h=0.38: z 0.63 P(G5@40) 0.01 P(WORKS@40) 0.007 P(WORKS@100) 0.003
+      h=0.00: z -0.46 P(G5@40) 0.00 P(WORKS@40) 0.000 P(WORKS@100) 0.000
+      prior-weighted P(WORKS): 0.054 if N=40 only; 0.032 with the N=100 no-flip rule
+   delta_pub 14 bp, sharpe:
+      h=1.00: z 3.25 P(G5@40) 0.59 P(WORKS@40) 0.586 P(WORKS@100) 0.446
+      h=0.88: z 2.77 P(G5@40) 0.40 P(WORKS@40) 0.397 P(WORKS@100) 0.275
+      h=0.69: z 2.02 P(G5@40) 0.16 P(WORKS@40) 0.152 P(WORKS@100) 0.087
+      h=0.38: z 0.80 P(G5@40) 0.01 P(WORKS@40) 0.012 P(WORKS@100) 0.005
+      h=0.00: z -0.71 P(G5@40) 0.00 P(WORKS@40) 0.000 P(WORKS@100) 0.000
+      prior-weighted P(WORKS): 0.125 if N=40 only; 0.087 with the N=100 no-flip rule
+   delta_pub 14 bp, log:
+      h=1.00: z 3.56 P(G5@40) 0.70 P(WORKS@40) 0.697 P(WORKS@100) 0.572
+      h=0.88: z 3.08 P(G5@40) 0.52 P(WORKS@40) 0.515 P(WORKS@100) 0.383
+      h=0.69: z 2.31 P(G5@40) 0.24 P(WORKS@40) 0.233 P(WORKS@100) 0.144
+      h=0.38: z 1.07 P(G5@40) 0.02 P(WORKS@40) 0.024 P(WORKS@100) 0.010
+      h=0.00: z -0.46 P(G5@40) 0.00 P(WORKS@40) 0.000 P(WORKS@100) 0.000
+      prior-weighted P(WORKS): 0.163 if N=40 only; 0.120 with the N=100 no-flip rule
+
+  (c) single-Sharpe-variance z at the voted primary (2 bp), for the edgelab default defect:
+   h=1.00: Sharpe-difference z5 paired 2.17 vs single-SE 0.74; log timing-book z 2.41 (its single-series SE IS 1/(T-1), so the default is right for it)
+   h=0.69: Sharpe-difference z5 paired 1.30 vs single-SE 0.44; log timing-book z 1.52 (its single-series SE IS 1/(T-1), so the default is right for it)
+
+  (d) k = 2 under the final spec (G5' log, N = 41 at the gate, WORKS needs N = 100; Holm G4 z > 1.96):
+   h=1.00: P(WORKS) k=1 0.165; k=2 0.165; P(G4) k=1 0.78, k=2 0.67
+   h=0.69: P(WORKS) k=1 0.031; k=2 0.031; P(G4) k=1 0.45, k=2 0.33
+
+  (e) QQQ veto rate at 2 bp/side: r1 sign test (veto if z < 0) vs r2-flow G7' (veto if z < -1):
+   h=1.00: sign test 0.11; G7' 0.01
+   h=0.69: sign test 0.22; G7' 0.04
+   h=0.38: sign test 0.39; G7' 0.10
+   h=0.00: sign test 0.61; G7' 0.24

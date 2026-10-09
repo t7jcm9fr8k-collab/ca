@@ -1,0 +1,22 @@
+nasdaq.com files: closes that are not whole cents (a back-adjusted series has them; official closes do not)
+BIL-1d-nasdaq.csv      sub-cent closes     2 of 2513; first 2017-03-20 last 2020-06-15; whole-cent closes from 2020-06-16; sub-cent opens 62
+BITO-1d-nasdaq.csv     sub-cent closes     0 of 1248; sub-cent opens 54
+DIA-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 49
+EEM-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 154
+EFA-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 79
+GBTC-1d-nasdaq.csv     sub-cent closes  1370 of 1942; first 2019-01-17 last 2024-07-26; whole-cent closes from 2024-07-29; sub-cent opens 1390
+GLD-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 121
+IBIT-1d-nasdaq.csv     sub-cent closes     4 of 688; first 2024-06-24 last 2026-03-02; whole-cent closes from 2026-03-03; sub-cent opens 109
+IEF-1d-nasdaq.csv      sub-cent closes    12 of 2513; first 2017-03-20 last 2026-10-06; whole-cent closes from 2026-10-07; sub-cent opens 182
+IWM-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 28
+QLD-1d-nasdaq.csv      sub-cent closes  1501 of 2513; first 2016-10-10 last 2025-11-19; whole-cent closes from 2025-11-20; sub-cent opens 1610
+QQQ-1d-nasdaq.csv      sub-cent closes     0 of 2513; sub-cent opens 41
+SHV-1d-nasdaq.csv      sub-cent closes    75 of 2513; first 2017-08-14 last 2026-01-12; whole-cent closes from 2026-01-13; sub-cent opens 193
+SHY-1d-nasdaq.csv      sub-cent closes    37 of 2513; first 2017-03-20 last 2026-09-09; whole-cent closes from 2026-09-10; sub-cent opens 229
+SPY-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2016-11-09 last 2016-11-09; whole-cent closes from 2016-11-10; sub-cent opens 38
+SSO-1d-nasdaq.csv      sub-cent closes  1639 of 2513; first 2016-10-11 last 2025-11-19; whole-cent closes from 2025-11-20; sub-cent opens 1583
+TLT-1d-nasdaq.csv      sub-cent closes    12 of 2513; first 2018-08-31 last 2026-10-07; whole-cent closes from 2026-10-08; sub-cent opens 161
+TQQQ-1d-nasdaq.csv     sub-cent closes  1604 of 2513; first 2016-10-10 last 2025-11-19; whole-cent closes from 2025-11-20; sub-cent opens 1700
+UPRO-1d-nasdaq.csv     sub-cent closes   814 of 2513; first 2016-10-10 last 2022-01-12; whole-cent closes from 2022-01-13; sub-cent opens 836
+XLE-1d-nasdaq.csv      sub-cent closes  1168 of 2513; first 2016-10-13 last 2025-12-03; whole-cent closes from 2025-12-04; sub-cent opens 1117
+XLF-1d-nasdaq.csv      sub-cent closes     1 of 2513; first 2017-03-20 last 2017-03-20; whole-cent closes from 2017-03-21; sub-cent opens 46

@@ -1,0 +1,3 @@
+close_grid /home/user/ca/tools/market/bars/SPY-1d.csv 2016-10-10..2025-06-30
+initial F = None
+events found: 0; closes on no nearby grid (data errors or sub-cent prints): 0 []

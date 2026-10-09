@@ -1,0 +1,48 @@
+CAUGHT          overnight leg priced close-to-close  — 13 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0515950200370716 vs 1.0620068519186
+CAUGHT          intraday leg priced from the previous close  — 11 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0513302963940037 vs 1.0620068519186
+CAUGHT          cost charged once per round trip (entries only)  — 3 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0625355025874017 vs 1.0620068519186
+CAUGHT          cost not charged at the open auction  — 6 failing check(s); first: the final equity matches the hand walk to 1e-12 1.064666389090909 vs 1.06200685191862
+CAUGHT          cash accrued per session, not per calendar day  — 3 failing check(s); first: the leg across the weekend and MLK day accrues four days: 1.05^(4/365) - 1
+CAUGHT          cash also accrues on the intraday leg  — 2 failing check(s); first: all cash from 01-14 to 01-22 earns exactly 1.05^(8/365) 1.0021410356730904
+CAUGHT          benchmark bought at bar 0 regardless of warm-up (the EVIDENCE bug)  — 2 failing check(s); first: the benchmark is bought at bar 30's close, never at bar 0's
+MISSED          open_today allowed at the open auction  — 0 failing check(s)
+CAUGHT          open_today guard removed  — 2 failing check(s); first: at the open auction open_today raises — it is the price being set
+CAUGHT          view index guard only checks one end  — 3 failing check(s); first: at the open auction today's bar is out of reach
+CAUGHT          leak check reuses one rule instead of rebuilding per sample  — 1 failing check(s); first: a legitimate price rule is clean at both auctions
+CAUGHT          leak check does not truncate at the close auction  — 1 failing check(s); first: a rule that peeks at today's close at the CLOSE auction is caught 0
+CAUGHT          leak check does not truncate at the open auction  — 1 failing check(s); first: a rule that peeks at today's bar at the OPEN auction is caught
+CAUGHT          opex not moved off a holiday Friday  — 2 failing check(s); first: opex 2022-04 falls on Good Friday, so it is Thursday 2022-04-14
+CAUGHT          pre-holiday rank off by one  — 3 failing check(s); first: 2018-03's last weekday is Good Friday, so its last session is Thursday 03-29
+CAUGHT          month ordinal from end off by one  — 2 failing check(s); first: the last session of 2020-03 is 2020-03-31: day -1, a quarter end
+CAUGHT          leveraged intraday leg naive k*r_id  — 2 failing check(s); first: intraday: 3 r_id (1 + r_on) / (1 + 3 r_on) — the fund reset at the previous close
+CAUGHT          leverage drag without financing  — 3 failing check(s); first: overnight: (1 + 3 r_on) less one day of expense + 2 x cash
+CAUGHT          deflated Sharpe against zero, not the benchmark  — 3 failing check(s); first: observed Sharpe = benchmark + expected best-of-N under the null gives exactly 0.5 {'d
+CAUGHT          halves split at the bar midpoint  — 1 failing check(s); first: the halves split at the DATE midpoint: the first half is every session on or before i
+CAUGHT          Sharpe not in excess of cash  — 3 failing check(s); first: Sortino is the mean excess return over the downside deviation (target 0), annualised
+CAUGHT          placebo shift by legs breaks leg types  — 2 failing check(s); first: a different seed gives a different placebo
+CAUGHT          placebo seed ignored  — 2 failing check(s); first: the same seed gives the same placebo, draw for draw
+CAUGHT          weight out of range clamped instead of refused  — 2 failing check(s); first: a weight of 1.5 is refused, never clamped
+CAUGHT          barqc gate skipped  — 1 failing check(s); first: a series barqc blocks is refused before a single leg is walked
+CAUGHT          calendar ordinal read off bar dates (shifts on a hole)  — 1 failing check(s); first: a missing bar does not shift the window: March's 5th session is still 03-06, not 03-0
+CAUGHT          drawdown ignores open marks  — 1 failing check(s); first: max drawdown is measured at the opens too: a -20% gap recovered by the close counts 0
+CAUGHT          bootstrap unpaired (benchmark resampled separately)  — 2 failing check(s); first: a rule identical to its benchmark has a zero-width CI at zero
+CAUGHT          dated cash uses the rate at the END of the leg  — 1 failing check(s); first: a dated series applies the rate in force at the start of the leg
+CAUGHT          final-bar partial check never fires  — 1 failing check(s); first: a final bar with a tenth of the usual volume is flagged as a possible partial session
+CAUGHT          engine: close-auction view sees today's full bar (n = u + 1), log agrees  — 1 failing check(s); first: at both auctions the view's last bar is the previous session's, never today's [('clos
+CAUGHT          engine: open-auction view one bar short (n = t - 1), log agrees  — 1 failing check(s); first: at both auctions the view's last bar is the previous session's, never today's [('clos
+CAUGHT          leak check re-decides with held = 0  — 1 failing check(s); first: a rule that reads view.held is checked with the weight the run held, and is clean [{'
+CAUGHT          walk keeps drift: trades only on entry or exit  — 4 failing check(s); first: the final equity matches the hand walk to 1e-12 1.0625381209791163 vs 1.0620068519186
+CAUGHT          CAGR over bars / 252  — 2 failing check(s); first: CAGR compounds over calendar years (days / 365.25), not bars / 252
+CAUGHT          Sortino divides by the count of down sessions  — 1 failing check(s); first: Sortino is the mean excess return over the downside deviation (target 0), annualised
+CAUGHT          turnover over final equity instead of mean equity  — 1 failing check(s); first: turnover of overnight-only on a flat market is two sides a session, per year 522.0728
+CAUGHT          leverage weekend drag counted as one day  — 1 failing check(s); first: a weekend overnight leg carries three days of drag
+CAUGHT          block placebo shuffles gaps and blocks together  — 1 failing check(s); first: the block placebo keeps the exposed legs of each kind, every block intact, every gap 
+CAUGHT          calendar report calls every missing session a DATA HOLE  — 1 failing check(s); first: a known unscheduled closure is labelled as one, not as a hole
+CAUGHT          post-holiday rank off by one  — 1 failing check(s); first: the Friday after Thanksgiving is post-holiday rank 1
+CAUGHT          quarter end on any month end  — 1 failing check(s); first: a month end that is not a quarter end is not called one (2020-04-30)
+CAUGHT          placebo p-value without the +1  — 1 failing check(s); first: a p-value is (1 + hits) / (1 + draws), never zero
+CAUGHT          conservative placebo reading takes the smaller p  — 1 failing check(s); first: with both placebos the conservative reading is the larger p
+CAUGHT          test-only rules allowed on files by default  — 1 failing check(s); first: a test-only rule is refused on a file without --allow-test-rule
+CAUGHT          default cost silently zero  — 1 failing check(s); first: no cost given is refused: there is no default cost
+
+46 mutations, 45 caught, 1 missed/not applied

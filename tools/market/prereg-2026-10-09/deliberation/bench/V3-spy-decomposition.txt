@@ -1,0 +1,175 @@
+SPY-1d.csv buy-and-hold, split into legs (edgelab.decompose; no cost, no cash)
+  window: close 2005-02-25 -> close 2026-09-02, 5412 sessions
+  overnight (close->open) compounds +367.3885%   published +367%
+  intraday  (open->close) compounds +74.8258%   published +75%
+  whole                   compounds +717.1158%   published +717%
+  close-to-close check (C_last / C_first - 1): +717.115784%
+  mean per night +3.105 bp, per day +1.462 bp   published +3.1 / +1.5
+  Sharpe (per-leg, sqrt 252, no cash) overnight 0.691, intraday 0.250   published 0.69 / 0.25
+  halves at the DATE midpoint 2015-11-29: overnight +80.54% then +158.89%; intraday +5.28% then +66.06%   published +82%/+157%, +2%/+71%
+  halves at the BAR midpoint (after 2015-11-25): overnight +80.43% then +159.05%; intraday +5.21% then +66.16%
+
+the same totals through the rule path (edgelab.decide_all + edgelab.walk, cost 0, cash 0)
+  test_overnight_only  +367.3884819688%   decompose +367.3884819688%   |diff| 0.00e+00
+  test_intraday_only   +74.8258281844%   decompose +74.8258281844%   |diff| 0.00e+00
+  buy_and_hold         +717.1157844406%   decompose +717.1157844406%   |diff| 3.55e-15
+
+conventions that move the totals (explaining differences, not choosing)
+  start at the first OPEN instead of the first close (adds session 0's intraday leg): whole +725.0400%, intraday +76.5212%
+  without the final bar 2026-09-02 (flagged partial): overnight +366.9778%, intraday +74.1077%, whole +713.0441%
+  gap legs in the window (overnight legs spanning a scheduled session with no bar): 2007-01-03, 2011-02-18, 2012-10-31, 2018-12-06, 2025-01-10
+
+final bar 2026-09-02: stooq O/H/L/C/V 762.45 766.34 761.73 765.595 6128212; nasdaq official 762.45 766.43 761.73 765.16 29566220
+adjustment factor open vs close, SPY-1d.csv / SPY-1d-raw.csv over 1551 common dates: median |f_open/f_close - 1| = 1.32e-06; worst five:
+    2026-09-02  f_open 1.000000  f_close 1.000569  |dev| 5.68e-04
+    2020-08-11  f_open 0.933861  f_close 0.933777  |dev| 8.97e-05
+    2026-04-20  f_open 0.998085  f_close 0.998000  |dev| 8.47e-05
+    2020-08-05  f_open 0.933858  f_close 0.933790  |dev| 7.31e-05
+    2020-07-09  f_open 0.933840  f_close 0.933781  |dev| 6.39e-05
+buy-and-hold max drawdown, closes only -56.4733%; opens and closes -56.7033%
+
+{
+ "decompose": {
+  "symbol": "SPY",
+  "path": "/home/user/ca/tools/market/bars/SPY-1d.csv",
+  "whole": {
+   "from_close": "2005-02-25",
+   "to_close": "2026-09-02",
+   "sessions": 5412,
+   "overnight": 3.673884819687637,
+   "intraday": 0.7482582818443666,
+   "whole": 7.171157844405576,
+   "mean_bp_overnight": 3.105388365091638,
+   "mean_bp_intraday": 1.4615039661144464,
+   "sharpe_overnight": 0.6913647913028619,
+   "sharpe_intraday": 0.25045005056958813
+  },
+  "split_date": "2015-11-29",
+  "first_half": {
+   "from_close": "2005-02-25",
+   "to_close": "2015-11-27",
+   "sessions": 2707,
+   "overnight": 0.8053600661576734,
+   "intraday": 0.052817021150510124,
+   "whole": 0.9007138069562095,
+   "mean_bp_overnight": 2.4321954903749115,
+   "mean_bp_intraday": 0.6944743921052906,
+   "sharpe_overnight": 0.5470975116576369,
+   "sharpe_intraday": 0.10990429288196805
+  },
+  "second_half": {
+   "from_close": "2015-11-27",
+   "to_close": "2026-09-02",
+   "sessions": 2705,
+   "overnight": 1.5888934331172022,
+   "intraday": 0.6605528280060236,
+   "whole": 3.2989943117689933,
+   "mean_bp_overnight": 3.779078979456965,
+   "mean_bp_intraday": 2.2291006599565115,
+   "sharpe_overnight": 0.8328155567492961,
+   "sharpe_intraday": 0.41990222853821624
+  },
+  "close_to_close_check": 7.171157844405453,
+  "gap_legs": [
+   "2007-01-03",
+   "2011-02-18",
+   "2012-10-31",
+   "2018-12-06",
+   "2025-01-10"
+  ]
+ },
+ "bar_midpoint_halves": {
+  "cut_session": "2015-11-25",
+  "overnight": [
+   0.8042746630814999,
+   1.5904508417278178
+  ],
+  "intraday": [
+   0.05214898629456899,
+   0.6616071531859147
+  ]
+ },
+ "rule_path": {
+  "test_overnight_only": {
+   "total": 3.673884819687637,
+   "decompose": 3.673884819687637,
+   "abs_diff": 0.0
+  },
+  "test_intraday_only": {
+   "total": 0.7482582818443666,
+   "decompose": 0.7482582818443666,
+   "abs_diff": 0.0
+  },
+  "buy_and_hold": {
+   "total": 7.171157844405572,
+   "decompose": 7.171157844405576,
+   "abs_diff": 3.552713678800501e-15
+  }
+ },
+ "start_at_first_open": {
+  "whole": 7.250399537043524
+ },
+ "without_partial_final_bar": {
+  "overnight": 3.6697776614094666,
+  "intraday": 0.7410765835621149,
+  "whole": 7.130440536721476,
+  "to_close": "2026-09-01"
+ },
+ "final_bar_vs_nasdaq": {
+  "date": "2026-09-02",
+  "stooq": [
+   762.45,
+   766.34,
+   761.73,
+   765.595,
+   6128212.0
+  ],
+  "nasdaq": [
+   762.45,
+   766.43,
+   761.73,
+   765.16,
+   29566220.0
+  ]
+ },
+ "adjustment_open_vs_close": {
+  "common_dates": 1551,
+  "median_abs_dev": 1.322988497198807e-06,
+  "worst": [
+   [
+    0.0005681855289023652,
+    "2026-09-02",
+    1.0,
+    1.000568508547232
+   ],
+   [
+    8.966339406391022e-05,
+    "2020-08-11",
+    0.9338607688882292,
+    0.9337770432692308
+   ],
+   [
+    8.465966813409054e-05,
+    "2026-04-20",
+    0.9980848846706283,
+    0.9980003942884502
+   ],
+   [
+    7.309821436995989e-05,
+    "2020-08-05",
+    0.9338582677165354,
+    0.9337900093342566
+   ],
+   [
+    6.387937299567881e-05,
+    "2020-07-09",
+    0.933840424188865,
+    0.9337807748584516
+   ]
+  ]
+ },
+ "max_drawdown_marks": {
+  "closes_only": -0.5647328750103537,
+  "opens_and_closes": -0.5670330850167655
+ }
+}

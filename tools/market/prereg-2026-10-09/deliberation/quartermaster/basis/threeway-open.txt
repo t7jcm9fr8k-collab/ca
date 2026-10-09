@@ -1,0 +1,94 @@
+threeway_open — stooq vs nasdaq open disagreements > 10 bp, with Alpaca IEX as third witness
+values are opens expressed on nasdaq's price basis: file_open / (file_close / nasdaq_close)
+
+## DIA: 0 disagreement(s) on dates all three files hold; IEX open closer to stooq 0, to nasdaq 0
+
+## EEM: 3 disagreement(s) on dates all three files hold; IEX open closer to stooq 2, to nasdaq 1
+   2024-12-02  stooq 43.3150  nasdaq 43.3600  alpaca-IEX 43.3149  |IEX-stooq|    0.0 bp  |IEX-nasdaq|   10.4 bp  -> IEX stooq closer
+   2025-04-17  stooq 42.1400  nasdaq 42.0600  alpaca-IEX 42.1465  |IEX-stooq|    1.5 bp  |IEX-nasdaq|   20.6 bp  -> IEX stooq closer
+   2026-05-20  stooq 64.6300  nasdaq 64.4900  alpaca-IEX 64.4650  |IEX-stooq|   25.5 bp  |IEX-nasdaq|    3.9 bp  -> IEX nasdaq closer
+
+## EFA: 1 disagreement(s) on dates all three files hold; IEX open closer to stooq 1, to nasdaq 0
+   2025-04-08  stooq 75.9200  nasdaq 75.8300  alpaca-IEX 75.8750  |IEX-stooq|    5.9 bp  |IEX-nasdaq|    5.9 bp  -> IEX stooq closer
+
+## GLD: 1 disagreement(s) on dates all three files hold; IEX open closer to stooq 1, to nasdaq 0
+   2026-04-20  stooq 446.9790  nasdaq 445.9300  alpaca-IEX 446.9891  |IEX-stooq|    0.2 bp  |IEX-nasdaq|   23.8 bp  -> IEX stooq closer
+
+## IWM: 0 disagreement(s) on dates all three files hold; IEX open closer to stooq 0, to nasdaq 0
+
+## QQQ: 1 disagreement(s) on dates all three files hold; IEX open closer to stooq 0, to nasdaq 1
+   2023-06-26  stooq 363.2613  nasdaq 362.0000  alpaca-IEX 362.0036  |IEX-stooq|   34.6 bp  |IEX-nasdaq|    0.1 bp  -> IEX nasdaq closer
+
+## TLT: 1 disagreement(s) on dates all three files hold; IEX open closer to stooq 0, to nasdaq 1
+   2023-06-26  stooq 103.3108  nasdaq 103.6200  alpaca-IEX 103.6003  |IEX-stooq|   28.0 bp  |IEX-nasdaq|    1.9 bp  -> IEX nasdaq closer
+
+## XLE: 50 disagreement(s) on dates all three files hold; IEX open closer to stooq 29, to nasdaq 21
+   2024-11-13  stooq 46.9551  nasdaq 47.0300  alpaca-IEX 46.9592  |IEX-stooq|    0.9 bp  |IEX-nasdaq|   15.1 bp  -> IEX stooq closer
+   2024-11-25  stooq 48.7500  nasdaq 48.6250  alpaca-IEX 48.6795  |IEX-stooq|   14.5 bp  |IEX-nasdaq|   11.2 bp  -> IEX nasdaq closer
+   2024-12-30  stooq 42.3274  nasdaq 42.2850  alpaca-IEX 42.3064  |IEX-stooq|    5.0 bp  |IEX-nasdaq|    5.1 bp  -> IEX stooq closer
+   2025-01-02  stooq 43.2801  nasdaq 43.1800  alpaca-IEX 43.1624  |IEX-stooq|   27.2 bp  |IEX-nasdaq|    4.1 bp  -> IEX nasdaq closer
+   2025-01-10  stooq 44.6502  nasdaq 44.5850  alpaca-IEX 44.6455  |IEX-stooq|    1.0 bp  |IEX-nasdaq|   13.6 bp  -> IEX stooq closer
+   2025-01-17  stooq 46.5350  nasdaq 46.6200  alpaca-IEX 46.5401  |IEX-stooq|    1.1 bp  |IEX-nasdaq|   17.1 bp  -> IEX stooq closer
+   2025-01-27  stooq 45.4001  nasdaq 45.5000  alpaca-IEX 45.4418  |IEX-stooq|    9.2 bp  |IEX-nasdaq|   12.8 bp  -> IEX stooq closer
+   2025-01-30  stooq 45.2000  nasdaq 45.1250  alpaca-IEX 45.1953  |IEX-stooq|    1.0 bp  |IEX-nasdaq|   15.6 bp  -> IEX stooq closer
+   2025-02-11  stooq 45.5899  nasdaq 45.4700  alpaca-IEX 45.4523  |IEX-stooq|   30.2 bp  |IEX-nasdaq|    3.9 bp  -> IEX nasdaq closer
+   2025-02-14  stooq 45.0900  nasdaq 45.0250  alpaca-IEX 45.0664  |IEX-stooq|    5.2 bp  |IEX-nasdaq|    9.2 bp  -> IEX stooq closer
+   2025-02-27  stooq 44.8150  nasdaq 44.8750  alpaca-IEX 44.8364  |IEX-stooq|    4.8 bp  |IEX-nasdaq|    8.6 bp  -> IEX stooq closer
+   2025-03-03  stooq 45.7449  nasdaq 45.6750  alpaca-IEX 45.7326  |IEX-stooq|    2.7 bp  |IEX-nasdaq|   12.6 bp  -> IEX stooq closer
+   2025-03-17  stooq 44.8999  nasdaq 44.8450  alpaca-IEX 44.8929  |IEX-stooq|    1.6 bp  |IEX-nasdaq|   10.7 bp  -> IEX stooq closer
+   2025-03-20  stooq 46.2101  nasdaq 46.1600  alpaca-IEX 46.1975  |IEX-stooq|    2.7 bp  |IEX-nasdaq|    8.1 bp  -> IEX stooq closer
+   2025-03-31  stooq 46.0502  nasdaq 46.1150  alpaca-IEX 46.1429  |IEX-stooq|   20.1 bp  |IEX-nasdaq|    6.0 bp  -> IEX nasdaq closer
+   2025-04-01  stooq 46.6899  nasdaq 46.7500  alpaca-IEX 46.7298  |IEX-stooq|    8.5 bp  |IEX-nasdaq|    4.3 bp  -> IEX nasdaq closer
+   2025-04-03  stooq 45.0851  nasdaq 44.8250  alpaca-IEX 44.8039  |IEX-stooq|   62.4 bp  |IEX-nasdaq|    4.7 bp  -> IEX nasdaq closer
+   2025-04-04  stooq 41.8900  nasdaq 41.8250  alpaca-IEX 41.8031  |IEX-stooq|   20.8 bp  |IEX-nasdaq|    5.2 bp  -> IEX nasdaq closer
+   2025-04-07  stooq 38.1489  nasdaq 38.1050  alpaca-IEX 38.1287  |IEX-stooq|    5.3 bp  |IEX-nasdaq|    6.2 bp  -> IEX stooq closer
+   2025-04-08  stooq 40.2849  nasdaq 40.3300  alpaca-IEX 40.3087  |IEX-stooq|    5.9 bp  |IEX-nasdaq|    5.3 bp  -> IEX nasdaq closer
+   2025-04-09  stooq 37.6151  nasdaq 37.4750  alpaca-IEX 37.5810  |IEX-stooq|    9.0 bp  |IEX-nasdaq|   28.3 bp  -> IEX stooq closer
+   2025-04-10  stooq 39.9300  nasdaq 40.1100  alpaca-IEX 40.0379  |IEX-stooq|   27.0 bp  |IEX-nasdaq|   18.0 bp  -> IEX nasdaq closer
+   2025-04-15  stooq 39.6202  nasdaq 39.5500  alpaca-IEX 39.5666  |IEX-stooq|   13.5 bp  |IEX-nasdaq|    4.2 bp  -> IEX nasdaq closer
+   2025-04-21  stooq 40.1749  nasdaq 40.1050  alpaca-IEX 40.1841  |IEX-stooq|    2.3 bp  |IEX-nasdaq|   19.7 bp  -> IEX stooq closer
+   2025-04-25  stooq 40.9500  nasdaq 40.9000  alpaca-IEX 40.9559  |IEX-stooq|    1.4 bp  |IEX-nasdaq|   13.7 bp  -> IEX stooq closer
+   2025-05-05  stooq 40.4049  nasdaq 40.4750  alpaca-IEX 40.4371  |IEX-stooq|    8.0 bp  |IEX-nasdaq|    9.4 bp  -> IEX stooq closer
+   2025-05-06  stooq 40.3751  nasdaq 40.4300  alpaca-IEX 40.4368  |IEX-stooq|   15.3 bp  |IEX-nasdaq|    1.7 bp  -> IEX nasdaq closer
+   2025-05-13  stooq 42.5600  nasdaq 42.5000  alpaca-IEX 42.5210  |IEX-stooq|    9.2 bp  |IEX-nasdaq|    5.0 bp  -> IEX nasdaq closer
+   2025-05-15  stooq 42.1300  nasdaq 42.0850  alpaca-IEX 42.1086  |IEX-stooq|    5.1 bp  |IEX-nasdaq|    5.6 bp  -> IEX stooq closer
+   2025-05-21  stooq 41.5001  nasdaq 41.5450  alpaca-IEX 41.5343  |IEX-stooq|    8.2 bp  |IEX-nasdaq|    2.6 bp  -> IEX nasdaq closer
+   2025-05-28  stooq 41.6525  nasdaq 41.5500  alpaca-IEX 41.6045  |IEX-stooq|   11.5 bp  |IEX-nasdaq|   13.1 bp  -> IEX stooq closer
+   2025-06-06  stooq 41.3850  nasdaq 41.3050  alpaca-IEX 41.3516  |IEX-stooq|    8.1 bp  |IEX-nasdaq|   11.3 bp  -> IEX stooq closer
+   2025-06-17  stooq 44.3674  nasdaq 44.2850  alpaca-IEX 44.3196  |IEX-stooq|   10.8 bp  |IEX-nasdaq|    7.8 bp  -> IEX nasdaq closer
+   2025-06-26  stooq 42.4195  nasdaq 42.3650  alpaca-IEX 42.3696  |IEX-stooq|   11.8 bp  |IEX-nasdaq|    1.1 bp  -> IEX nasdaq closer
+   2025-07-07  stooq 43.3300  nasdaq 43.2500  alpaca-IEX 43.2806  |IEX-stooq|   11.4 bp  |IEX-nasdaq|    7.1 bp  -> IEX nasdaq closer
+   2025-07-14  stooq 44.4300  nasdaq 44.4800  alpaca-IEX 44.4463  |IEX-stooq|    3.7 bp  |IEX-nasdaq|    7.6 bp  -> IEX stooq closer
+   2025-07-29  stooq 44.1846  nasdaq 44.1150  alpaca-IEX 44.1140  |IEX-stooq|   16.0 bp  |IEX-nasdaq|    0.2 bp  -> IEX nasdaq closer
+   2025-08-05  stooq 42.7650  nasdaq 42.6900  alpaca-IEX 42.7653  |IEX-stooq|    0.1 bp  |IEX-nasdaq|   17.6 bp  -> IEX stooq closer
+   2025-09-17  stooq 44.7700  nasdaq 44.8300  alpaca-IEX 44.7785  |IEX-stooq|    1.9 bp  |IEX-nasdaq|   11.5 bp  -> IEX stooq closer
+   2025-10-01  stooq 44.5250  nasdaq 44.4500  alpaca-IEX 44.4962  |IEX-stooq|    6.5 bp  |IEX-nasdaq|   10.4 bp  -> IEX stooq closer
+   2025-10-20  stooq 43.1450  nasdaq 43.0650  alpaca-IEX 43.1792  |IEX-stooq|    7.9 bp  |IEX-nasdaq|   26.5 bp  -> IEX stooq closer
+   2025-10-23  stooq 44.6350  nasdaq 44.6850  alpaca-IEX 44.6281  |IEX-stooq|    1.5 bp  |IEX-nasdaq|   12.7 bp  -> IEX stooq closer
+   2025-10-27  stooq 44.2663  nasdaq 44.1750  alpaca-IEX 44.2116  |IEX-stooq|   12.4 bp  |IEX-nasdaq|    8.3 bp  -> IEX nasdaq closer
+   2025-10-31  stooq 43.7800  nasdaq 43.8500  alpaca-IEX 43.8502  |IEX-stooq|   16.0 bp  |IEX-nasdaq|    0.1 bp  -> IEX nasdaq closer
+   2025-11-21  stooq 44.4350  nasdaq 44.5050  alpaca-IEX 44.4441  |IEX-stooq|    2.1 bp  |IEX-nasdaq|   13.7 bp  -> IEX stooq closer
+   2025-12-10  stooq 45.7899  nasdaq 45.8400  alpaca-IEX 45.8018  |IEX-stooq|    2.6 bp  |IEX-nasdaq|    8.3 bp  -> IEX stooq closer
+   2025-12-15  stooq 45.5550  nasdaq 45.6100  alpaca-IEX 45.5581  |IEX-stooq|    0.7 bp  |IEX-nasdaq|   11.4 bp  -> IEX stooq closer
+   2026-02-11  stooq 54.3499  nasdaq 54.2800  alpaca-IEX 54.3007  |IEX-stooq|    9.0 bp  |IEX-nasdaq|    3.8 bp  -> IEX nasdaq closer
+   2026-02-12  stooq 54.8450  nasdaq 54.9400  alpaca-IEX 54.9231  |IEX-stooq|   14.2 bp  |IEX-nasdaq|    3.1 bp  -> IEX nasdaq closer
+   2026-03-05  stooq 56.4600  nasdaq 56.5300  alpaca-IEX 56.4395  |IEX-stooq|    3.6 bp  |IEX-nasdaq|   16.0 bp  -> IEX stooq closer
+
+## XLF: 15 disagreement(s) on dates all three files hold; IEX open closer to stooq 12, to nasdaq 3
+   2021-12-01  stooq 38.5799  nasdaq 38.6300  alpaca-IEX 38.5602  |IEX-stooq|    5.1 bp  |IEX-nasdaq|   18.1 bp  -> IEX stooq closer
+   2024-11-01  stooq 46.6901  nasdaq 46.6300  alpaca-IEX 46.6297  |IEX-stooq|   12.9 bp  |IEX-nasdaq|    0.1 bp  -> IEX nasdaq closer
+   2024-11-19  stooq 49.5550  nasdaq 49.6200  alpaca-IEX 49.5770  |IEX-stooq|    4.4 bp  |IEX-nasdaq|    8.7 bp  -> IEX stooq closer
+   2024-12-19  stooq 48.1100  nasdaq 48.1700  alpaca-IEX 48.1080  |IEX-stooq|    0.4 bp  |IEX-nasdaq|   12.9 bp  -> IEX stooq closer
+   2024-12-20  stooq 47.6511  nasdaq 47.7000  alpaca-IEX 47.6674  |IEX-stooq|    3.4 bp  |IEX-nasdaq|    6.8 bp  -> IEX stooq closer
+   2025-01-08  stooq 48.2900  nasdaq 48.3400  alpaca-IEX 48.3365  |IEX-stooq|    9.6 bp  |IEX-nasdaq|    0.7 bp  -> IEX nasdaq closer
+   2025-01-16  stooq 49.5300  nasdaq 49.4600  alpaca-IEX 49.5030  |IEX-stooq|    5.4 bp  |IEX-nasdaq|    8.7 bp  -> IEX stooq closer
+   2025-03-20  stooq 49.2200  nasdaq 49.2900  alpaca-IEX 49.2003  |IEX-stooq|    4.0 bp  |IEX-nasdaq|   18.2 bp  -> IEX stooq closer
+   2025-04-14  stooq 47.2900  nasdaq 47.3500  alpaca-IEX 47.3028  |IEX-stooq|    2.7 bp  |IEX-nasdaq|   10.0 bp  -> IEX stooq closer
+   2025-04-17  stooq 46.5600  nasdaq 46.5000  alpaca-IEX 46.5379  |IEX-stooq|    4.7 bp  |IEX-nasdaq|    8.2 bp  -> IEX stooq closer
+   2025-06-05  stooq 50.8600  nasdaq 50.8000  alpaca-IEX 50.8640  |IEX-stooq|    0.8 bp  |IEX-nasdaq|   12.6 bp  -> IEX stooq closer
+   2026-02-03  stooq 53.7800  nasdaq 53.7200  alpaca-IEX 53.8024  |IEX-stooq|    4.2 bp  |IEX-nasdaq|   15.3 bp  -> IEX stooq closer
+   2026-02-27  stooq 51.8100  nasdaq 51.8800  alpaca-IEX 51.7527  |IEX-stooq|   11.1 bp  |IEX-nasdaq|   24.5 bp  -> IEX stooq closer
+   2026-03-11  stooq 49.9100  nasdaq 49.9800  alpaca-IEX 49.9426  |IEX-stooq|    6.5 bp  |IEX-nasdaq|    7.5 bp  -> IEX stooq closer
+   2026-03-24  stooq 48.8500  nasdaq 48.8000  alpaca-IEX 48.7883  |IEX-stooq|   12.6 bp  |IEX-nasdaq|    2.4 bp  -> IEX nasdaq closer
+
+TOTAL: IEX closer to stooq 45, to nasdaq 27

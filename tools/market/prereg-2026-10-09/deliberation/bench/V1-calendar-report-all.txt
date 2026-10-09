@@ -1,0 +1,424 @@
+bars/DIA-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 81% of the trailing 20-bar median
+bars/DIA-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 76% of the trailing 20-bar median
+bars/EEM-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 135% of the trailing 20-bar median
+bars/EEM-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 183% of the trailing 20-bar median
+bars/EFA-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 61% of the trailing 20-bar median
+bars/EFA-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 51% of the trailing 20-bar median
+bars/GLD-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 79% of the trailing 20-bar median
+bars/GLD-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 47% of the trailing 20-bar median  POSSIBLY A PARTIAL SESSION — consider --end on the previous session
+bars/IWM-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 86% of the trailing 20-bar median
+bars/IWM-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 91% of the trailing 20-bar median
+bars/QQQ-1d-long.csv · barqc PASS
+  calendar: 6915 bars, 6926 scheduled sessions 1999-03-10 → 2026-09-04; 11 scheduled session(s) without a bar (10 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 1999-11-16  DATA HOLE
+      missing 2001-09-11  unscheduled closure: September 11 attacks
+      missing 2001-09-12  unscheduled closure: September 11 attacks
+      missing 2001-09-13  unscheduled closure: September 11 attacks
+      missing 2001-09-14  unscheduled closure: September 11 attacks
+      missing 2004-06-11  unscheduled closure: national day of mourning (Reagan)
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 1999-11-17 spans 1999-11-16 (DATA HOLE)
+      overnight leg into 2001-09-17 spans 2001-09-11, 2001-09-12, 2001-09-13, 2001-09-14 (closure)
+      overnight leg into 2004-06-14 spans 2004-06-11 (closure)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 101 bar(s) from the start and 55 from the end — this harness uses the scheduled ordinal:
+          20  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+          16  file starts mid-month
+         116  unscheduled closure
+        e.g. 1999-03-10: bar-counted [1, -16], scheduled [8, -16] (file starts mid-month)
+        e.g. 1999-03-11: bar-counted [2, -15], scheduled [9, -15] (file starts mid-month)
+        e.g. 1999-03-12: bar-counted [3, -14], scheduled [10, -14] (file starts mid-month)
+        e.g. 1999-03-15: bar-counted [4, -13], scheduled [11, -13] (file starts mid-month)
+        e.g. 1999-03-16: bar-counted [5, -12], scheduled [12, -12] (file starts mid-month)
+        e.g. 1999-03-17: bar-counted [6, -11], scheduled [13, -11] (file starts mid-month)
+      final bar 2026-09-04: volume 106% of the trailing 20-bar median
+bars/QQQ-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 105% of the trailing 20-bar median
+bars/SPY-1d-agg.csv · barqc PASS
+  calendar: 1532 bars, 1534 scheduled sessions 2020-07-27 → 2026-09-01; 2 scheduled session(s) without a bar (1 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      missing 2025-03-10  DATA HOLE
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      overnight leg into 2025-03-11 spans 2025-03-10 (DATA HOLE)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 35 bar(s) from the start and 11 from the end — this harness uses the scheduled ordinal:
+          20  DATA HOLE
+           1  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-01: volume 123% of the trailing 20-bar median
+bars/SPY-1d-raw.csv · barqc PASS
+  calendar: 1553 bars, 1554 scheduled sessions 2020-07-01 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 15 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+          20  unscheduled closure
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+        e.g. 2025-01-03: bar-counted [2, -19], scheduled [2, -20] (unscheduled closure)
+        e.g. 2025-01-06: bar-counted [3, -18], scheduled [3, -19] (unscheduled closure)
+        e.g. 2025-01-07: bar-counted [4, -17], scheduled [4, -18] (unscheduled closure)
+        e.g. 2025-01-08: bar-counted [5, -16], scheduled [5, -17] (unscheduled closure)
+        e.g. 2025-01-10: bar-counted [6, -15], scheduled [7, -15] (unscheduled closure)
+      final bar 2026-09-04: volume 93% of the trailing 20-bar median
+bars/SPY-1d.csv · barqc PASS
+  calendar: 5413 bars, 5419 scheduled sessions 2005-02-25 → 2026-09-02; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 41 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           2  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-02: volume 16% of the trailing 20-bar median  POSSIBLY A PARTIAL SESSION — consider --end on the previous session
+bars/TLT-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 57% of the trailing 20-bar median
+bars/TLT-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 59% of the trailing 20-bar median
+bars/XLE-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 108% of the trailing 20-bar median
+bars/XLE-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 118% of the trailing 20-bar median
+bars/XLF-1d-long.csv · barqc PASS
+  calendar: 5415 bars, 5421 scheduled sessions 2005-02-25 → 2026-09-04; 6 scheduled session(s) without a bar (5 unscheduled closure(s), 1 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2007-01-02  unscheduled closure: national day of mourning (Ford)
+      missing 2011-02-17  DATA HOLE
+      missing 2012-10-29  unscheduled closure: Hurricane Sandy
+      missing 2012-10-30  unscheduled closure: Hurricane Sandy
+      missing 2018-12-05  unscheduled closure: national day of mourning (G. H. W. Bush)
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2007-01-03 spans 2007-01-02 (closure)
+      overnight leg into 2011-02-18 spans 2011-02-17 (DATA HOLE)
+      overnight leg into 2012-10-31 spans 2012-10-29, 2012-10-30 (closure)
+      overnight leg into 2018-12-06 spans 2018-12-05 (closure)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 61 bar(s) from the start and 43 from the end — this harness uses the scheduled ordinal:
+          18  DATA HOLE
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           2  file starts mid-month
+          80  unscheduled closure
+        e.g. 2005-02-25: bar-counted [1, -2], scheduled [18, -2] (file starts mid-month)
+        e.g. 2005-02-28: bar-counted [2, -1], scheduled [19, -1] (file starts mid-month)
+        e.g. 2007-01-03: bar-counted [1, -20], scheduled [2, -20] (unscheduled closure)
+        e.g. 2007-01-04: bar-counted [2, -19], scheduled [3, -19] (unscheduled closure)
+        e.g. 2007-01-05: bar-counted [3, -18], scheduled [4, -18] (unscheduled closure)
+        e.g. 2007-01-08: bar-counted [4, -17], scheduled [5, -17] (unscheduled closure)
+      final bar 2026-09-04: volume 101% of the trailing 20-bar median
+bars/XLF-1d.csv · barqc PASS
+  calendar: 1536 bars, 1537 scheduled sessions 2020-07-27 → 2026-09-04; 1 scheduled session(s) without a bar (1 unscheduled closure(s), 0 DATA HOLE(s)); 0 bar(s) on a closed day
+      missing 2025-01-09  unscheduled closure: national day of mourning (Carter)
+      overnight leg into 2025-01-10 spans 2025-01-09 (closure)
+      a BAR-COUNTED month ordinal would differ from the scheduled one on 20 bar(s) from the start and 9 from the end — this harness uses the scheduled ordinal:
+           4  file ends mid-month (a bar-counted 'last session' is not one)
+           5  file starts mid-month
+          20  unscheduled closure
+        e.g. 2020-07-27: bar-counted [1, -5], scheduled [18, -5] (file starts mid-month)
+        e.g. 2020-07-28: bar-counted [2, -4], scheduled [19, -4] (file starts mid-month)
+        e.g. 2020-07-29: bar-counted [3, -3], scheduled [20, -3] (file starts mid-month)
+        e.g. 2020-07-30: bar-counted [4, -2], scheduled [21, -2] (file starts mid-month)
+        e.g. 2020-07-31: bar-counted [5, -1], scheduled [22, -1] (file starts mid-month)
+        e.g. 2025-01-02: bar-counted [1, -20], scheduled [1, -21] (unscheduled closure)
+      final bar 2026-09-04: volume 81% of the trailing 20-bar median

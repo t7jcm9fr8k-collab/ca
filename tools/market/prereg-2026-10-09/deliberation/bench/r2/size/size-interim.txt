@@ -1,0 +1,14 @@
+SYNTHETIC size/power of the three placebo designs, run through edgelab's own code (size_study.py).
+S1-shaped overlay (2x T-3..T+3, 1x otherwise, MOC), real scheduled calendar 2005-03-24..2026-08-25
+(5,387 sessions, 257 cycles), 2 bp/side, cash 1.5%, spread 1.5%, B = 200 placebo draws per replication.
+Rejection = one-sided p(CAGR) < alpha; 'G4' = p < 0.05 AND the rule beats the null median CAGR in each half.
+Binomial SE of a rate near 0.05 with R replications = sqrt(0.05*0.95/R).
+
+gen     delta     R   within_cycle a.05   a.025     G4        shift a.05   a.025     G4       blocks a.05   a.025     G4
+iid         0   822       0.088 ±0.010   0.052  0.082     0.041 ±0.007   0.019  0.039     0.039 ±0.007   0.015  0.039
+garch       0  1000       0.092 ±0.009   0.059  0.083     0.056 ±0.007   0.027  0.052     0.044 ±0.006   0.018  0.042
+regime      0  1000       0.077 ±0.008   0.045  0.067     0.052 ±0.007   0.020  0.045     0.036 ±0.006   0.017  0.033
+iid        40   103       0.650 ±0.047   0.515  0.612     0.437 ±0.049   0.311  0.417     0.437 ±0.049   0.301  0.437
+garch      40   300       0.527 ±0.029   0.450  0.507     0.393 ±0.028   0.270  0.390     0.400 ±0.028   0.280  0.397
+regime     40   300       0.487 ±0.029   0.363  0.467     0.320 ±0.027   0.200  0.317     0.327 ±0.027   0.233  0.323
+garch      80    93       0.946 ±0.023   0.914  0.935     0.806 ±0.041   0.688  0.806     0.882 ±0.033   0.828  0.882

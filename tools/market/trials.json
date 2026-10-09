@@ -17,6 +17,14 @@
       "what": "the two pre-registered cross-section specifications, tsmom and xsmom; crosstest.py has no ledger.record call, so they exist only here and in the saved run",
       "status": "measured",
       "source": "runs/crosstest-2026-09-11.txt:23 and :46 (after 39 trials), :140 (\"trials_counted\": 39); EVIDENCE.md:1299-1300"
+    },
+    {
+      "as_of": "2026-10-09",
+      "count": 1,
+      "in_ledger": false,
+      "what": "the pre-registered month-end overlay S1: SPY 2x from the close of T-4 to the close of T+3, 1x otherwise, judged against constant leverage at its mean exposure; edgelab.py writes nothing to the ledger, so it exists only here and in the saved run",
+      "status": "registered before the run, in the same commit as PREREG-2026-10-09-month-end.md; counted whether or not it is run, and whatever its verdict",
+      "source": "PREREG-2026-10-09-month-end.md: registered there (Trial accounting) before the run; the one run's output will be runs/edgelab-2026-10-09-month-end.txt"
     }
   ],
   "open_questions_for_the_owner": [

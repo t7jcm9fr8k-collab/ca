@@ -1,0 +1,13 @@
+r3 checks of PREREG-draft.md, 2026-10-09T06:05:32Z
+52a006deec221ab41c869bd25b279203d3f8d9dedad0bb99ea481164a2cd45a0  SPY-1d.csv
+4433bdbc019328196c84e610fe5f834aa72097de70a9d3bc2d499a6dfeae790e  QQQ-1d-long.csv
+S1 scored sessions 5387: #1 2005-03-28, #2694 2015-12-07, #5387 2026-08-25
+add-back 2025-06-20: close(t-1) is the 2025-06-18 bar; stooq O,C = official to the cent on both: True
+add-back 2025-09-19: close(t-1) is the 2025-09-18 bar; stooq O,C = official to the cent on both: True
+add-back 2025-12-19: close(t-1) is the 2025-12-18 bar; stooq O,C = official to the cent on both: True
+add-back 2026-03-20: close(t-1) is the 2026-03-19 bar; stooq O,C = official to the cent on both: True
+add-back 2026-06-18: close(t-1) is the 2026-06-17 bar; stooq O,C = official to the cent on both: True
+2025-03-21 inclusion: 2025-03-20 stooq/official close 0.997001 open 0.997002
+2025-03-21 inclusion: 2025-03-21 stooq/official close 1.000000 open 1.000000
+QQQ 2016-10-11..2025-03-24: official 35, stooq-adjusted 34, not adjusted ['2023-12-27']
+QQQ stooq/official close ratio 2023-12-26..28: 2023-12-26 0.992613, 2023-12-27 0.992612, 2023-12-28 0.992614

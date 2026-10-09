@@ -1,0 +1,53 @@
+sso_witness — x_t = r_SSO - 2 r_SPY on nasdaq.com official closes
+dates 2016-10-10..2026-10-08; 2512 daily values
+x_t, bp: median -1.52; middle 90% -10.57..+7.93
+
+Validation on the 34 SPY ex-dates located in round 1 (stooq step vs x_t/2):
+   2016-12-16  stooq step  58.69 bp   x/2  63.24 bp   diff  +4.55   rank of x_t among all days 4
+   2017-03-17  stooq step  42.67 bp   x/2  41.65 bp   diff  -1.02   rank of x_t among all days 19
+   2017-06-16  stooq step  48.87 bp   x/2  46.93 bp   diff  -1.94   rank of x_t among all days 12
+   2017-09-15  stooq step  49.19 bp   x/2  50.75 bp   diff  +1.56   rank of x_t among all days 7
+   2017-12-15  stooq step  52.04 bp   x/2  51.20 bp   diff  -0.83   rank of x_t among all days 6
+   2018-03-16  stooq step  40.89 bp   x/2  38.27 bp   diff  -2.62   rank of x_t among all days 22
+   2018-06-15  stooq step  45.02 bp   x/2  43.71 bp   diff  -1.31   rank of x_t among all days 14
+   2018-09-21  stooq step  45.22 bp   x/2  47.96 bp   diff  +2.74   rank of x_t among all days 10
+   2018-12-21  stooq step  58.46 bp   x/2  50.00 bp   diff  -8.46   rank of x_t among all days 9
+   2019-03-15  stooq step  44.12 bp   x/2  42.92 bp   diff  -1.20   rank of x_t among all days 16
+   2019-06-21  stooq step  48.26 bp   x/2  50.32 bp   diff  +2.06   rank of x_t among all days 8
+   2019-09-20  stooq step  46.56 bp   x/2  41.54 bp   diff  -5.02   rank of x_t among all days 20
+   2019-12-20  stooq step  48.79 bp   x/2  56.00 bp   diff  +7.21   rank of x_t among all days 5
+   2020-03-20  stooq step  58.27 bp   x/2  33.40 bp   diff -24.87   rank of x_t among all days 29
+   2020-06-19  stooq step  44.03 bp   x/2  41.96 bp   diff  -2.07   rank of x_t among all days 17
+   2020-09-18  stooq step  40.08 bp   x/2  36.87 bp   diff  -3.21   rank of x_t among all days 24
+   2020-12-18  stooq step  42.78 bp   x/2  47.19 bp   diff  +4.40   rank of x_t among all days 11
+   2021-03-19  stooq step  32.84 bp   x/2  31.45 bp   diff  -1.39   rank of x_t among all days 31
+   2021-06-18  stooq step  32.85 bp   x/2  33.52 bp   diff  +0.67   rank of x_t among all days 28
+   2021-09-17  stooq step  32.09 bp   x/2  34.05 bp   diff  +1.96   rank of x_t among all days 27
+   2021-12-17  stooq step  35.16 bp   x/2  34.36 bp   diff  -0.79   rank of x_t among all days 26
+   2022-03-18  stooq step  31.15 bp   x/2  28.54 bp   diff  -2.61   rank of x_t among all days 34
+   2022-06-17  stooq step  43.24 bp   x/2  29.82 bp   diff -13.42   rank of x_t among all days 33
+   2022-09-16  stooq step  41.21 bp   x/2  41.68 bp   diff  +0.47   rank of x_t among all days 18
+   2022-12-16  stooq step  45.95 bp   x/2  43.93 bp   diff  -2.02   rank of x_t among all days 13
+   2023-03-17  stooq step  38.14 bp   x/2  43.34 bp   diff  +5.21   rank of x_t among all days 15
+   2023-06-16  stooq step  37.13 bp   x/2  34.56 bp   diff  -2.57   rank of x_t among all days 25
+   2023-09-15  stooq step  35.27 bp   x/2  33.32 bp   diff  -1.95   rank of x_t among all days 30
+   2023-12-15  stooq step  40.54 bp   x/2  37.24 bp   diff  -3.30   rank of x_t among all days 23
+   2024-03-15  stooq step  31.06 bp   x/2  30.14 bp   diff  -0.92   rank of x_t among all days 32
+   2024-06-21  stooq step  32.26 bp   x/2  23.90 bp   diff  -8.36   rank of x_t among all days 41
+   2024-09-20  stooq step  30.67 bp   x/2  25.35 bp   diff  -5.32   rank of x_t among all days 39
+   2024-12-20  stooq step  33.66 bp   x/2  27.44 bp   diff  -6.22   rank of x_t among all days 36
+   2025-03-21  stooq step  30.08 bp   x/2  25.52 bp   diff  -4.56   rank of x_t among all days 37
+   diff x/2 - step: median -1.66 bp, worst |diff| 24.87 bp; ranks of known ex-dates among all 2512 days: max 41
+   non-ex-dates (<= 2025-03-21) with x_t >= the smallest known ex-date x_t (47.8 bp): 3 ['2020-03-13', '2020-03-17', '2020-03-24']
+
+After the stooq cutoff (2025-03-22 .. last date): the 10 largest x_t, with implied D = x_t/2 * close_SPY(t-1)
+   2025-04-10  x_t +175.93 bp  x/2  87.96 bp  SPY close(t-1) 548.62  implied D $4.8258
+   2025-12-19  x_t  +55.70 bp  x/2  27.85 bp  SPY close(t-1) 676.47  implied D $1.8838
+   2025-06-20  x_t  +50.97 bp  x/2  25.49 bp  SPY close(t-1) 597.44  implied D $1.5226
+   2026-03-20  x_t  +48.38 bp  x/2  24.19 bp  SPY close(t-1) 659.80  implied D $1.5961
+   2026-06-26  x_t  +47.78 bp  x/2  23.89 bp  SPY close(t-1) 734.30  implied D $1.7542
+   2025-09-19  x_t  +45.98 bp  x/2  22.99 bp  SPY close(t-1) 662.26  implied D $1.5224
+   2026-09-18  x_t  +38.30 bp  x/2  19.15 bp  SPY close(t-1) 762.60  implied D $1.4603
+   2026-06-18  x_t  +33.89 bp  x/2  16.94 bp  SPY close(t-1) 740.96  implied D $1.2555
+   2025-04-03  x_t  +32.33 bp  x/2  16.17 bp  SPY close(t-1) 564.52  implied D $0.9126
+   2026-07-29  x_t   +9.18 bp  x/2   4.59 bp  SPY close(t-1) 740.86  implied D $0.3399
