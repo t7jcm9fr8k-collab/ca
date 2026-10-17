@@ -148,8 +148,8 @@ const DESK = /*DESK*/null;
   <div class="summary">
     <div><span class="label">Waiting on you</span><span class="big num">${A.length}</span><span class="muted">steps only you can take</span></div>
     <div><span class="label">Trials counted</span><span class="big num">${esc(trials.total ?? "—")}</span><span class="muted">deflation denominator</span></div>
-    <div><span class="label">Pre-registered tests</span><span class="big num">${tests.length}</span><span class="muted">none cleared to trade</span></div>
-    <div><span class="label">Designs</span><span class="big num">${designs.length}</span><span class="muted">${blocked} blocked on source plates</span></div>
+    <div><span class="label">Pre-registered tests</span><span class="big num">${tests.length}</span><span class="muted">${["bad","warn","good"].map(c => [c, tests.filter(t => verdictClass(t.verdict) === c).length]).filter(x => x[1]).map(([c, n]) => n + " " + ({bad: "null / do not trade", warn: "partial", good: "replicated"})[c]).join(" · ") || "no verdicts read"}</span></div>
+    <div><span class="label">Designs</span><span class="big num">${designs.length}</span><span class="muted">${designs.filter(d => d.stage === "listed").length} listed · ${designs.filter(d => d.stage === "sources-present").length} ready to compose · ${blocked} blocked</span></div>
   </div>`;
 
   // ---- actions
