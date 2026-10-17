@@ -1,0 +1,380 @@
+{
+  "generated_from": [
+    "tools/etsy/START-HERE.md",
+    "tools/etsy/SOURCING.md",
+    "tools/etsy/WEEKEND.md",
+    "tools/etsy/README.md",
+    "tools/market/README.md",
+    "tools/market/DATA.md",
+    "tools/market/EVIDENCE.md",
+    "tools/market/trials.json",
+    "tools/QUEUE-RUNNER.md"
+  ],
+  "actions": [
+    {
+      "id": "queue-runner-network",
+      "area": "repo",
+      "kind": "click",
+      "title": "Widen cloud network access, then start a fresh session for QUEUE-RUNNER",
+      "why": "QUEUE-RUNNER.md needs a session started after the environment's network access was widened, and DATA.md section 9 shows FRED and Treasury still refused from cloud on 2026-10-09. If it works, Step A can fetch the archive plates instead of the download actions, and Steps B and C are already done.",
+      "commands": [],
+      "unblocks": "QUEUE-RUNNER Step A (archive plates) for the Etsy designs",
+      "source": "tools/QUEUE-RUNNER.md:6",
+      "effort": "quick",
+      "care": "routine"
+    },
+    {
+      "id": "autopilot-dry-run",
+      "area": "market",
+      "kind": "run-on-mac",
+      "title": "Dry-run the paper autopilot on the Mac",
+      "why": "The README gives the dry run as the first step before the paper loop. Scheduling it on cron or launchd is a separate, optional choice that the README leaves to the owner.",
+      "commands": [
+        "python3 autopilot.py --dry-run"
+      ],
+      "unblocks": "Confidence in the paper loop before any scheduling",
+      "source": "tools/market/README.md:281",
+      "effort": "quick",
+      "care": "routine"
+    },
+    {
+      "id": "regenerate-posting-calendar",
+      "area": "etsy",
+      "kind": "run-on-mac",
+      "title": "Regenerate the posting calendar after the Etsy listings are live",
+      "why": "This fills in the listing links. Its window starts Sept 8, which is already past, so set current dates before using it; it supersedes START-HERE.md's 09-01 to 09-14 command.",
+      "commands": [
+        "python3 schedule.py --start 2026-09-08 --end 2026-11-18 --ics"
+      ],
+      "unblocks": "Paste-ready posting slots with live Etsy links",
+      "source": "tools/etsy/WEEKEND.md:117",
+      "effort": "quick",
+      "care": "routine"
+    },
+    {
+      "id": "run-rival-count-mac",
+      "area": "etsy",
+      "kind": "run-on-mac",
+      "title": "Run the competitor count (rival.py) on the Mac",
+      "why": "rival.py needs network access to etsy.com, which cloud sessions cannot reach, and the README lists it as a Mac-only step.",
+      "commands": [
+        "python3 rival.py --catalogue catalogue.json"
+      ],
+      "unblocks": "Competitor counts per phrase for the rival-watch history",
+      "source": "tools/etsy/README.md:46",
+      "effort": "quick",
+      "care": "routine"
+    },
+    {
+      "id": "printify-gildan-blank-pngs",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Export white and black Gildan 5000 blank PNGs from Printify",
+      "why": "Mockups currently use a generated tee, and real blanks make them convincing. WEEKEND.md says to commit the two PNGs with the plates.",
+      "commands": [],
+      "unblocks": "Realistic garment mockups for Marigold Calavera and Orchid Skull",
+      "source": "tools/etsy/WEEKEND.md:37",
+      "effort": "quick",
+      "care": "routine"
+    },
+    {
+      "id": "decide-navy-and-sport-grey",
+      "area": "etsy",
+      "kind": "decision",
+      "title": "Decide whether to stock Navy or Sport Grey beyond white and black",
+      "why": "This week's listings are white and black only, because Sport Grey reads 1.41:1 and will not print. Navy reads 3.57:1 and is measured but not enforced until the owner decides whether to stock it.",
+      "commands": [],
+      "unblocks": "Whether the Printify products include Navy or Sport Grey",
+      "source": "tools/etsy/WEEKEND.md:62",
+      "effort": "quick",
+      "care": "check"
+    },
+    {
+      "id": "printify-print-area",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Read the Gildan 5000 front print area in pixels from Printify",
+      "why": "render_shirt.py:54 gives 4500x5400 as an unverified common tee size, and mockup.py:47 assumes 15x18 in. If the blueprint differs, every print file is silently the wrong size, which corrupts print output and money.",
+      "commands": [],
+      "unblocks": "Correct size for every print file and the mockup scale",
+      "source": "tools/etsy/WEEKEND.md:36",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "decide-autopilot-strategy",
+      "area": "market",
+      "kind": "decision",
+      "title": "Choose the autopilot strategy and sizing form",
+      "why": "The README says an account measured in dollars runs trend_or_dip:200,14,30,5 with --qty, while one measured in worst-month runs the vol_target form with --notional, and both start on paper. The choice decides what the loop trades through the gate, so a wrong pick moves money once it goes live.",
+      "commands": [],
+      "unblocks": "Which strategy the autopilot trades",
+      "source": "tools/market/README.md:288",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "decide-nulltest-trial-budget",
+      "area": "market",
+      "kind": "decision",
+      "title": "Decide whether nulltest runs spend trial budget",
+      "why": "nulltest.py records its runs as kind 'nulltest' and nothing counts that kind, so the nine-symbol sweeps cost nothing today. A wrong count overstates the deflated Sharpe, which is provenance for a published verdict.",
+      "commands": [],
+      "unblocks": "The trial count that every deflated Sharpe is computed against",
+      "source": "tools/market/trials.json:31",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "decide-trial-count-scope",
+      "area": "market",
+      "kind": "decision",
+      "title": "Decide whether the trial count is global or per symbol",
+      "why": "crosstest.py counts every backtest, while combine.py --count-ledger counts one symbol's (combine.py:146), so they disagree even with the ledger present. The choice sets the number every deflated Sharpe is computed against.",
+      "commands": [],
+      "unblocks": "One consistent trial count across crosstest and combine",
+      "source": "tools/market/trials.json:32",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "decide-no-record-trials",
+      "area": "market",
+      "kind": "decision",
+      "title": "Decide whether --no-record runs count as trials",
+      "why": "Trial 3 and the E-15 replications ran with --no-record and sit in neither the ledger nor trials.json, so they are uncounted. Leaving them out makes any deflated Sharpe that depends on them optimistic.",
+      "commands": [],
+      "unblocks": "A complete trial count for the deflated Sharpe",
+      "source": "tools/market/trials.json:33",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "patch-spy-minute-hole",
+      "area": "market",
+      "kind": "run-on-mac",
+      "title": "Patch the 2025-03-10 SPY minute-feed hole, if barqc still names it",
+      "why": "The README says a missing day can be refetched and merged, with new bars winning on collision, and DATA.md section 1 still lists 2 missing sessions in SPY-1d-agg.csv, so the hole may be unpatched. Merging overwrites colliding bars in the file the backtests read, so run it only when barqc still names the hole.",
+      "commands": [
+        "python3 fetch.py --source alpaca --symbol SPY --timeframe 1m --start 2025-03-10 --end 2025-03-11 --merge-into bars/SPY-1m.csv",
+        "python3 aggregate.py --csv bars/SPY-1m.csv --symbol SPY --source alpaca --adjusted yes"
+      ],
+      "unblocks": "A complete SPY daily aggregate for the 2020-26 backtests",
+      "source": "tools/market/README.md:63",
+      "effort": "quick",
+      "care": "strict"
+    },
+    {
+      "id": "fix-stale-13-55-cost",
+      "area": "etsy",
+      "kind": "run-on-mac",
+      "title": "Replace the stale $13.55 cost with $9.79 in the five files that repeat it",
+      "why": "The figure is refuted and sits in an active prompt template; the owner's tree differs from the cloud branch, so the edit is made locally in one sitting. Use $9.79 production and $11.81 break-even as WEEKEND.md states, and check each of the five files after editing.",
+      "commands": [],
+      "unblocks": "Consistent cost and break-even figures in prompts and contracts",
+      "source": "tools/etsy/WEEKEND.md:94",
+      "effort": "medium",
+      "care": "check"
+    },
+    {
+      "id": "post-pinterest-tiktok-slots",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Post the scheduled Pinterest and TikTok items yourself at their slots",
+      "why": "No agent posts; the owner presses each Publish. The slots run Sept 8 to 12 and are past, so regenerate the calendar first and confirm each link resolves to a live listing before posting.",
+      "commands": [],
+      "unblocks": "Early posts that link to the live Etsy listings",
+      "source": "tools/etsy/WEEKEND.md:123",
+      "effort": "medium",
+      "care": "check"
+    },
+    {
+      "id": "download-weekend-five-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the five weekend plates under their slot names",
+      "why": "The cloud cannot reach any archive and compose.py refuses to render without these files. WEEKEND.md's five slots supersede START-HERE's 'about 5' and SOURCING's roughly 20; the Sept 5 to 7 plan is past with no completion recorded. Read each licence on the file's own page and fill that layer's provenance, because a wrong licence reaches a printed shirt.",
+      "commands": [],
+      "unblocks": "compose.py renders for marigold-calavera and orchid-skull",
+      "source": "tools/etsy/WEEKEND.md:24",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-overgrown-prison-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the Overgrown Prison plates: Piranesi, ivy and fern",
+      "why": "SOURCING.md lists three plates for this composition, which is not on the weekend list. Each licence must be read on its own file page, since a wrong licence corrupts provenance.",
+      "commands": [],
+      "unblocks": "The overgrown-prison recipe",
+      "source": "tools/etsy/SOURCING.md:84",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-moonlit-ghost-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the Moonlit Ghost plates: Cellarius chart and Yoshitoshi figure",
+      "why": "The Yoshitoshi figure needs a museum open-access copy, because later-block reprints often carry modern rights. The Cellarius chart comes from NYPL or Commons under its own licence, so read the object page, not the thumbnail.",
+      "commands": [],
+      "unblocks": "The moonlit-ghost recipe",
+      "source": "tools/etsy/SOURCING.md:95",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-metamorphosis-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the Metamorphosis plates: Merian plant and moth",
+      "why": "Both plates come from the Merian book on BHL, and the already-present pick-3.png may serve if traced properly. Read each licence on its page, since a wrong one corrupts provenance.",
+      "commands": [],
+      "unblocks": "The metamorphosis recipe",
+      "source": "tools/etsy/SOURCING.md:115",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-dore-descent-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the Doré's Descent plates, Doré figure from a museum copy",
+      "why": "Circulating Doré scans often carry modern reproduction claims, so the figure must come from a museum open-access copy; the bramble plate comes from BHL. A wrong licence corrupts provenance and the recipe refuses it.",
+      "commands": [],
+      "unblocks": "The dore-descent recipe",
+      "source": "tools/etsy/SOURCING.md:125",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-fungi-codex-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download four fungi plates with distinct silhouettes, including one moth",
+      "why": "Three lookalike caps read as a repeat, so pick species with different silhouettes from the Bulliard and Millot or Merian plates. Each licence must be read on its page, since a wrong one corrupts provenance.",
+      "commands": [],
+      "unblocks": "The fungi-codex recipe",
+      "source": "tools/etsy/SOURCING.md:134",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "download-kraken-chart-plates",
+      "area": "etsy",
+      "kind": "download",
+      "title": "Download the Kraken Chart plates: a sea chart and the 1801 colossal octopus",
+      "why": "The chart needs even linework and no heavy cartouche, and the octopus comes from a Commons file with its own licence. A wrong licence corrupts provenance, so read each file page.",
+      "commands": [],
+      "unblocks": "The kraken-chart recipe",
+      "source": "tools/etsy/SOURCING.md:146",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "list-marigold-calavera",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Create the Marigold Calavera listing at $23.99 and publish it",
+      "why": "WEEKEND.md gives the title, tags and price to paste verbatim across two white and black Printify products; the Monday Sept 7 publish date has passed and the repo does not record it as done. A wrong price or untrue copy goes live under the owner's shop, so check copy and price before publishing, then set listing_id and status in catalogue.json.",
+      "commands": [
+        "python3 listing.py --catalogue catalogue.json --id marigold-calavera"
+      ],
+      "unblocks": "The first live listing and its links in the posting calendar",
+      "source": "tools/etsy/WEEKEND.md:64",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "list-orchid-skull",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Create the Orchid Skull listing at $23.99, held until Sept 9",
+      "why": "WEEKEND.md holds this listing until Wed Sept 9 so each new listing's visibility boost is spent one at a time; that date has passed and the repo does not record it as done. A wrong price or untrue copy goes live under the owner's shop, so check copy and price before publishing.",
+      "commands": [
+        "python3 listing.py --catalogue catalogue.json --id orchid-skull"
+      ],
+      "unblocks": "The second live listing and its links in the posting calendar",
+      "source": "tools/etsy/WEEKEND.md:79",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "run-marigold-loop",
+      "area": "etsy",
+      "kind": "run-on-mac",
+      "title": "Run the Marigold Calavera build and QC loop from tools/etsy",
+      "why": "Look at every render before the next step, because both real defects in this pipeline were visible only on screen. The v2 --change must say what changed (replace the placeholder text), and the history ledger records v1, the inspection and v2, so a skipped look or a faked change corrupts that record.",
+      "commands": [
+        "git pull",
+        "python3 compose.py --recipe recipes/marigold-calavera.json --draft --report",
+        "python3 compose.py --recipe recipes/marigold-calavera.json",
+        "python3 qc.py --file out/marigold-calavera-onlight.png --recipe recipes/marigold-calavera.json",
+        "python3 mockup.py --design marigold-calavera --version 1 --print out/marigold-calavera-onlight.png",
+        "python3 qc.py --design marigold-calavera --version 1",
+        "python3 mockup.py --design marigold-calavera --version 2 --print out/marigold-calavera-onlight.png --change \"what you changed and why\"",
+        "python3 history.py --report"
+      ],
+      "unblocks": "Marigold Calavera print files and mockups ready for listing",
+      "source": "tools/etsy/WEEKEND.md:47",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "run-orchid-loop",
+      "area": "etsy",
+      "kind": "run-on-mac",
+      "title": "Run the Orchid Skull build and QC loop the same way",
+      "why": "WEEKEND.md says 'the same for orchid-skull' without listing commands, so none are quoted here. If v1 passes clean, v2's --change can read 'no change, v1 passed, v2 is the listing file'; skipping the look or faking the change corrupts the history ledger.",
+      "commands": [],
+      "unblocks": "Orchid Skull print files and mockups ready for listing",
+      "source": "tools/etsy/WEEKEND.md:57",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "record-21-year-backtests",
+      "area": "market",
+      "kind": "run-on-mac",
+      "title": "Record the 21-year SPY backtests in the Mac's ledger",
+      "why": "These runs were done in the cloud and exist only in EVIDENCE.md, and the gitignored ledger on the Mac is the only other place to record them. They feed the trial count that deflated Sharpe uses, so the trial-count questions in trials.json should be settled first.",
+      "commands": [
+        "python3 run.py --mode backtest --strategy trend_filter:200 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cash-yield 0.03",
+        "python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 1",
+        "python3 combine.py --csv bars/SPY-1d-agg.csv --symbol SPY --source alpaca-1m-aggregated --adjusted yes --signals sma_cross:10,30 breakout:20 trend_filter:200 vwap_reclaim:20 --holdout-from 2024-01-01 --cost-bps 5 --count-ledger",
+        "python3 nulltest.py --csv bars/SPY-1d.csv --symbol SPY --source stooq --horizon 5 --events rsi_oversold",
+        "python3 run.py --mode backtest --strategy rsi_dip:14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03",
+        "python3 run.py --mode backtest --strategy trend_or_dip:200,14,30,5 --csv bars/SPY-1d.csv --symbol SPY --source stooq --cost-bps 5 --cash-yield 0.03"
+      ],
+      "unblocks": "A local ledger record of the cloud-run backtests",
+      "source": "tools/etsy/WEEKEND.md:156",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "push-track-a-branch",
+      "area": "repo",
+      "kind": "run-on-mac",
+      "title": "Push Track A's Swift files, imageset and mockups to a cloud-reachable branch",
+      "why": "This happens only after WEEKEND.md steps 1 to 5, and the cloud then does the extraction, scrub and demo app. Personal identifiers must be absent from anything pushed, and the owner verifies the scrub by grep on Sept 12, so a leak would reach the repo.",
+      "commands": [],
+      "unblocks": "The cloud-side Track A extraction and demo app",
+      "source": "tools/etsy/WEEKEND.md:98",
+      "effort": "medium",
+      "care": "strict"
+    },
+    {
+      "id": "lemon-squeezy-signup",
+      "area": "etsy",
+      "kind": "click",
+      "title": "Start the optional Lemon Squeezy merchant signup",
+      "why": "Payout verification is private and takes days, and WEEKEND.md says it loses nothing if it waits. Payout details must be entered exactly, since they decide where sale money is paid.",
+      "commands": [],
+      "unblocks": "Payouts for Etsy sales once the signup completes",
+      "source": "tools/etsy/WEEKEND.md:105",
+      "effort": "involved",
+      "care": "strict"
+    }
+  ]
+}
