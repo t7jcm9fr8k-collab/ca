@@ -42,16 +42,31 @@ def check_actions(root, actions):
     invented command shows up as a warning instead of a copy button."""
     warnings = []
     for a in actions:
-        path = str(a.get("source", "")).split(":")[0]
+        path, _, line = str(a.get("source", "")).partition(":")
         try:
             text = (root / path).read_text()
         except (OSError, ValueError):
             warnings.append(f"{a.get('id')}: cited source {path!r} is unreadable")
             continue
+        lines = text.splitlines()
+        near = None
+        if line.isdigit():  # the commands must sit near the cited line, not just anywhere;
+            n = int(line)   # a block of k commands may run k lines on from where it starts
+            k = len(a.get("commands", []))
+            near = "\n".join(lines[max(n - 1 - CITE_WINDOW, 0):n + CITE_WINDOW + k])
         for cmd in a.get("commands", []):
-            if cmd.strip() and cmd.strip() not in text:
-                warnings.append(f"{a.get('id')}: command not found verbatim in {path}: {cmd.strip()[:80]}")
+            cmd = cmd.strip()
+            if not cmd:
+                continue
+            if cmd not in text:
+                warnings.append(f"{a.get('id')}: command not found verbatim in {path}: {cmd[:80]}")
+            elif near is not None and cmd not in near:
+                warnings.append(f"{a.get('id')}: command is in {path} but not within "
+                                f"{CITE_WINDOW} lines of :{line}: {cmd[:80]}")
     return warnings
+
+
+CITE_WINDOW = 5
 
 
 def collect(root=ROOT):

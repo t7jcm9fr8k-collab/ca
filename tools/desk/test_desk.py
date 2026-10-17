@@ -28,6 +28,13 @@ class CheckActions(unittest.TestCase):
         acts = [{"id": "a", "source": "doc.md:2", "commands": ["python3 tool.py --force"]}]
         self.assertEqual(len(desk.check_actions(self.root, acts)), 1)
 
+    def test_command_far_from_cited_line_is_flagged(self):
+        (self.root / "long.md").write_text("heading\n" + "filler\n" * 20 + "python3 tool.py --go\n")
+        acts = [{"id": "a", "source": "long.md:1", "commands": ["python3 tool.py --go"]}]
+        self.assertIn("not within", desk.check_actions(self.root, acts)[0])
+        acts[0]["source"] = "long.md:22"
+        self.assertEqual(desk.check_actions(self.root, acts), [])
+
     def test_missing_source_is_flagged(self):
         acts = [{"id": "a", "source": "nope.md:1", "commands": []}]
         self.assertIn("unreadable", desk.check_actions(self.root, acts)[0])

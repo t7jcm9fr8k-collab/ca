@@ -198,7 +198,7 @@
     "python3 listing.py --catalogue catalogue.json --id marigold-calavera"
    ],
    "unblocks": "The first live listing and its links in the posting calendar",
-   "source": "tools/etsy/WEEKEND.md:64",
+   "source": "tools/etsy/WEEKEND.md:77",
    "effort": "medium",
    "care": "strict"
   },
@@ -212,7 +212,7 @@
     "python3 listing.py --catalogue catalogue.json --id orchid-skull"
    ],
    "unblocks": "The second live listing and its links in the posting calendar",
-   "source": "tools/etsy/WEEKEND.md:79",
+   "source": "tools/etsy/WEEKEND.md:87",
    "effort": "medium",
    "care": "strict"
   },
